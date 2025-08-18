@@ -1,0 +1,2 @@
+-- Seed data will be added later
+-- This file is temporarily empty to avoid migration errors

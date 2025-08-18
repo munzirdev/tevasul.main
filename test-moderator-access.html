@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moderator Access Test</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        .warning { background-color: #fff3cd; color: #856404; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background-color: #0056b3; }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Moderator Access Test</h1>
+        
+        <div class="test-section">
+            <h3>Authentication Status</h3>
+            <div id="authStatus" class="status info">Checking authentication...</div>
+            <button onclick="checkAuth()">Check Auth</button>
+            <button onclick="signOut()">Sign Out</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Moderator Detection</h3>
+            <div id="moderatorStatus" class="status info">Checking moderator status...</div>
+            <button onclick="checkModeratorStatus()">Check Moderator Status</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Dashboard Access Test</h3>
+            <div id="dashboardStatus" class="status info">Testing dashboard access...</div>
+            <button onclick="testDashboardAccess()">Test Dashboard Access</button>
+        </div>
+
+        <div class="test-section">
+            <h3>Debug Information</h3>
+            <div id="debugInfo" class="status info">Click debug to see detailed information</div>
+            <button onclick="showDebugInfo()">Show Debug Info</button>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Supabase
+        const supabaseUrl = 'https://fctvityawavmuethxxix.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjdHZpdHlhd2F2bXVldGh4eGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzA5ODAsImV4cCI6MjA3MDY0Njk4MH0.d6T4MrGgV3vKZjcQ02vjf8_oDeRu9SJQXNgA0LJHlq0';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Check authentication status
+        async function checkAuth() {
+            const statusDiv = document.getElementById('authStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Checking authentication...';
+
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = `Authentication error: ${error.message}`;
+                    return;
+                }
+
+                if (user) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `
+                        <strong>✅ Authenticated</strong><br>
+                        Email: ${user.email}<br>
+                        ID: ${user.id}<br>
+                        Confirmed: ${user.email_confirmed_at ? 'Yes' : 'No'}
+                    `;
+                } else {
+                    statusDiv.className = 'status warning';
+                    statusDiv.textContent = '❌ Not authenticated';
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Check moderator status
+        async function checkModeratorStatus() {
+            const statusDiv = document.getElementById('moderatorStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Checking moderator status...';
+
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error || !user) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'User not authenticated';
+                    return;
+                }
+
+                // Check profile
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                const email = user.email?.toLowerCase() || '';
+                const isModeratorByEmail = email.includes('moderator');
+                const isModeratorByMetadata = user.user_metadata?.role === 'moderator' || 
+                                           user.app_metadata?.role === 'moderator';
+                const isModeratorByProfile = profile?.role === 'moderator';
+
+                let status = '';
+                if (isModeratorByProfile) {
+                    status += '✅ Profile role: moderator<br>';
+                } else if (profileError) {
+                    status += '❌ Profile error: ' + profileError.message + '<br>';
+                } else {
+                    status += `❌ Profile role: ${profile?.role || 'none'}<br>`;
+                }
+
+                if (isModeratorByEmail) {
+                    status += '✅ Email contains "moderator"<br>';
+                } else {
+                    status += '❌ Email does not contain "moderator"<br>';
+                }
+
+                if (isModeratorByMetadata) {
+                    status += '✅ Metadata contains moderator role<br>';
+                } else {
+                    status += '❌ Metadata does not contain moderator role<br>';
+                }
+
+                const isModerator = isModeratorByEmail || isModeratorByMetadata || isModeratorByProfile;
+                
+                if (isModerator) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `<strong>✅ Recognized as Moderator</strong><br>${status}`;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = `<strong>❌ Not Recognized as Moderator</strong><br>${status}`;
+                }
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Test dashboard access
+        async function testDashboardAccess() {
+            const statusDiv = document.getElementById('dashboardStatus');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Testing dashboard access...';
+
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error || !user) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'User not authenticated';
+                    return;
+                }
+
+                // Check profile
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                const userRole = profile?.role || 'user';
+                const isAdmin = userRole === 'admin';
+                const isModerator = userRole === 'moderator';
+
+                if (isAdmin || isModerator) {
+                    statusDiv.className = 'status success';
+                    statusDiv.innerHTML = `
+                        <strong>✅ Dashboard Access Granted</strong><br>
+                        Role: ${userRole}<br>
+                        Can access admin dashboard: Yes
+                    `;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.innerHTML = `
+                        <strong>❌ Dashboard Access Denied</strong><br>
+                        Role: ${userRole}<br>
+                        Can access admin dashboard: No
+                    `;
+                }
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Show debug information
+        async function showDebugInfo() {
+            const statusDiv = document.getElementById('debugInfo');
+            statusDiv.className = 'status info';
+            statusDiv.textContent = 'Gathering debug information...';
+
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                
+                if (error || !user) {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = 'User not authenticated';
+                    return;
+                }
+
+                // Check profile
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                const debugInfo = {
+                    user: {
+                        id: user.id,
+                        email: user.email,
+                        email_confirmed_at: user.email_confirmed_at,
+                        user_metadata: user.user_metadata,
+                        app_metadata: user.app_metadata
+                    },
+                    profile: profile || null,
+                    profileError: profileError || null,
+                    moderatorDetection: {
+                        emailContainsModerator: user.email?.toLowerCase().includes('moderator') || false,
+                        userMetadataRole: user.user_metadata?.role,
+                        appMetadataRole: user.app_metadata?.role,
+                        profileRole: profile?.role
+                    }
+                };
+
+                statusDiv.className = 'status info';
+                statusDiv.innerHTML = `
+                    <strong>Debug Information:</strong><br>
+                    <pre>${JSON.stringify(debugInfo, null, 2)}</pre>
+                `;
+
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Sign out
+        async function signOut() {
+            const { error } = await supabase.auth.signOut();
+            if (error) {
+                alert('Sign out error: ' + error.message);
+            } else {
+                alert('Signed out successfully');
+                checkAuth();
+            }
+        }
+
+        // Auto-check on page load
+        window.addEventListener('load', () => {
+            checkAuth();
+            checkModeratorStatus();
+            testDashboardAccess();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+/* Performance Optimizations CSS */
+
+/* CSS Custom Properties for Performance Control */
+:root {
+  --animation-duration: 0.3s;
+  --particle-count: 16;
+  --scroll-effects-enabled: 1;
+  --cursor-enabled: 1;
+  --visual-effects-intensity: medium;
+  --disable-animations: false;
+}
+
+/* Disable all animations when performance mode is enabled */
+[style*="--disable-animations: true"] *,
+[style*="--disable-animations: true"] *::before,
+[style*="--disable-animations: true"] *::after {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}
+
+/* Optimize animations based on intensity */
+[style*="--visual-effects-intensity: low"] .animate-float,
+[style*="--visual-effects-intensity: low"] .animate-float-slow,
+[style*="--visual-effects-intensity: low"] .animate-float-reverse,
+[style*="--visual-effects-intensity: low"] .animate-spin-slow,
+[style*="--visual-effects-intensity: low"] .animate-spin-slow-reverse,
+[style*="--visual-effects-intensity: low"] .animate-orbit,
+[style*="--visual-effects-intensity: low"] .animate-orbit-reverse {
+  animation: none !important;
+}
+
+/* Reduce particle count for low-end devices */
+[style*="--particle-count: 4"] .particle,
+[style*="--particle-count: 4"] .floating-element {
+  display: none !important;
+}
+
+[style*="--particle-count: 4"] .particle:nth-child(-n+4),
+[style*="--particle-count: 4"] .floating-element:nth-child(-n+4) {
+  display: block !important;
+}
+
+[style*="--particle-count: 8"] .particle:nth-child(n+9),
+[style*="--particle-count: 8"] .floating-element:nth-child(n+9) {
+  display: none !important;
+}
+
+/* Disable scroll effects when not enabled */
+[style*="--scroll-effects-enabled: 0"] .scroll-progress,
+[style*="--scroll-effects-enabled: 0"] .parallax-element,
+[style*="--scroll-effects-enabled: 0"] .scroll-effect {
+  display: none !important;
+}
+
+/* Disable custom cursor when not enabled */
+[style*="--cursor-enabled: 0"] .custom-cursor,
+[style*="--cursor-enabled: 0"] .cursor-element {
+  display: none !important;
+}
+
+[style*="--cursor-enabled: 0"] * {
+  cursor: auto !important;
+}
+
+/* Hardware acceleration optimizations */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform;
+}
+
+/* Optimize transitions */
+.optimized-transition {
+  transition-property: color, background-color, border-color, opacity;
+  transition-duration: var(--animation-duration);
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-reverse,
+  .animate-spin-slow,
+  .animate-spin-slow-reverse,
+  .animate-orbit,
+  .animate-orbit-reverse,
+  .animate-speed-line,
+  .animate-speed-line-delayed,
+  .animate-speed-line-delayed-2 {
+    animation: none !important;
+  }
+  
+  .glass-effect,
+  .glass-effect-dark {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  
+  .text-glow,
+  .text-glow-caribbean,
+  .text-glow-indigo {
+    text-shadow: none;
+  }
+}
+
+/* Low-end device optimizations */
+@media (max-width: 480px) {
+  .particle,
+  .floating-element,
+  .glass-icon-circle {
+    display: none !important;
+  }
+  
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-reverse,
+  .animate-spin-slow,
+  .animate-spin-slow-reverse,
+  .animate-orbit,
+  .animate-orbit-reverse,
+  .animate-speed-line,
+  .animate-speed-line-delayed,
+  .animate-speed-line-delayed-2,
+  .animate-pulse-slow,
+  .animate-bounce-slow,
+  .animate-sparkle,
+  .animate-wave,
+  .animate-glow,
+  .animate-shimmer {
+    animation: none !important;
+  }
+}
+
+/* Battery saver mode */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-reverse,
+  .animate-spin-slow,
+  .animate-spin-slow-reverse,
+  .animate-orbit,
+  .animate-orbit-reverse,
+  .animate-speed-line,
+  .animate-speed-line-delayed,
+  .animate-speed-line-delayed-2,
+  .animate-pulse-slow,
+  .animate-bounce-slow,
+  .animate-sparkle,
+  .animate-wave,
+  .animate-glow,
+  .animate-shimmer {
+    animation: none !important;
+  }
+}
+
+/* Optimize background elements */
+.background-optimized {
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+/* Reduce shadow complexity on low-end devices */
+@media (max-width: 768px) {
+  .shadow-3xl,
+  .shadow-4xl {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  }
+}
+
+/* Optimize glass effects */
+.glass-effect-optimized {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.glass-effect-dark-optimized {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Fallback for browsers without backdrop-filter support */
+@supports not (backdrop-filter: blur(8px)) {
+  .glass-effect,
+  .glass-effect-dark,
+  .glass-card,
+  .glass-card-dark {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  .glass-card-dark {
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Optimize scroll performance */
+.smooth-scroll {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Reduce layout thrashing */
+.layout-stable {
+  contain: layout style paint;
+}
+
+/* Optimize images */
+.image-optimized {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Reduce paint complexity */
+.paint-optimized {
+  will-change: auto;
+  transform: translateZ(0);
+}
+
+/* Optimize text rendering */
+.text-optimized {
+  text-rendering: optimizeSpeed;
+  font-smooth: never;
+  -webkit-font-smoothing: none;
+}
+
+/* High performance mode */
+.high-performance * {
+  animation-duration: 0.1s !important;
+  transition-duration: 0.1s !important;
+}
+
+/* Ultra performance mode */
+.ultra-performance * {
+  animation: none !important;
+  transition: none !important;
+  transform: none !important;
+}

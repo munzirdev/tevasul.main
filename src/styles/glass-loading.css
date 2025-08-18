@@ -1,0 +1,215 @@
+/* Glass Loading Screen Effects */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes glass-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.05);
+  }
+}
+
+@keyframes glass-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  33% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+  66% {
+    transform: translateY(5px) rotate(-1deg);
+  }
+}
+
+@keyframes glass-shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glass-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(60, 110, 113, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(60, 110, 113, 0.6);
+  }
+}
+
+.glass-loading-container {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.glass-loading-spinner {
+  animation: glass-float 3s ease-in-out infinite;
+}
+
+.glass-loading-glow {
+  animation: glass-glow 2s ease-in-out infinite;
+}
+
+.glass-loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: glass-shimmer 2s infinite;
+}
+
+.glass-loading-pulse {
+  animation: glass-pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced glass morphism effects */
+.glass-card-enhanced {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.glass-card-enhanced-dark {
+  background: rgba(15, 23, 42, 0.3);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Floating particles effect */
+.glass-particle {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(5px);
+  animation: glass-float 6s ease-in-out infinite;
+}
+
+.glass-particle:nth-child(1) {
+  width: 20px;
+  height: 20px;
+  top: 20%;
+  left: 10%;
+  animation-delay: 0s;
+}
+
+.glass-particle:nth-child(2) {
+  width: 15px;
+  height: 15px;
+  top: 60%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.glass-particle:nth-child(3) {
+  width: 25px;
+  height: 25px;
+  bottom: 30%;
+  left: 20%;
+  animation-delay: 4s;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .glass-loading-container {
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+  }
+  
+  .glass-card-enhanced,
+  .glass-card-enhanced-dark {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+}
+
+/* High performance mode */
+@media (prefers-reduced-motion: reduce) {
+  .glass-loading-spinner,
+  .glass-loading-glow,
+  .glass-loading-shimmer,
+  .glass-loading-pulse,
+  .glass-particle {
+    animation: none;
+  }
+}
+
+/* Prevent layout shift during loading */
+.glass-loading-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.01); /* Prevent background flash */
+}
+
+.glass-loading-screen * {
+  pointer-events: none;
+}
+
+/* Smooth transitions */
+.glass-loading-transition {
+  transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+}
+
+/* Optimize for performance */
+.glass-loading-optimized {
+  will-change: opacity, transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Skeleton loading specific styles */
+.skeleton-loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9998; /* Slightly lower than glass loading screen */
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.01); /* Prevent background flash */
+}
+
+.skeleton-loading * {
+  pointer-events: none;
+}
+
+/* Skeleton pulse animation */
+@keyframes skeleton-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}

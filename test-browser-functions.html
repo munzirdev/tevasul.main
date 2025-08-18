@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار الوظائف</title>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div style="padding: 20px; font-family: Arial, sans-serif;">
+        <h1>اختبار الوظائف</h1>
+        
+        <div style="margin: 20px 0;">
+            <h3>اختبار search-user-simple</h3>
+            <input type="email" id="searchEmail" placeholder="البريد الإلكتروني" style="padding: 10px; margin: 10px;">
+            <button onclick="testSearch()" style="padding: 10px; background: blue; color: white; border: none; border-radius: 5px;">اختبار البحث</button>
+            <div id="searchResult" style="margin: 10px; padding: 10px; border: 1px solid #ccc;"></div>
+        </div>
+
+        <div style="margin: 20px 0;">
+            <h3>اختبار create-moderator-simple</h3>
+            <input type="email" id="createEmail" placeholder="البريد الإلكتروني" style="padding: 10px; margin: 10px;"><br>
+            <input type="text" id="createName" placeholder="الاسم الكامل" style="padding: 10px; margin: 10px;"><br>
+            <input type="password" id="createPassword" placeholder="كلمة المرور" style="padding: 10px; margin: 10px;"><br>
+            <button onclick="testCreate()" style="padding: 10px; background: green; color: white; border: none; border-radius: 5px;">اختبار الإنشاء</button>
+            <div id="createResult" style="margin: 10px; padding: 10px; border: 1px solid #ccc;"></div>
+        </div>
+    </div>
+
+    <script>
+        const supabaseUrl = 'https://fctvityawavmuethxxix.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjdHZpdHlhd2F2bXVldGh4eGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzA5ODAsImV4cCI6MjA3MDY0Njk4MH0.d6T4MrGgV3vKZjcQ02vjf8_oDeRu9SJQXNgA0LJHlq0';
+
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+
+        async function testSearch() {
+            const email = document.getElementById('searchEmail').value;
+            const resultDiv = document.getElementById('searchResult');
+            
+            try {
+                console.log('🔍 اختبار البحث عن:', email);
+                
+                const { data, error } = await supabase.functions.invoke('search-user-simple', {
+                    body: { email }
+                });
+                
+                console.log('📊 نتيجة البحث:', { data, error });
+                
+                if (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">خطأ: ${error.message}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: green;">نجح: ${JSON.stringify(data, null, 2)}</p>`;
+                }
+            } catch (error) {
+                console.error('❌ خطأ:', error);
+                resultDiv.innerHTML = `<p style="color: red;">خطأ: ${error.message}</p>`;
+            }
+        }
+
+        async function testCreate() {
+            const email = document.getElementById('createEmail').value;
+            const name = document.getElementById('createName').value;
+            const password = document.getElementById('createPassword').value;
+            const resultDiv = document.getElementById('createResult');
+            
+            try {
+                console.log('🚀 اختبار الإنشاء:', { email, name });
+                
+                const { data, error } = await supabase.functions.invoke('create-moderator-simple', {
+                    body: { 
+                        email,
+                        full_name: name,
+                        password,
+                        createFullAccount: true
+                    }
+                });
+                
+                console.log('📊 نتيجة الإنشاء:', { data, error });
+                
+                if (error) {
+                    resultDiv.innerHTML = `<p style="color: red;">خطأ: ${error.message}</p>`;
+                } else {
+                    resultDiv.innerHTML = `<p style="color: green;">نجح: ${JSON.stringify(data, null, 2)}</p>`;
+                }
+            } catch (error) {
+                console.error('❌ خطأ:', error);
+                resultDiv.innerHTML = `<p style="color: red;">خطأ: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
