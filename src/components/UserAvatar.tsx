@@ -60,7 +60,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   
   // Debug: طباعة معلومات الصورة
   if (user?.user_metadata?.provider === 'google') {
-    }
+    console.log('Google user avatar:', user.user_metadata.avatar_url);
+  }
 
   // إنشاء الأحرف الأولى من الاسم
   const getInitials = (name: string) => {
@@ -120,7 +121,8 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
               }
             }}
             onLoad={() => {
-              }}
+              console.log('Avatar image loaded successfully');
+            }}
           />
         ) : (
           // عرض الأحرف الأولى إذا لم تكن الصورة متوفرة

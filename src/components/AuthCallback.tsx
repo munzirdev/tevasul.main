@@ -76,8 +76,7 @@ export const AuthCallback: React.FC = () => {
 
             if (insertError) {
               console.error('خطأ في إنشاء الملف الشخصي:', insertError);
-            } else {
-              }
+            }
           } else {
             // تحديث الملف الشخصي الموجود إذا كان من Google
             const googleData = data.session.user.user_metadata;
@@ -109,8 +108,7 @@ export const AuthCallback: React.FC = () => {
 
               if (updateError) {
                 console.error('خطأ في تحديث الملف الشخصي من Google:', updateError);
-              } else {
-                }
+              }
             }
           }
 

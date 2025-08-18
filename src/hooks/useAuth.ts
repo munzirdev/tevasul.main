@@ -206,7 +206,8 @@ export const useAuth = () => {
               return;
             }
           } else {
-            }
+            console.log('User verification failed');
+          }
           
           // Only set user if verification passed
           setAuthState(prev => ({
@@ -1091,8 +1092,9 @@ export const useAuth = () => {
       
       if (error) {
         console.error('❌ خطأ في تسجيل الخروج من Supabase:', error);
-        } else {
-        }
+      } else {
+        console.log('✅ تم تسجيل الخروج بنجاح');
+      }
       
       // Force a re-render to ensure UI updates
       setTimeout(() => {

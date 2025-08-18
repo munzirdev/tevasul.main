@@ -224,8 +224,6 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
         );
         
         setIsSessionClaimed(isClaimed);
-        if (isClaimed) {
-          }
       }
     } catch (error) {
       console.error('Error loading conversation history:', error);
@@ -549,8 +547,7 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
       if (error) {
         console.error('Error saving message:', error);
         // Don't throw error, just log it
-      } else {
-        }
+      }
     } catch (error) {
       console.error('Error saving message to database:', error);
       // Don't throw error, just log it and continue

@@ -540,7 +540,8 @@ const UserAccount: React.FC<UserAccountProps> = ({
   // إضافة useEffect لمراقبة profile
   useEffect(() => {
     if (profile) {
-      }
+      console.log('Profile updated:', profile);
+    }
   }, [profile]);
 
   const fetchUserRequests = async () => {

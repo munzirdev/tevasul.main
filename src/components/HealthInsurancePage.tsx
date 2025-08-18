@@ -405,10 +405,12 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
                 cleanRequestData.user_id = user.id;
                 }
             } catch (createProfileError) {
-              }
+              console.error('Error creating profile:', createProfileError);
+            }
           }
         } catch (error) {
-          }
+          console.error('Error in profile creation:', error);
+        }
       }
 
       // التحقق من صحة البيانات المطلوبة

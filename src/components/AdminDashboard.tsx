@@ -290,7 +290,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
       )
       .subscribe((status: any) => {
         if (status === 'SUBSCRIBED') {
-          } else if (status === 'CHANNEL_ERROR') {
+          console.log('✅ Real-time subscription active for admin dashboard');
+        } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ Real-time subscription error for admin dashboard');
         }
       });

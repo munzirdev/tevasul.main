@@ -31,7 +31,8 @@ export const voluntaryReturnService = {
       
       // التحقق من أن المستخدم يمكنه إنشاء النماذج (اختياري)
       if (!profile?.role) {
-        }
+        console.log('User role not found, proceeding anyway');
+      }
 
       // التحقق من صحة البيانات
       if (!formData.full_name_tr || !formData.full_name_ar || !formData.kimlik_no || !formData.sinir_kapisi) {
@@ -114,7 +115,8 @@ export const voluntaryReturnService = {
       
       // التحقق من أن المستخدم admin (اختياري - يمكن إزالته إذا كان هناك مشاكل في الصلاحيات)
       if (profile?.role !== 'admin') {
-        }
+        console.log('Non-admin user accessing admin function');
+      }
       
       const { data, error } = await supabase
         .from('voluntary_return_forms')
@@ -163,7 +165,8 @@ export const voluntaryReturnService = {
       
       // التحقق من أن المستخدم يمكنه الوصول إلى نماذجه (اختياري)
       if (!profile?.role) {
-        }
+        console.log('User role not found, proceeding anyway');
+      }
       
       const { data, error } = await supabase
         .from('voluntary_return_forms')
@@ -265,7 +268,8 @@ export const voluntaryReturnService = {
       
       // التحقق من أن المستخدم يمكنه تحديث النماذج (اختياري)
       if (!profile?.role) {
-        }
+        console.log('User role not found, proceeding anyway');
+      }
       
       // التحقق من أن النموذج موجود وأن المستخدم يمكنه تحديثه
       const { data: existingForm, error: fetchError } = await supabase

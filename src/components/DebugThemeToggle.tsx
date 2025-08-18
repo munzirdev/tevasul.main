@@ -13,9 +13,6 @@ const DebugThemeToggle: React.FC<DebugThemeToggleProps> = ({
   className = ''
 }) => {
   const handleClick = () => {
-    .toISOString(),
-      userAgent: navigator.userAgent 
-    });
     onToggle();
   };
 

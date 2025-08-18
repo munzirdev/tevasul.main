@@ -257,7 +257,8 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({
         
         // إذا كان الملف محفوظ كـ Base64 في service_requests
         if (uploadResult.base64Data) {
-          }
+          console.log('File uploaded as Base64');
+        }
       } else {
         console.error('فشل في رفع الملف');
         setError('فشل في رفع الملف. يرجى المحاولة مرة أخرى.');

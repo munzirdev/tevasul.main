@@ -91,7 +91,7 @@ class HealthInsuranceActivationService {
 
   async getAllForms(): Promise<{ data: HealthInsuranceActivationForm[] | null; error: any }> {
     try {
-      ...');
+      console.log('🔍 جلب جميع نماذج التأمين الصحي...');
       
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       

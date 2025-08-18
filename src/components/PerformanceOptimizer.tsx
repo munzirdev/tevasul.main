@@ -57,7 +57,8 @@ const PerformanceOptimizer: React.FC<PerformanceOptimizerProps> = ({
           const battery = await (navigator as any).getBattery();
           newCapabilities.batteryLevel = battery.level;
         } catch (error) {
-          }
+          console.error('Error getting battery info:', error);
+        }
       }
 
       // Check for reduced motion preference
