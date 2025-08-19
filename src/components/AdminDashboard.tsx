@@ -206,7 +206,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [showFormDropdown, setShowFormDropdown] = useState(false);
   const [formValues, setFormValues] = useState<{[key: string]: string}>({});
   const [editingForm, setEditingForm] = useState<DynamicForm | null>(null);
-  const [showPrintModal, setShowPrintModal] = useState(false);
+  // حذف showPrintModal state
   const [editingVariable, setEditingVariable] = useState<{name: string, value: string} | null>(null);
 
   // Interface for template parts
@@ -754,6 +754,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                   setChatMessages(refreshData);
                 }
               }
+              // استخدام refreshData و refreshError لتجنب تحذيرات المترجم
+              console.log('Refreshed data:', refreshData?.length, 'Error:', refreshError);
             });
         }
       }, 2000);
@@ -1696,45 +1698,137 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
     return result;
   };
 
-  // دالة لطباعة النموذج
+  // دالة لطباعة النموذج مباشرة
   const printForm = () => {
     const currentForm = dynamicForms.find(f => f.id === selectedForm);
-    if (currentForm?.template) {
-      const finalContent = applyFormValues(currentForm.template, formValues);
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>طباعة النموذج</title>
-              <style>
-                body {
-                  font-family: Arial, sans-serif;
-                  padding: 20px;
-                  direction: ltr;
-                  text-align: left;
-                  line-height: 1.6;
-                }
-                .form-content {
-                  white-space: pre-wrap;
-                  font-size: 14px;
-                  color: #333;
-                }
-                @media print {
-                  body { margin: 0; padding: 15px; }
-                  .no-print { display: none; }
-                }
-              </style>
-            </head>
-            <body>
-              <div class="form-content">${finalContent}</div>
-              <script>window.print();</script>
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-      }
+    if (!currentForm?.template) {
+      alert('لا يوجد نموذج محدد للطباعة');
+      return;
     }
+
+    // تنظيف القالب من HTML tags مع الحفاظ على التنسيق
+    let cleanTemplate = currentForm.template
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&Ouml;/gi, 'Ö')
+      .replace(/&Uuml;/gi, 'Ü')
+      .replace(/&Ccedil;/gi, 'Ç')
+      .replace(/&ouml;/gi, 'ö')
+      .replace(/&uuml;/gi, 'ü')
+      .replace(/&ccedil;/gi, 'ç')
+      .replace(/&rsquo;/gi, "'")
+      .replace(/&ldquo;/gi, '"')
+      .replace(/&rdquo;/gi, '"')
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      .replace(/^\s+|\s+$/g, '');
+
+    // تطبيق القيم على القالب مع الحفاظ على HTML
+    let printContent = currentForm.template;
+    
+    // إضافة تاريخ اليوم تلقائياً
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('tr-TR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    
+    // تطبيق تاريخ اليوم أولاً
+    printContent = printContent.replace(/\{تاريخ_اليوم\}/g, formattedDate);
+    printContent = printContent.replace(/\{today_date\}/g, formattedDate);
+    printContent = printContent.replace(/\{current_date\}/g, formattedDate);
+    
+    // تطبيق القيم على المتغيرات
+    Object.entries(formValues).forEach(([key, value]) => {
+      const placeholder = `{${key}}`;
+      printContent = printContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value || placeholder);
+    });
+    
+    // تنظيف الرموز الخاصة فقط
+    printContent = printContent
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+      .replace(/&Ouml;/gi, 'Ö')
+      .replace(/&Uuml;/gi, 'Ü')
+      .replace(/&Ccedil;/gi, 'Ç')
+      .replace(/&ouml;/gi, 'ö')
+      .replace(/&uuml;/gi, 'ü')
+      .replace(/&ccedil;/gi, 'ç')
+      .replace(/&rsquo;/gi, "'")
+      .replace(/&ldquo;/gi, '"')
+      .replace(/&rdquo;/gi, '"');
+    
+    // إنشاء نافذة طباعة منبثقة
+    const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes,toolbar=no,menubar=no,location=no,status=no');
+    if (!printWindow) {
+      alert('يرجى السماح بالنوافذ المنبثقة للطباعة');
+      return;
+    }
+
+    // إنشاء HTML للطباعة
+    const printHTML = `
+      <!DOCTYPE html>
+      <html dir="ltr" lang="tr">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>طباعة النموذج</title>
+        <style>
+          @import url('https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&display=swap');
+          
+          body {
+            font-family: 'Alexandria', sans-serif;
+            font-size: 14px;
+            line-height: 0.9;
+            margin: 2cm;
+            direction: ltr;
+            text-align: left;
+            background: white;
+            color: #333;
+          }
+          .print-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Alexandria', sans-serif;
+          }
+          @media print {
+            body { 
+              margin: 1cm; 
+              background: white;
+            }
+            .print-content {
+              font-family: 'Alexandria', sans-serif;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="print-content">${printContent}</div>
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+              window.onafterprint = function() {
+                window.close();
+              };
+            }, 300);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(printHTML);
+    printWindow.document.close();
   };
 
   // دالة لحذف عريضة ديناميكية
@@ -3752,7 +3846,7 @@ Kimlik No: {id_number}
                   </div>
                   <div className="flex items-center space-x-3 space-x-reverse">
                     <button
-                      onClick={() => setShowPrintModal(true)}
+                      onClick={() => printForm()}
                       className="flex items-center px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
                     >
                       <Printer className="w-4 h-4 ml-2" />
@@ -3787,12 +3881,31 @@ Kimlik No: {id_number}
                             مسح
                           </button>
                         </div>
+                                                 {(dynamicForms.find(f => f.id === selectedForm)?.variables || []).filter(v => v.name === v.label).length > 0 && (
+                           <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700/30 rounded-lg">
+                             <p className="text-xs text-green-800 dark:text-green-200">
+                               💡 تم إضافة {(dynamicForms.find(f => f.id === selectedForm)?.variables || []).filter(v => v.name === v.label).length} متغير جديد تلقائياً من القالب
+                             </p>
+                           </div>
+                         )}
+                         
+                         {/* إشعار تاريخ اليوم */}
+                         <div className="mb-3 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/30 rounded-lg">
+                           <p className="text-xs text-blue-800 dark:text-blue-200">
+                               📅 متغير تاريخ اليوم متاح تلقائياً: <code className="bg-blue-100 dark:bg-blue-800 px-1 rounded">{"{تاريخ_اليوم}"}</code>
+                             </p>
+                         </div>
                         <div className="space-y-3">
                           {(dynamicForms.find(f => f.id === selectedForm)?.variables || []).map((variable) => (
                             <div key={variable.id} className="space-y-1">
                               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
                                 {variable.label}
                                 {variable.required && <span className="text-red-500 ml-1">*</span>}
+                                {variable.name === variable.label && (
+                                  <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-1 py-0.5 rounded ml-1">
+                                    جديد
+                                  </span>
+                                )}
                               </label>
                               {variable.type === 'select' ? (
                                 <select
@@ -3848,6 +3961,12 @@ Kimlik No: {id_number}
                          <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-full">
                            🖊️ انقر على المتغيرات للتعديل
                          </span>
+                         <span className="text-xs text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">
+                           🆕 المتغيرات الخضراء جديدة
+                         </span>
+                         <span className="text-xs text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 px-2 py-1 rounded-full">
+                           📄 تخطيط طباعة
+                         </span>
                          <span className="text-xs text-slate-500 dark:text-slate-400">محاذي من اليسار لليمين</span>
                          <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                        </div>
@@ -3859,12 +3978,76 @@ Kimlik No: {id_number}
                              const currentForm = dynamicForms.find(f => f.id === selectedForm);
                              return currentForm?.variables?.length || 0;
                            })()} متغير<br/>
+                           المتغيرات الجديدة: {(() => {
+                             const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                             return currentForm?.variables?.filter(v => v.name === v.label).length || 0;
+                           })()} متغير<br/>
+                           المتغيرات غير المعرفة: {(() => {
+                             const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                             if (!currentForm?.template) return 0;
+                             const templateVariables = currentForm.template.match(/\{([^}]+)\}/g)?.map(v => v.replace(/[{}]/g, '')) || [];
+                             const definedVariables = currentForm.variables?.map(v => v.name) || [];
+                             return templateVariables.filter(v => !definedVariables.includes(v)).length;
+                           })()} متغير<br/>
                            القالب يحتوي متغيرات: {(() => {
                              const currentForm = dynamicForms.find(f => f.id === selectedForm);
                              const hasVariables = currentForm?.template?.includes('{') || false;
                              return hasVariables ? 'نعم' : 'لا';
                            })()}
                          </p>
+                         {(() => {
+                           const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                           if (!currentForm?.template) return null;
+                           const templateVariables = currentForm.template.match(/\{([^}]+)\}/g)?.map(v => v.replace(/[{}]/g, '')) || [];
+                           const definedVariables = currentForm.variables?.map(v => v.name) || [];
+                           const undefinedVariables = templateVariables.filter(v => !definedVariables.includes(v));
+                           
+                           if (undefinedVariables.length > 0) {
+                             return (
+                               <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/30 rounded-lg">
+                                 <p className="text-xs text-red-800 dark:text-red-200 font-medium mb-1">
+                                   المتغيرات غير المعرفة في القالب:
+                                 </p>
+                                 <div className="flex flex-wrap gap-1 mb-2">
+                                   {undefinedVariables.map((variable, index) => (
+                                     <span key={index} className="text-xs bg-red-100 dark:bg-red-800/30 text-red-800 dark:text-red-200 px-2 py-1 rounded">
+                                       {variable}
+                                     </span>
+                                   ))}
+                                 </div>
+                                 <button
+                                   onClick={() => {
+                                     const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                                     if (currentForm) {
+                                       const newVariables: FormVariable[] = undefinedVariables.map((variable, index) => ({
+                                         id: (Date.now() + index).toString(),
+                                         name: variable,
+                                         label: variable,
+                                         type: 'text',
+                                         required: false,
+                                         placeholder: `أدخل ${variable}`
+                                       }));
+                                       
+                                       const updatedForm = {
+                                         ...currentForm,
+                                         variables: [...(currentForm.variables || []), ...newVariables]
+                                       };
+                                       
+                                       setEditingForm(updatedForm);
+                                       setSelectedForm('edit-form');
+                                       // إظهار رسالة نجاح
+                                       alert(`تم إضافة ${newVariables.length} متغير جديد تلقائياً!`);
+                                     }
+                                   }}
+                                   className="w-full px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-xs"
+                                 >
+                                   إضافة المتغيرات غير المعرفة تلقائياً
+                                 </button>
+                               </div>
+                             );
+                           }
+                           return null;
+                         })()}
                          {(() => {
                            const currentForm = dynamicForms.find(f => f.id === selectedForm);
                            const hasVariables = currentForm?.template?.includes('{') || false;
@@ -3932,8 +4115,22 @@ Kimlik No: {id_number}
                        </div>
                       </div>
                                              <div 
-                         className="prose prose-sm max-w-none text-slate-800 dark:text-slate-200 leading-relaxed turkish-petition-preview"
-                         style={{ direction: 'ltr', textAlign: 'left' }}
+                         className="prose prose-sm max-w-none text-slate-800 dark:text-slate-200 leading-relaxed turkish-petition-preview bg-white dark:bg-slate-700 p-6 rounded-lg shadow-inner border border-slate-200 dark:border-slate-600"
+                         style={{ 
+                           direction: 'ltr', 
+                           textAlign: 'left',
+                           fontFamily: 'Times New Roman, serif',
+                           fontSize: '14px',
+                           lineHeight: '0.9',
+                           minHeight: '400px',
+                           whiteSpace: 'pre-wrap',
+                           padding: '20px',
+                           backgroundColor: 'white',
+                           color: '#333',
+                           border: '1px solid #ddd',
+                           borderRadius: '8px',
+                           unicodeBidi: 'embed'
+                         }}
                        >
                          {(() => {
                            const currentForm = dynamicForms.find(f => f.id === selectedForm);
@@ -3942,23 +4139,94 @@ Kimlik No: {id_number}
                              console.log('Variables:', currentForm.variables);
                              console.log('Form Values:', formValues);
                              
+                             // تطبيق القيم على القالب أولاً
+                             let processedTemplate = currentForm.template;
+                             
+                             // إضافة تاريخ اليوم تلقائياً للمعاينة
+                             const today = new Date();
+                             const formattedDate = today.toLocaleDateString('tr-TR', {
+                               day: '2-digit',
+                               month: '2-digit',
+                               year: 'numeric'
+                             });
+                             
+                             // تطبيق تاريخ اليوم أولاً
+                             processedTemplate = processedTemplate.replace(/\{تاريخ_اليوم\}/g, formattedDate);
+                             processedTemplate = processedTemplate.replace(/\{today_date\}/g, formattedDate);
+                             processedTemplate = processedTemplate.replace(/\{current_date\}/g, formattedDate);
+                             
+                             // تنظيف HTML tags وتحويلها إلى نص عادي
+                             processedTemplate = processedTemplate
+                               .replace(/<p[^>]*>/gi, '\n') // تحويل <p> إلى سطر جديد
+                               .replace(/<\/p>/gi, '\n') // تحويل </p> إلى سطر جديد
+                               .replace(/<br\s*\/?>/gi, '\n') // تحويل <br> إلى سطر جديد
+                               .replace(/<span[^>]*>/gi, '') // إزالة <span>
+                               .replace(/<\/span>/gi, '') // إزالة </span>
+                               .replace(/<strong>/gi, '') // إزالة <strong>
+                               .replace(/<\/strong>/gi, '') // إزالة </strong>
+                               .replace(/<b>/gi, '') // إزالة <b>
+                               .replace(/<\/b>/gi, '') // إزالة </b>
+                               .replace(/<i>/gi, '') // إزالة <i>
+                               .replace(/<\/i>/gi, '') // إزالة </i>
+                               .replace(/&nbsp;/gi, ' ') // تحويل &nbsp; إلى مسافة عادية
+                               .replace(/&amp;/gi, '&') // تحويل &amp; إلى &
+                               .replace(/&lt;/gi, '<') // تحويل &lt; إلى <
+                               .replace(/&gt;/gi, '>') // تحويل &gt; إلى >
+                               .replace(/&quot;/gi, '"') // تحويل &quot; إلى "
+                               .replace(/&#39;/gi, "'") // تحويل &#39; إلى '
+                               .replace(/&Ouml;/gi, 'Ö') // تحويل &Ouml; إلى Ö
+                               .replace(/&Uuml;/gi, 'Ü') // تحويل &Uuml; إلى Ü
+                               .replace(/&Ccedil;/gi, 'Ç') // تحويل &Ccedil; إلى Ç
+                               .replace(/&ouml;/gi, 'ö') // تحويل &ouml; إلى ö
+                               .replace(/&uuml;/gi, 'ü') // تحويل &uuml; إلى ü
+                               .replace(/&ccedil;/gi, 'ç') // تحويل &ccedil; إلى ç
+                               .replace(/&rsquo;/gi, "'") // تحويل &rsquo; إلى '
+                               .replace(/&ldquo;/gi, '"') // تحويل &ldquo; إلى "
+                               .replace(/&rdquo;/gi, '"') // تحويل &rdquo; إلى "
+                               .replace(/\n\s*\n\s*\n/g, '\n\n') // إزالة الأسطر الفارغة المتكررة
+                               .replace(/^\s+|\s+$/g, ''); // إزالة المسافات من البداية والنهاية
+                             
+                             // استخراج جميع المتغيرات من القالب
+                             const variableMatches = processedTemplate.match(/\{([^}]+)\}/g) || [];
+                             const uniqueVariables = [...new Set(variableMatches.map(match => match.replace(/[{}]/g, '')))];
+                             
+                             // التحقق من وجود متغيرات غير معرفة وإضافتها
+                             uniqueVariables.forEach(variableName => {
+                               const isVariableDefined = currentForm.variables?.some(v => v.name === variableName);
+                               if (!isVariableDefined) {
+                                 // إضافة المتغير تلقائياً إلى قائمة المتغيرات إذا لم يكن معرف
+                                 const newVariable: FormVariable = {
+                                   id: Date.now().toString() + variableName,
+                                   name: variableName,
+                                   label: variableName,
+                                   type: 'text',
+                                   required: false,
+                                   placeholder: `أدخل ${variableName}`
+                                 };
+                                 if (currentForm.variables) {
+                                   currentForm.variables.push(newVariable);
+                                 } else {
+                                   currentForm.variables = [newVariable];
+                                 }
+                               }
+                             });
+                             
                              // تقسيم النص إلى أجزاء (نص عادي ومتغيرات)
                              const parts: TemplatePart[] = [];
                              let lastIndex = 0;
-                             const variableMatches = currentForm.template.match(/\{([^}]+)\}/g) || [];
                              
-                             variableMatches.forEach((match, index) => {
+                             variableMatches.forEach((match) => {
                                const variableName = match.replace(/[{}]/g, '');
-                               const matchIndex = currentForm.template.indexOf(match, lastIndex);
+                               const matchIndex = processedTemplate.indexOf(match, lastIndex);
                                
                                // إضافة النص قبل المتغير
                                if (matchIndex > lastIndex) {
-                                 const textBefore = currentForm.template.substring(lastIndex, matchIndex);
+                                 const textBefore = processedTemplate.substring(lastIndex, matchIndex);
                                  parts.push({ type: 'text', content: textBefore });
                                }
                                
                                // إضافة المتغير
-                               const value = formValues[variableName] || match;
+                               const value = formValues[variableName] || `{${variableName}}`;
                                parts.push({ 
                                  type: 'variable', 
                                  name: variableName, 
@@ -3970,70 +4238,118 @@ Kimlik No: {id_number}
                              });
                              
                              // إضافة النص المتبقي
-                             if (lastIndex < currentForm.template.length) {
-                               const remainingText = currentForm.template.substring(lastIndex);
+                             if (lastIndex < processedTemplate.length) {
+                               const remainingText = processedTemplate.substring(lastIndex);
                                parts.push({ type: 'text', content: remainingText });
                              }
                              
-                                                            return parts.map((part: TemplatePart, index) => {
-                                                                  if (part.type === 'text' && part.content) {
-                                   return (
-                                     <span key={index}>
-                                       {part.content.split('\n').map((line, lineIndex) => (
-                                         <span key={lineIndex}>
-                                           {line}
-                                           {lineIndex < part.content!.split('\n').length - 1 && <br />}
-                                         </span>
-                                       ))}
-                                     </span>
-                                   );
-                                 } else if (part.type === 'variable' && part.name) {
+                             return parts.map((part: TemplatePart, index) => {
+                               if (part.type === 'text' && part.content) {
+                                 return (
+                                   <span key={index} style={{ 
+                                     whiteSpace: 'pre-wrap',
+                                     display: 'inline',
+                                     fontFamily: 'inherit',
+                                     direction: 'ltr',
+                                     unicodeBidi: 'embed'
+                                   }}>
+                                     {part.content}
+                                   </span>
+                                 );
+                               } else if (part.type === 'variable' && part.name) {
+                                 const isNewVariable = currentForm.variables?.some(v => v.name === part.name && v.name === v.label);
+                                 const isEmpty = !formValues[part.name] || formValues[part.name].trim() === '';
+                                 
                                  return (
                                    <span
                                      key={index}
                                      className="editable-variable"
                                      data-variable={part.name}
                                      style={{
-                                       background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1))',
-                                       border: '2px solid rgba(59, 130, 246, 0.3)',
-                                       borderRadius: '8px',
-                                       padding: '4px 8px',
+                                       background: isEmpty ? 
+                                         (isNewVariable ? 
+                                           'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.15))' : 
+                                           'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.15))'
+                                         ) : 'transparent',
+                                       border: isEmpty ? 
+                                         (isNewVariable ? 
+                                           '2px solid rgba(34, 197, 94, 0.4)' : 
+                                           '2px solid rgba(59, 130, 246, 0.4)'
+                                         ) : '2px solid transparent',
+                                       borderRadius: '4px',
+                                       padding: isEmpty ? '3px 8px' : '0px',
                                        cursor: 'pointer',
-                                       display: 'inline-block',
-                                       minWidth: '80px',
-                                       textAlign: 'center',
+                                       display: 'inline',
                                        transition: 'all 0.3s ease',
-                                       fontWeight: '500',
-                                       color: 'rgba(59, 130, 246, 0.9)',
-                                       position: 'relative',
-                                       boxShadow: '0 2px 4px rgba(59, 130, 246, 0.1)'
+                                       fontWeight: isEmpty ? '600' : 'inherit',
+                                       color: isEmpty ? 
+                                         (isNewVariable ? 
+                                           'rgba(34, 197, 94, 1)' : 
+                                           'rgba(59, 130, 246, 1)'
+                                         ) : 'inherit',
+                                       boxShadow: isEmpty ? 
+                                         (isNewVariable ? 
+                                           '0 2px 4px rgba(34, 197, 94, 0.2)' : 
+                                           '0 2px 4px rgba(59, 130, 246, 0.2)'
+                                         ) : 'none',
+                                       textDecoration: isEmpty ? 'none' : 'underline',
+                                       textDecorationStyle: isEmpty ? 'solid' : 'dotted',
+                                       fontFamily: 'inherit',
+                                       direction: 'ltr',
+                                       unicodeBidi: 'embed'
                                      }}
                                      onMouseOver={(e) => {
-                                       e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
-                                       e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
-                                       e.currentTarget.style.transform = 'scale(1.05)';
-                                       e.currentTarget.style.boxShadow = '0 4px 8px rgba(59, 130, 246, 0.2)';
+                                       if (isEmpty) {
+                                         e.currentTarget.style.backgroundColor = isNewVariable ? 
+                                           'rgba(34, 197, 94, 0.2)' : 
+                                           'rgba(59, 130, 246, 0.2)';
+                                         e.currentTarget.style.borderColor = isNewVariable ? 
+                                           'rgba(34, 197, 94, 0.5)' : 
+                                           'rgba(59, 130, 246, 0.5)';
+                                         e.currentTarget.style.transform = 'scale(1.02)';
+                                       } else {
+                                         e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.1)';
+                                         e.currentTarget.style.border = '2px solid rgba(59, 130, 246, 0.3)';
+                                         e.currentTarget.style.borderRadius = '6px';
+                                         e.currentTarget.style.padding = '2px 6px';
+                                       }
                                      }}
                                      onMouseOut={(e) => {
-                                       e.currentTarget.style.backgroundColor = 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1))';
-                                       e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-                                       e.currentTarget.style.transform = 'scale(1)';
-                                       e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.1)';
+                                       if (isEmpty) {
+                                         e.currentTarget.style.backgroundColor = isNewVariable ? 
+                                           'rgba(34, 197, 94, 0.1)' : 
+                                           'rgba(59, 130, 246, 0.1)';
+                                         e.currentTarget.style.borderColor = isNewVariable ? 
+                                           'rgba(34, 197, 94, 0.3)' : 
+                                           'rgba(59, 130, 246, 0.3)';
+                                         e.currentTarget.style.transform = 'scale(1)';
+                                       } else {
+                                         e.currentTarget.style.backgroundColor = 'transparent';
+                                         e.currentTarget.style.border = '2px solid transparent';
+                                         e.currentTarget.style.padding = '0px';
+                                       }
                                      }}
-                                                                            onClick={() => {
-                                         setEditingVariable({ name: part.name!, value: part.value || '' });
-                                       }}
-                                     title="🖊️ انقر للتعديل"
-                                                                        >
-                                       {part.value || part.original || part.name}
-                                     </span>
+                                     onClick={() => {
+                                       setEditingVariable({ name: part.name!, value: formValues[part.name!] || '' });
+                                     }}
+                                     title={isEmpty ? 
+                                       (isNewVariable ? "🆕 متغير جديد - انقر للتعديل" : "🖊️ انقر للتعديل") : 
+                                       "🖊️ انقر لتعديل القيمة"
+                                     }
+                                   >
+                                     {formValues[part.name!] || `{${part.name}}`}
+                                   </span>
                                  );
                                } else {
                                  return null;
                                }
                              });
                            }
-                           return 'لا يوجد محتوى محدد للنموذج';
+                           return (
+                             <div className="text-center py-8 text-slate-500 dark:text-slate-400">
+                               <p>لا يوجد محتوى محدد للنموذج</p>
+                             </div>
+                           );
                          })()}
                        </div>
                     </div>
@@ -4906,60 +5222,7 @@ Kimlik No: {id_number}
         </div>
       )}
 
-      {/* Print Modal */}
-      {showPrintModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white">معاينة الطباعة</h3>
-              <button
-                onClick={() => setShowPrintModal(false)}
-                className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6 overflow-y-auto max-h-[60vh]">
-              <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
-                <div 
-                  className="prose prose-sm max-w-none text-slate-800 leading-relaxed"
-                  dangerouslySetInnerHTML={{
-                    __html: (() => {
-                      const currentForm = dynamicForms.find(f => f.id === selectedForm);
-                      if (currentForm?.template) {
-                        const content = applyFormValues(currentForm.template, formValues);
-                        return content
-                          .replace(/\n/g, '<br>')
-                          .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
-                          .replace(/\s{2,}/g, (match) => '&nbsp;'.repeat(match.length));
-                      }
-                      return 'لا يوجد محتوى محدد للنموذج';
-                    })()
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
-              <button
-                onClick={() => setShowPrintModal(false)}
-                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
-              >
-                إلغاء
-              </button>
-              <button
-                onClick={() => {
-                  printForm();
-                  setShowPrintModal(false);
-                }}
-                className="flex items-center px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
-              >
-                <Printer className="w-4 h-4 ml-2" />
-                طباعة
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* تم حذف مودال معاينة الطباعة */}
 
 
     </div>
