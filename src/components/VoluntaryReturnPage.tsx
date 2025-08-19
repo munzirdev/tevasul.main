@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Plus, FileText, BarChart3 } from 'lucide-react';
-import CustomCursor from './CustomCursor';
+
 import { useLanguage } from '../hooks/useLanguage';
 import { useAuthContext } from './AuthProvider';
 import VoluntaryReturnFormsList from './VoluntaryReturnFormsList';
@@ -33,7 +33,7 @@ const VoluntaryReturnPage: React.FC<VoluntaryReturnPageProps> = ({ onBack, isDar
   return (
     <ProtectedRoute requireAdmin={true}>
       <div className="min-h-screen bg-platinum-50 dark:bg-jet-900">
-        <CustomCursor isDarkMode={isDarkMode} />
+
         {/* Header */}
         <div className="bg-white dark:bg-jet-800 shadow-sm border-b border-platinum-200 dark:border-jet-700">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">

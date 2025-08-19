@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Edit, Trash2, Plus, Save, X, DollarSign, Building, Calendar, Users, FileText, Check, AlertCircle, MessageCircle, Phone, Mail, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import CustomCursor from './CustomCursor';
+
 import { useLanguage } from '../hooks/useLanguage';
 import ConfirmDeleteModal from './ConfirmDeleteModal';
 
@@ -2185,7 +2185,7 @@ const HealthInsuranceManagement: React.FC = () => {
       />
       
       {/* Custom Cursor */}
-      <CustomCursor isDarkMode={isDarkMode} />
+      
     </div>
   </div>
   );

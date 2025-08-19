@@ -22,7 +22,7 @@ This document summarizes all the performance optimizations implemented to fix th
 - **Battery Level Detection**: Reduces effects on low battery devices
 - **Accessibility Support**: Respects `prefers-reduced-motion` user preference
 
-### 2. Custom Cursor Optimization (`src/components/CustomCursor.tsx`)
+
 - **Throttled Updates**: Reduced from 60fps to throttled updates (16ms intervals)
 - **Distance-based Updates**: Only updates cursor position if moved more than 2px
 - **Event Delegation**: Replaced individual event listeners with event delegation
@@ -135,7 +135,7 @@ const [performanceSettings, setPerformanceSettings] = useState({
   animationsEnabled: true,
   particleCount: 16,
   scrollEffectsEnabled: true,
-  customCursorEnabled: true,
+  
   backgroundMusicEnabled: true,
   realTimeUpdatesEnabled: true,
   visualEffectsIntensity: 'medium'

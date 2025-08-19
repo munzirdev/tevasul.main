@@ -99,6 +99,38 @@
       transform: translate3d(0, 0, 0);
     }
   }
+
+  /* Dropdown animations */
+  @keyframes slide-in-from-top {
+    from {
+      opacity: 0;
+      transform: translateY(-10px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-in {
+    animation: slide-in-from-top 0.2s ease-out;
+  }
+
+  .slide-in-from-top-2 {
+    animation: slide-in-from-top 0.2s ease-out;
+  }
+  }
+  
+  /* Turkish petition text alignment */
+  .turkish-petition-textarea {
+    text-align: left !important;
+    direction: ltr !important;
+  }
+  
+  .turkish-petition-preview {
+    text-align: left !important;
+    direction: ltr !important;
+  }
   
   /* ChatBot glass effect animations */
   @keyframes glass-glow {
@@ -884,7 +916,6 @@
   .animate-spin-slow-reverse {
     animation: spin-slow-reverse 20s linear infinite;
   }
-}
 
 /* Custom scrollbar - مبسط */
 ::-webkit-scrollbar {

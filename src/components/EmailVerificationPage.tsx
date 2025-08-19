@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { CheckCircle, AlertCircle, Mail, RefreshCw, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { EmailService } from '../services/emailService';
-import CustomCursor from './CustomCursor';
+
 import { useAuthContext } from './AuthProvider';
 import GlassLoadingScreen from './GlassLoadingScreen';
 
@@ -186,7 +186,7 @@ const EmailVerificationPage: React.FC<EmailVerificationPageProps> = ({ isDarkMod
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-caribbean-50 to-indigo-50 dark:from-jet-900 dark:to-jet-800">
-      <CustomCursor isDarkMode={isDarkMode} />
+      
       
       <div className="bg-white dark:bg-jet-800 rounded-xl shadow-lg p-8 max-w-md w-full mx-4">
         {/* زر العودة */}

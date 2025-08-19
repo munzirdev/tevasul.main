@@ -6,7 +6,7 @@ import { useAuthContext } from './AuthProvider';
 import { webhookService } from '../services/webhookService';
 import { supabase } from '../lib/supabase';
 import { formatDisplayDate } from '../lib/utils';
-import CustomCursor from './CustomCursor';
+
 
 interface RefakatEntry {
   id: string;
@@ -714,7 +714,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
       </div>
       
       {/* Custom Cursor */}
-      <CustomCursor isDarkMode={isDarkMode} />
+      
     </div>
   );
 };

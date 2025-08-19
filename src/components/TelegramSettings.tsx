@@ -19,7 +19,7 @@ import {
 import { useLanguage } from '../hooks/useLanguage';
 import { telegramService, TelegramConfig } from '../services/telegramService';
 import { useNavigate } from 'react-router-dom';
-import CustomCursor from './CustomCursor';
+
 
 interface TelegramSettingsProps {
   isDarkMode: boolean;
@@ -473,7 +473,7 @@ const TelegramSettings: React.FC<TelegramSettingsProps> = ({ isDarkMode }) => {
       </div>
       
       {/* Custom Cursor */}
-      <CustomCursor isDarkMode={isDarkMode} />
+      
     </div>
   );
 };

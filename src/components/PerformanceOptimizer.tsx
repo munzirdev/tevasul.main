@@ -4,7 +4,7 @@ interface PerformanceSettings {
   animationsEnabled: boolean;
   particleCount: number;
   scrollEffectsEnabled: boolean;
-  customCursorEnabled: boolean;
+
   backgroundMusicEnabled: boolean;
   realTimeUpdatesEnabled: boolean;
   visualEffectsIntensity: 'low' | 'medium' | 'high';
@@ -32,7 +32,7 @@ const PerformanceOptimizer: React.FC<PerformanceOptimizerProps> = ({
     animationsEnabled: true,
     particleCount: 16,
     scrollEffectsEnabled: true,
-    customCursorEnabled: true,
+
     backgroundMusicEnabled: true,
     realTimeUpdatesEnabled: true,
     visualEffectsIntensity: 'medium'
@@ -81,7 +81,6 @@ const PerformanceOptimizer: React.FC<PerformanceOptimizerProps> = ({
         newSettings.animationsEnabled = false;
         newSettings.particleCount = 4;
         newSettings.scrollEffectsEnabled = false;
-        newSettings.customCursorEnabled = false;
         newSettings.visualEffectsIntensity = 'low';
       }
       // Medium-end device optimizations
@@ -92,7 +91,6 @@ const PerformanceOptimizer: React.FC<PerformanceOptimizerProps> = ({
 
       // Mobile optimizations
       if (deviceCapabilities.isMobile) {
-        newSettings.customCursorEnabled = false;
         newSettings.particleCount = Math.min(newSettings.particleCount, 6);
         newSettings.backgroundMusicEnabled = false;
       }
@@ -133,7 +131,7 @@ const PerformanceOptimizer: React.FC<PerformanceOptimizerProps> = ({
       root.style.setProperty('--animation-duration', settings.animationsEnabled ? '0.3s' : '0s');
       root.style.setProperty('--particle-count', settings.particleCount.toString());
       root.style.setProperty('--scroll-effects-enabled', settings.scrollEffectsEnabled ? '1' : '0');
-      root.style.setProperty('--cursor-enabled', settings.customCursorEnabled ? '1' : '0');
+
       root.style.setProperty('--visual-effects-intensity', settings.visualEffectsIntensity);
 
       // Disable animations if not enabled

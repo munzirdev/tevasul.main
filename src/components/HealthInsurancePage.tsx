@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Calculator, Users, Clock, CheckCircle, ArrowRight, ChevronDown, ChevronUp, Building, Calendar, DollarSign, Phone, Mail, Send, X } from 'lucide-react';
-import CustomCursor from './CustomCursor';
+
 import CustomDatePicker from './CustomDatePicker';
 import FileUploadModal from './FileUploadModal';
 import { useAuthContext } from './AuthProvider';
@@ -598,7 +598,7 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
 
   return (
     <div className="min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria">
-      <CustomCursor isDarkMode={isDarkMode} />
+      
       
       {/* Custom CSS for dropdown styling */}
       <style dangerouslySetInnerHTML={{

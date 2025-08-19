@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, User, Mail, Phone, Eye, EyeOff, ChevronDown, Search, CheckCircle, FileText, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from './AuthProvider';
 import { countryCodes, CountryCode } from '../lib/supabase';
 import EmailVerificationModal from './EmailVerificationModal';
@@ -9,7 +10,7 @@ import TermsOfService from './TermsOfService';
 import PrivacyPolicy from './PrivacyPolicy';
 import { useLanguage } from '../hooks/useLanguage';
 import { GoogleSignInButton } from './GoogleSignInButton';
-import CustomCursor from './CustomCursor';
+
 
 interface AuthModalsProps {
   isLoginOpen: boolean;
@@ -88,6 +89,7 @@ const AuthModals: React.FC<AuthModalsProps> = ({
   // Get user context and language
   const { user, profile } = useAuthContext();
   const { t } = useLanguage();
+  const navigate = useNavigate();
 
   // Password validation function
   const validatePassword = (password: string) => {
@@ -1135,7 +1137,7 @@ const AuthModals: React.FC<AuthModalsProps> = ({
                        {t('legal.acceptTerms')}{' '}
                        <button
                          type="button"
-                         onClick={() => setShowTerms(true)}
+                         onClick={() => navigate('/terms-of-service')}
                          className="text-caribbean-600 dark:text-caribbean-400 hover:text-caribbean-700 dark:hover:text-caribbean-300 font-semibold underline transition-colors duration-300"
                        >
                          {t('legal.readTerms')}
@@ -1178,7 +1180,7 @@ const AuthModals: React.FC<AuthModalsProps> = ({
                        {t('legal.acceptPrivacy')}{' '}
                        <button
                          type="button"
-                         onClick={() => setShowPrivacy(true)}
+                         onClick={() => navigate('/privacy-policy')}
                          className="text-caribbean-600 dark:text-caribbean-400 hover:text-caribbean-700 dark:hover:text-caribbean-300 font-semibold underline transition-colors duration-300"
                        >
                          {t('legal.readPrivacy')}
@@ -1397,7 +1399,10 @@ const AuthModals: React.FC<AuthModalsProps> = ({
       {/* Terms of Service Modal */}
       {showTerms && (
         <TermsOfService
-          onClose={() => setShowTerms(false)}
+          onClose={() => {
+            setShowTerms(false);
+            navigate('/');
+          }}
           isDarkMode={isDarkMode}
         />
       )}
@@ -1405,7 +1410,10 @@ const AuthModals: React.FC<AuthModalsProps> = ({
       {/* Privacy Policy Modal */}
       {showPrivacy && (
         <PrivacyPolicy
-          onClose={() => setShowPrivacy(false)}
+          onClose={() => {
+            setShowPrivacy(false);
+            navigate('/');
+          }}
           isDarkMode={isDarkMode}
         />
       )}
@@ -1561,7 +1569,7 @@ const AuthModals: React.FC<AuthModalsProps> = ({
       )}
       
       {/* Custom Cursor */}
-      <CustomCursor isDarkMode={isDarkMode} />
+      
     </div>
   );
 };

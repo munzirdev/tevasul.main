@@ -44,7 +44,7 @@ export const optimizeForDevice = (capabilities: DeviceCapabilities) => {
     animationsEnabled: true,
     particleCount: 16,
     scrollEffectsEnabled: true,
-    customCursorEnabled: true,
+
     backgroundMusicEnabled: true,
     realTimeUpdatesEnabled: true,
     visualEffectsIntensity: 'medium' as 'low' | 'medium' | 'high'
@@ -55,13 +55,11 @@ export const optimizeForDevice = (capabilities: DeviceCapabilities) => {
     optimizations.animationsEnabled = false;
     optimizations.particleCount = 4;
     optimizations.scrollEffectsEnabled = false;
-    optimizations.customCursorEnabled = false;
     optimizations.visualEffectsIntensity = 'low';
   }
   
   // Mobile optimizations
   if (capabilities.isMobile) {
-    optimizations.customCursorEnabled = false;
     optimizations.particleCount = Math.min(optimizations.particleCount, 6);
     optimizations.backgroundMusicEnabled = false;
   }

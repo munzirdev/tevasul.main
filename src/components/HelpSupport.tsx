@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { HelpCircle, MessageCircle, Search, ChevronDown, ChevronUp, Send, X, CheckCircle, AlertCircle, ArrowLeft, Clock, User, Mail, Phone, MapPin, Globe } from 'lucide-react';
-import CustomCursor from './CustomCursor';
+
 import { useAuthContext } from './AuthProvider';
 import { supabase } from '../lib/supabase';
 import { webhookService } from '../services/webhookService';
@@ -206,7 +206,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 flex items-center justify-center">
-        <CustomCursor isDarkMode={isDarkMode} />
+
         <div className="text-center">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-blue-200 dark:border-slate-700 rounded-full animate-spin"></div>
@@ -220,7 +220,7 @@ const HelpSupport: React.FC<HelpSupportProps> = ({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
-      <CustomCursor isDarkMode={isDarkMode} />
+      
       
       {/* Modern Header */}
       <div className="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-700/50 sticky top-0 z-40">

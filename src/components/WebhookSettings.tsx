@@ -22,7 +22,7 @@ import { useLanguage } from '../hooks/useLanguage';
 import { webhookService } from '../services/webhookService';
 import { telegramService } from '../services/telegramService';
 import GlassLoadingScreen from './GlassLoadingScreen';
-import CustomCursor from './CustomCursor';
+
 
 interface WebhookSettingsProps {
   isDarkMode: boolean;
@@ -697,7 +697,7 @@ const WebhookSettings: React.FC<WebhookSettingsProps> = ({ isDarkMode }) => {
       </div>
       
       {/* Custom Cursor */}
-      <CustomCursor isDarkMode={isDarkMode} />
+      
     </div>
   );
 };

@@ -23,7 +23,7 @@ import {
   Upload,
   Image
 } from 'lucide-react';
-import CustomCursor from './CustomCursor';
+
 import { supabase } from '../lib/supabase';
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
@@ -714,7 +714,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(60,110,113,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_50%_50%,rgba(60,110,113,0.2),transparent_50%)]"></div>
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(122,146,171,0.1),transparent_50%)] dark:bg-[radial-gradient(circle_at_80%_20%,rgba(122,146,171,0.15),transparent_50%)]"></div>
       
-      <CustomCursor isDarkMode={isDarkMode} />
+      
       
       {/* Navigation Bar - Enhanced Glass Effect */}
       <nav className="fixed top-0 left-0 right-0 z-[9999] bg-white/70 dark:bg-jet-800/70 backdrop-blur-2xl border-b border-white/30 dark:border-jet-700/30 shadow-2xl">

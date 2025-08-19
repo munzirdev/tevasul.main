@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { useAuthContext } from './AuthProvider';
-import CustomCursor from './CustomCursor';
+
 import LoadingSpinner from './LoadingSpinner';
 import { supabase } from '../lib/supabase';
 
@@ -167,7 +167,7 @@ const ContactPage: React.FC<ContactPageProps> = ({ isDarkMode }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-platinum-50 via-caribbean-50/30 to-indigo-50/30 dark:from-jet-900 dark:via-caribbean-900/20 dark:to-indigo-900/20 relative overflow-hidden">
-      <CustomCursor isDarkMode={isDarkMode} />
+      
       
       {/* Background Elements */}
       <div className="absolute inset-0 overflow-hidden">

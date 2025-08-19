@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام التحقق من الترجمة</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            direction: rtl;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .search-box {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .search-input {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            width: 300px;
+            margin-left: 10px;
+        }
+        .search-button {
+            padding: 12px 25px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+        }
+        .search-button:hover {
+            background-color: #2980b9;
+        }
+        .info {
+            background-color: #e8f4fd;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #7f8c8d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>نظام التحقق من الترجمة</h1>
+        
+        <div class="search-box">
+            <input type="text" id="projectId" class="search-input" placeholder="أدخل معرف المشروع...">
+            <button onclick="verifyDocument()" class="search-button">تحقق من الوثيقة</button>
+        </div>
+        
+        <div class="info">
+            <h3>كيفية الاستخدام:</h3>
+            <p>1. امسح رمز QR الموجود على الوثيقة</p>
+            <p>2. أو أدخل معرف المشروع يدوياً</p>
+            <p>3. اضغط على زر التحقق لعرض تفاصيل الوثيقة</p>
+        </div>
+        
+        <div id="result"></div>
+        
+        <div class="footer">
+            <p>© 2024 نظام الترجمة المكتبي - جميع الحقوق محفوظة</p>
+        </div>
+    </div>
+    
+    <script>
+        function verifyDocument() {
+            const projectId = document.getElementById('projectId').value.trim();
+            if (!projectId) {
+                alert('يرجى إدخال معرف المشروع');
+                return;
+            }
+            
+            fetch(`/api/verify/${projectId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('result').innerHTML = 
+                            `<div style="color: red; text-align: center; padding: 20px;">
+                                <h3>خطأ</h3>
+                                <p>${data.error}</p>
+                            </div>`;
+                    } else {
+                        displayVerificationResult(data);
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('result').innerHTML = 
+                        `<div style="color: red; text-align: center; padding: 20px;">
+                            <h3>خطأ في الاتصال</h3>
+                            <p>فشل في الاتصال بالخادم</p>
+                        </div>`;
+                });
+        }
+        
+        function displayVerificationResult(data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `
+                <div style="background-color: #d4edda; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="color: #155724; text-align: center;">✅ وثيقة صحيحة</h3>
+                    
+                    <div style="margin: 20px 0;">
+                        <h4>معلومات المشروع:</h4>
+                        <p><strong>العنوان:</strong> ${data.project_title}</p>
+                        <p><strong>العميل:</strong> ${data.client_name}</p>
+                        <p><strong>اللغة المصدر:</strong> ${data.source_language}</p>
+                        <p><strong>اللغة الهدف:</strong> ${data.target_language}</p>
+                        <p><strong>تاريخ الترجمة:</strong> ${data.translation_date}</p>
+                    </div>
+                    
+                    <div style="margin: 20px 0;">
+                        <h4>معلومات المترجم:</h4>
+                        <p><strong>الاسم:</strong> ${data.translator_name}</p>
+                        <p><strong>رقم الترخيص:</strong> ${data.translator_license}</p>
+                    </div>
+                    
+                    <div style="margin: 20px 0;">
+                        <h4>معلومات التحقق:</h4>
+                        <p><strong>تاريخ التحقق:</strong> ${data.verification_date}</p>
+                        <p><strong>معرف التحقق:</strong> ${data.verification_id}</p>
+                    </div>
+                    
+                    <div style="text-align: center; margin: 20px 0;">
+                        <a href="/document/${data.project_id}" target="_blank" 
+                           style="background-color: #28a745; color: white; padding: 10px 20px; 
+                                  text-decoration: none; border-radius: 5px; margin: 0 10px;">
+                            عرض الوثيقة
+                        </a>
+                        <a href="/download/${data.project_id}" 
+                           style="background-color: #17a2b8; color: white; padding: 10px 20px; 
+                                  text-decoration: none; border-radius: 5px; margin: 0 10px;">
+                            تحميل الوثيقة
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // دعم Enter للبحث
+        document.getElementById('projectId').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyDocument();
+            }
+        });
+    </script>
+</body>
+</html>

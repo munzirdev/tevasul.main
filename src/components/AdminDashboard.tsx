@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import CustomCursor from './CustomCursor';
 import AdminNavbar from './AdminNavbar';
 
 import { 
@@ -60,6 +59,7 @@ import VoluntaryReturnForm from './VoluntaryReturnForm';
 import VoluntaryReturnChart from './VoluntaryReturnChart';
 import ModeratorManagement from './ModeratorManagement';
 import HealthInsuranceManagement from './HealthInsuranceManagement';
+import TinyMCEEditor from './TinyMCEEditor';
 
 import WebhookSettings from './WebhookSettings';
 import { formatDisplayDate } from '../lib/utils';
@@ -144,6 +144,29 @@ const formatPhoneForWhatsApp = (phone: string): string => {
   return cleanPhone.substring(0, 12);
 };
 
+// إضافة أنواع جديدة للنماذج الديناميكية
+interface DynamicForm {
+  id: string;
+  name: string;
+  description: string;
+  variables: FormVariable[];
+  template: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface FormVariable {
+  id: string;
+  name: string;
+  label: string;
+  type: 'text' | 'email' | 'phone' | 'date' | 'number' | 'textarea' | 'select' | 'checkbox';
+  required: boolean;
+  options?: string[]; // للقوائم المنسدلة
+  placeholder?: string;
+  default_value?: string;
+}
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onToggleDarkMode, onSignOut }) => {
   const { user, profile } = useAuthContext();
   const { t, language } = useLanguage();
@@ -176,6 +199,49 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [chatSearchTerm, setChatSearchTerm] = useState('');
   const [chatDateFilter, setChatDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [claimedSessions, setClaimedSessions] = useState<Set<string>>(new Set());
+
+  // إضافة state للنماذج الديناميكية
+  const [dynamicForms, setDynamicForms] = useState<DynamicForm[]>([]);
+  const [selectedForm, setSelectedForm] = useState<string>('voluntary-return');
+  const [showFormDropdown, setShowFormDropdown] = useState(false);
+  const [formValues, setFormValues] = useState<{[key: string]: string}>({});
+  const [editingForm, setEditingForm] = useState<DynamicForm | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
+  const [editingVariable, setEditingVariable] = useState<{name: string, value: string} | null>(null);
+
+  // Interface for template parts
+  interface TemplatePart {
+    type: 'text' | 'variable';
+    content?: string;
+    name?: string;
+    value?: string;
+    original?: string;
+  }
+
+  // إعادة تعيين قيم النموذج عند تغيير النموذج المحدد
+  useEffect(() => {
+    setFormValues({});
+  }, [selectedForm]);
+
+  // إضافة دالة JavaScript عامة لتحرير المتغيرات
+  useEffect(() => {
+    (window as any).editVariable = (variableName: string, element: HTMLElement) => {
+      const currentValue = formValues[variableName] || '';
+      setEditingVariable({ name: variableName, value: currentValue });
+    };
+
+    return () => {
+      delete (window as any).editVariable;
+    };
+  }, [formValues]);
+  const [newForm, setNewForm] = useState<Partial<DynamicForm>>({
+    name: '',
+    description: '',
+    variables: [],
+    template: '',
+    is_active: true
+  });
+
 
   // Load claimed sessions from localStorage on component mount
   useEffect(() => {
@@ -369,6 +435,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
       fetchSupportMessages();
       fetchFAQs();
       fetchChatSessions();
+      fetchDynamicForms(); // إضافة جلب العريضات الديناميكية
       
       // Prevent auto scroll to top when loading chat messages
       if (activeTab === 'chat-messages') {
@@ -1469,6 +1536,372 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
     });
   };
 
+  // دالة لجلب العريضات الديناميكية
+  const fetchDynamicForms = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('dynamic_forms')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('خطأ في جلب العريضات الديناميكية:', error);
+        return;
+      }
+
+      setDynamicForms(data || []);
+    } catch (error) {
+      console.error('خطأ غير متوقع في جلب العريضات:', error);
+    }
+  };
+
+  // دالة لحفظ عريضة ديناميكية
+  const saveDynamicForm = async (formData: Partial<DynamicForm>) => {
+    console.log('بدء حفظ العريضة:', formData);
+    
+    // التحقق من البيانات المطلوبة
+    if (!formData.name || formData.name.trim() === '') {
+      alert('يرجى إدخال اسم النموذج');
+      return;
+    }
+    
+    if (!formData.template || formData.template.trim() === '') {
+      alert('يرجى إدخال محتوى النموذج');
+      return;
+    }
+    
+    try {
+      if (editingForm) {
+        // تحديث نموذج موجود
+        const { error } = await supabase
+          .from('dynamic_forms')
+          .update({
+            name: formData.name,
+            description: formData.description,
+            variables: formData.variables,
+            template: formData.template,
+            is_active: formData.is_active,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', editingForm.id);
+
+        if (error) {
+          console.error('خطأ في تحديث العريضة:', error);
+          alert('خطأ في تحديث النموذج: ' + error.message);
+          return;
+        }
+      } else {
+        // إضافة نموذج جديد
+        const { error } = await supabase
+          .from('dynamic_forms')
+          .insert({
+            name: formData.name,
+            description: formData.description,
+            variables: formData.variables || [],
+            template: formData.template,
+            is_active: formData.is_active !== false
+          });
+
+        if (error) {
+          console.error('خطأ في إضافة العريضة:', error);
+          alert('خطأ في إضافة النموذج: ' + error.message);
+          return;
+        }
+      }
+
+      console.log('تم حفظ العريضة بنجاح');
+      await fetchDynamicForms();
+      setEditingForm(null);
+      setNewForm({
+        name: '',
+        description: '',
+        variables: [],
+        template: '',
+        is_active: true
+      });
+      
+      setUpdateSuccess(true);
+      alert('تم حفظ النموذج بنجاح!');
+      setTimeout(() => {
+        setUpdateSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error('خطأ غير متوقع في حفظ العريضة:', error);
+    }
+  };
+
+  // دالة لتطبيق القيم على قالب النموذج
+  const applyFormValues = (template: string, values: {[key: string]: string}) => {
+    let result = template;
+    
+    // إضافة التاريخ الحالي تلقائياً إذا لم يتم تحديده
+    const updatedValues = { ...values };
+    if (!updatedValues.date && template.includes('{date}')) {
+      const today = new Date();
+      updatedValues.date = today.toLocaleDateString('tr-TR'); // تنسيق تركي
+    }
+    
+    Object.entries(updatedValues).forEach(([key, value]) => {
+      const placeholder = `{${key}}`;
+      result = result.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), value || placeholder);
+    });
+    return result;
+  };
+
+  // دالة لتطبيق القيم مع إمكانية التحرير المباشر
+  const applyFormValuesWithEditableFields = (template: string, values: {[key: string]: string}) => {
+    let result = template;
+    
+    // إضافة التاريخ الحالي تلقائياً إذا لم يتم تحديده
+    const updatedValues = { ...values };
+    if (!updatedValues.date && template.includes('{date}')) {
+      const today = new Date();
+      updatedValues.date = today.toLocaleDateString('tr-TR');
+    }
+    
+    // استخراج جميع المتغيرات من القالب
+    const variableMatches = template.match(/\{([^}]+)\}/g) || [];
+    const uniqueVariables = [...new Set(variableMatches)];
+    
+    uniqueVariables.forEach(placeholder => {
+      const key = placeholder.replace(/[{}]/g, '');
+      const value = updatedValues[key] || '';
+      const editableSpan = `<span 
+        class="editable-variable" 
+        data-variable="${key}" 
+        style="
+          background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1)); 
+          border: 2px solid rgba(59, 130, 246, 0.3); 
+          border-radius: 8px; 
+          padding: 4px 8px; 
+          cursor: pointer;
+          display: inline-block;
+          min-width: 80px;
+          text-align: center;
+          transition: all 0.3s ease;
+          font-weight: 500;
+          color: rgba(59, 130, 246, 0.9);
+          position: relative;
+          box-shadow: 0 2px 4px rgba(59, 130, 246, 0.1);
+        "
+        onmouseover="this.style.backgroundColor='rgba(59, 130, 246, 0.2)'; this.style.borderColor='rgba(59, 130, 246, 0.5)'; this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 8px rgba(59, 130, 246, 0.2)'"
+        onmouseout="this.style.backgroundColor='rgba(59, 130, 246, 0.1)'; this.style.borderColor='rgba(59, 130, 246, 0.3)'; this.style.transform='scale(1)'; this.style.boxShadow='0 2px 4px rgba(59, 130, 246, 0.1)'"
+        onclick="editVariable('${key}', this)"
+        title="🖊️ انقر للتعديل"
+      >${value || `<em style="color: rgba(156, 163, 175, 0.8);">${placeholder}</em>`}</span>`;
+      
+      result = result.replace(new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'), editableSpan);
+    });
+    
+    return result;
+  };
+
+  // دالة لطباعة النموذج
+  const printForm = () => {
+    const currentForm = dynamicForms.find(f => f.id === selectedForm);
+    if (currentForm?.template) {
+      const finalContent = applyFormValues(currentForm.template, formValues);
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>طباعة النموذج</title>
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  padding: 20px;
+                  direction: ltr;
+                  text-align: left;
+                  line-height: 1.6;
+                }
+                .form-content {
+                  white-space: pre-wrap;
+                  font-size: 14px;
+                  color: #333;
+                }
+                @media print {
+                  body { margin: 0; padding: 15px; }
+                  .no-print { display: none; }
+                }
+              </style>
+            </head>
+            <body>
+              <div class="form-content">${finalContent}</div>
+              <script>window.print();</script>
+            </body>
+          </html>
+        `);
+        printWindow.document.close();
+      }
+    }
+  };
+
+  // دالة لحذف عريضة ديناميكية
+  const deleteDynamicForm = async (formId: string) => {
+    try {
+      const { error } = await supabase
+        .from('dynamic_forms')
+        .delete()
+        .eq('id', formId);
+
+      if (error) {
+        console.error('خطأ في حذف العريضة:', error);
+        return;
+      }
+
+      await fetchDynamicForms();
+      
+      setUpdateSuccess(true);
+      setTimeout(() => {
+        setUpdateSuccess(false);
+      }, 2000);
+    } catch (error) {
+      console.error('خطأ غير متوقع في حذف العريضة:', error);
+    }
+  };
+
+  // دالة لإضافة متغير جديد
+  const addFormVariable = () => {
+    const newVariable: FormVariable = {
+      id: Date.now().toString(),
+      name: '',
+      label: '',
+      type: 'text',
+      required: false
+    };
+    
+    if (editingForm) {
+      setEditingForm({
+        ...editingForm,
+        variables: [...editingForm.variables, newVariable]
+      });
+    } else {
+      setNewForm({
+        ...newForm,
+        variables: [...(newForm.variables || []), newVariable]
+      });
+    }
+  };
+
+  // دالة لإضافة متغيرات افتراضية للعريضة
+  const addDefaultDilekceVariables = () => {
+    const defaultVariables: FormVariable[] = [
+      {
+        id: Date.now().toString(),
+        name: 'full_name',
+        label: 'الاسم الكامل / Adı Soyadı',
+        type: 'text',
+        required: true,
+        placeholder: 'أدخل الاسم الكامل'
+      },
+      {
+        id: (Date.now() + 1).toString(),
+        name: 'id_number',
+        label: 'رقم الهوية / Kimlik No',
+        type: 'text',
+        required: true,
+        placeholder: 'أدخل رقم الهوية'
+      },
+      {
+        id: (Date.now() + 2).toString(),
+        name: 'phone_number',
+        label: 'رقم الهاتف / GSM',
+        type: 'phone',
+        required: true,
+        placeholder: 'أدخل رقم الهاتف'
+      },
+      {
+        id: (Date.now() + 3).toString(),
+        name: 'city',
+        label: 'المدينة / Şehir',
+        type: 'text',
+        required: true,
+        placeholder: 'أدخل اسم المدينة'
+      },
+      {
+        id: (Date.now() + 4).toString(),
+        name: 'nationality',
+        label: 'الجنسية / Uyruk',
+        type: 'text',
+        required: true,
+        placeholder: 'أدخل الجنسية'
+      },
+      {
+        id: (Date.now() + 5).toString(),
+        name: 'content',
+        label: 'محتوى العريضة / Dilekçe İçeriği',
+        type: 'textarea',
+        required: true,
+        placeholder: 'أدخل محتوى العريضة'
+      },
+      {
+        id: (Date.now() + 6).toString(),
+        name: 'date',
+        label: 'التاريخ / Tarih',
+        type: 'date',
+        required: true,
+        placeholder: 'أدخل التاريخ'
+      },
+      {
+        id: (Date.now() + 7).toString(),
+        name: 'signature',
+        label: 'التوقيع / İmza',
+        type: 'text',
+        required: true,
+        placeholder: 'أدخل التوقيع'
+      }
+    ];
+    
+    if (editingForm) {
+      setEditingForm({
+        ...editingForm,
+        variables: [...editingForm.variables, ...defaultVariables]
+      });
+    } else {
+      setNewForm({
+        ...newForm,
+        variables: [...(newForm.variables || []), ...defaultVariables]
+      });
+    }
+  };
+
+
+
+  // دالة لحذف متغير
+  const removeFormVariable = (variableId: string) => {
+    if (editingForm) {
+      setEditingForm({
+        ...editingForm,
+        variables: editingForm.variables.filter(v => v.id !== variableId)
+      });
+    } else {
+      setNewForm({
+        ...newForm,
+        variables: (newForm.variables || []).filter(v => v.id !== variableId)
+      });
+    }
+  };
+
+  // دالة لتحديث متغير
+  const updateFormVariable = (variableId: string, updates: Partial<FormVariable>) => {
+    if (editingForm) {
+      setEditingForm({
+        ...editingForm,
+        variables: editingForm.variables.map(v => 
+          v.id === variableId ? { ...v, ...updates } : v
+        )
+      });
+    } else {
+      setNewForm({
+        ...newForm,
+        variables: (newForm.variables || []).map(v => 
+          v.id === variableId ? { ...v, ...updates } : v
+        )
+      });
+    }
+  };
+
   // Show skeleton loading immediately to prevent white screen
   if (showSkeleton) {
     return (
@@ -1493,7 +1926,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 relative overflow-hidden">
-      <CustomCursor isDarkMode={isDarkMode} />
       
       {/* New Message Notification */}
       {newMessageNotification && (
@@ -1757,6 +2189,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 <span className="text-sm md:text-base font-medium">المحادثات</span>
               </div>
             </button>
+
             <button
               onClick={() => navigateToTab('health-insurance')}
               className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
@@ -2749,51 +3182,138 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
           <div className="space-y-6">
             {/* Standardized Header */}
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">إدارة النماذج الجاهزة</h2>
-            </div>
-
-            {/* Form Type Selection */}
-            <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
-              <div className="flex border-b border-white/20 dark:border-white/10 overflow-x-auto">
+                              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">إدارة نماذج العرائض</h2>
+              <div className="flex items-center space-x-3 space-x-reverse">
                 <button
-                  onClick={() => {
-                    setVoluntaryReturnView('list');
-                    setHealthInsuranceView('list');
-                    navigate('/admin/ready-forms?form=voluntary-return&view=list');
-                  }}
-                  className={`px-4 md:px-6 py-4 md:py-5 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                    !searchParams.get('form') || searchParams.get('form') === 'voluntary-return'
-                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-white/20 dark:bg-white/10'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-                  }`}
+                  onClick={() => fetchDynamicForms()}
+                  className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
                 >
-                  <div className="flex items-center">
-                    <FileText className="w-4 h-4 md:w-5 md:h-5 ml-2 md:ml-3" />
-                    <span className="text-sm md:text-base">نموذج عودة طوعية</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => {
-                    setVoluntaryReturnView('list');
-                    setHealthInsuranceView('list');
-                    navigate('/admin/ready-forms?form=health-insurance&view=list');
-                  }}
-                  className={`px-4 md:px-6 py-4 md:py-5 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                    searchParams.get('form') === 'health-insurance'
-                      ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 bg-white/20 dark:bg-white/10'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <div className="flex items-center">
-                    <Heart className="w-4 h-4 md:w-5 md:h-5 ml-2 md:ml-3" />
-                    <span className="text-sm md:text-base">نموذج تفعيل التأمين الصحي</span>
-                  </div>
+                  <RefreshCw className="w-4 h-4 ml-2" />
+                  تحديث العريضات
                 </button>
               </div>
             </div>
 
+            {/* Form Type Selection - Dropdown */}
+            <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 relative z-10`}>
+              <div className="p-4">
+                <div className="relative">
+                <button
+                    onClick={() => setShowFormDropdown(!showFormDropdown)}
+                    className={`w-full flex items-center justify-between px-4 py-3 bg-white/50 dark:bg-white/5 border border-white/30 dark:border-white/10 rounded-xl text-right hover:bg-white/70 dark:hover:bg-white/10 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50 ${showFormDropdown ? 'ring-2 ring-blue-500/50 shadow-lg' : ''}`}
+                >
+                  <div className="flex items-center">
+                      <FileText className="w-5 h-5 ml-3" />
+                                             <span className="font-medium text-slate-800 dark:text-white">
+                         {selectedForm === 'voluntary-return' ? 'نموذج عودة طوعية' : 
+                          selectedForm === 'new-form' ? 'إنشاء عريضة جديدة' :
+                          dynamicForms.find(f => f.id === selectedForm)?.name || 'اختر العريضة'}
+                       </span>
+                  </div>
+                    <ChevronDown className={`w-5 h-5 text-slate-600 dark:text-slate-400 transition-transform duration-300 ${showFormDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                  
+                  {showFormDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white/95 dark:bg-slate-800/95 backdrop-blur-sm border border-white/30 dark:border-white/10 rounded-xl shadow-2xl z-[9999] max-h-60 overflow-y-auto transform transition-all duration-200 ease-out animate-in slide-in-from-top-2 ring-1 ring-black/5 dark:ring-white/10">
+                      <div className="p-2">
+                <button
+                  onClick={() => {
+                            setSelectedForm('voluntary-return');
+                            setShowFormDropdown(false);
+                          }}
+                          className="w-full flex items-center px-4 py-3 text-right hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <FileText className="w-5 h-5 ml-3 text-blue-600 dark:text-blue-400" />
+                          <span className="font-medium text-slate-800 dark:text-white">نموذج عودة طوعية</span>
+                        </button>
+                        
+
+                        
+                        <button
+                          onClick={() => {
+                            setSelectedForm('new-form');
+                            setShowFormDropdown(false);
+                            setEditingForm(null);
+                            setNewForm({
+                              name: '',
+                              description: '',
+                              variables: [],
+                              template: '',
+                              is_active: true
+                            });
+                          }}
+                          className="w-full flex items-center px-4 py-3 text-right hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          <Plus className="w-5 h-5 ml-3 text-blue-600 dark:text-blue-400" />
+                          <span className="font-medium text-slate-800 dark:text-white">إنشاء عريضة جديدة</span>
+                        </button>
+                        
+                                                 
+                         {dynamicForms.length > 0 && (
+                           <>
+                             <div className="border-t border-slate-200 dark:border-slate-700 my-2"></div>
+                             <div className="px-2 py-1">
+                               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mb-2">النماذج المحفوظة:</p>
+                             </div>
+                           </>
+                         )}
+                         
+                         {dynamicForms.map((form) => (
+                          <button
+                            key={form.id}
+                            onClick={() => {
+                              setSelectedForm(form.id);
+                              setShowFormDropdown(false);
+                            }}
+                            className="w-full flex items-center justify-between px-4 py-3 text-right hover:bg-slate-50 dark:hover:bg-slate-700/50 rounded-lg transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <div className="flex items-center">
+                              <FileText className="w-5 h-5 ml-3 text-slate-600 dark:text-slate-400" />
+                              <div className="text-right">
+                                <span className="font-medium text-slate-800 dark:text-white block">{form.name}</span>
+                                <span className="text-sm text-slate-500 dark:text-slate-400">{form.description}</span>
+                  </div>
+                            </div>
+                            <div className="flex items-center space-x-2 space-x-reverse">
+                              {form.is_active && (
+                                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingForm(form);
+                                  setSelectedForm('edit-form');
+                                  setShowFormDropdown(false);
+                                }}
+                                className="p-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-200 hover:scale-110 active:scale-95"
+                                title="تعديل"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                                                   if (confirm('هل أنت متأكد من حذف هذا النموذج؟')) {
+                                   deleteDynamicForm(form.id);
+                                 }
+                                }}
+                                className="p-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200 hover:scale-110 active:scale-95"
+                                title="حذف"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                </button>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Voluntary Return Form Content */}
-            {(!searchParams.get('form') || searchParams.get('form') === 'voluntary-return') && (
+            {selectedForm === 'voluntary-return' && (
               <>
                 {/* Voluntary Return Navigation Tabs */}
                 <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 mb-8">
@@ -2821,7 +3341,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                     >
                       <div className="flex items-center">
                         <Plus className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                        <span className="text-sm md:text-base">إنشاء نموذج جديد</span>
+                        <span className="text-sm md:text-base">إنشاء نموذج عريضة جديد</span>
                       </div>
                     </button>
                     <button
@@ -2853,47 +3373,808 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </>
             )}
 
-            {/* Health Insurance Form Content */}
-            {searchParams.get('form') === 'health-insurance' && (
-              <>
-                {/* Health Insurance Navigation Tabs */}
-                <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 mb-8">
-                  <div className="flex border-b border-platinum-200 dark:border-jet-700 overflow-x-auto">
+            {/* Dynamic Form Editor */}
+            {(selectedForm === 'new-form' || selectedForm === 'edit-form') && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-6`}>
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-white">
+                    {selectedForm === 'new-form' ? 'إنشاء عريضة جديدة' : 'تعديل العريضة'}
+                  </h3>
+                  <div className="flex items-center space-x-3 space-x-reverse">
                     <button
-                      onClick={() => navigateToHealthInsuranceView('list')}
-                      className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                        healthInsuranceView === 'list'
-                          ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                          : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
-                      }`}
+                      onClick={() => {
+                        setSelectedForm('voluntary-return');
+                        setEditingForm(null);
+                        setNewForm({
+                          name: '',
+                          description: '',
+                          variables: [],
+                          template: '',
+                          is_active: true
+                        });
+                      }}
+                      className="flex items-center px-4 py-2 bg-slate-600 text-white rounded-xl hover:bg-slate-700 transition-colors"
                     >
-                      <div className="flex items-center">
-                        <FileText className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                        <span className="text-sm md:text-base">قائمة النماذج المنشأة</span>
+                      <ArrowLeft className="w-4 h-4 ml-2" />
+                      رجوع
+                    </button>
                       </div>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Basic Form Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        اسم النموذج *
+                      </label>
+                      <input
+                        type="text"
+                        value={editingForm?.name || newForm.name || ''}
+                        onChange={(e) => {
+                          if (editingForm) {
+                            setEditingForm({ ...editingForm, name: e.target.value });
+                          } else {
+                            setNewForm({ ...newForm, name: e.target.value });
+                          }
+                        }}
+                        className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white"
+                        placeholder="أدخل اسم النموذج"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        وصف النموذج
+                      </label>
+                      <input
+                        type="text"
+                        value={editingForm?.description || newForm.description || ''}
+                        onChange={(e) => {
+                          if (editingForm) {
+                            setEditingForm({ ...editingForm, description: e.target.value });
+                          } else {
+                            setNewForm({ ...newForm, description: e.target.value });
+                          }
+                        }}
+                        className="w-full px-4 py-3 border border-white/30 dark:border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white"
+                        placeholder="أدخل وصف النموذج"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Form Variables */}
+                  <div>
+                                         <div className="flex items-center justify-between mb-4">
+                       <h4 className="text-lg font-semibold text-slate-800 dark:text-white">متغيرات العريضة التركية</h4>
+                       <div className="flex items-center space-x-2 space-x-reverse">
+                         <button
+                           onClick={addDefaultDilekceVariables}
+                           className="flex items-center px-3 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
+                         >
+                           <Plus className="w-3 h-3 ml-1" />
+                           متغيرات افتراضية
                     </button>
                     <button
-                      onClick={() => navigateToHealthInsuranceView('create')}
-                      className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                        healthInsuranceView === 'create'
-                          ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                          : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <Plus className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                        <span className="text-sm md:text-base">إنشاء نموذج جديد</span>
+                           onClick={addFormVariable}
+                           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                         >
+                           <Plus className="w-4 h-4 ml-2" />
+                           إضافة متغير
+                         </button>
                       </div>
+                     </div>
+
+                    <div className="space-y-4">
+                      {(editingForm?.variables || newForm.variables || []).map((variable, index) => (
+                        <div key={variable.id} className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} p-4 rounded-xl border border-white/20 dark:border-white/10`}>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                اسم المتغير *
+                              </label>
+                              <input
+                                type="text"
+                                value={variable.name}
+                                onChange={(e) => updateFormVariable(variable.id, { name: e.target.value })}
+                                className="w-full px-3 py-2 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-sm"
+                                placeholder="اسم_المتغير"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                التسمية *
+                              </label>
+                              <input
+                                type="text"
+                                value={variable.label}
+                                onChange={(e) => updateFormVariable(variable.id, { label: e.target.value })}
+                                className="w-full px-3 py-2 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-sm"
+                                placeholder="اسم المتغير"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                نوع الحقل
+                              </label>
+                              <select
+                                value={variable.type}
+                                onChange={(e) => updateFormVariable(variable.id, { type: e.target.value as any })}
+                                className="w-full px-3 py-2 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-sm"
+                              >
+                                <option value="text">نص</option>
+                                <option value="email">بريد إلكتروني</option>
+                                <option value="phone">رقم هاتف</option>
+                                <option value="date">تاريخ</option>
+                                <option value="number">رقم</option>
+                                <option value="textarea">نص طويل</option>
+                                <option value="select">قائمة منسدلة</option>
+                                <option value="checkbox">خانة اختيار</option>
+                              </select>
+                            </div>
+                            <div className="flex items-end space-x-2 space-x-reverse">
+                              <label className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={variable.required}
+                                  onChange={(e) => updateFormVariable(variable.id, { required: e.target.checked })}
+                                  className="ml-2 w-4 h-4 text-blue-600 bg-white border-white/30 rounded focus:ring-blue-500 focus:ring-2"
+                                />
+                                <span className="text-sm text-slate-700 dark:text-slate-300">مطلوب</span>
+                              </label>
+                    <button
+                                onClick={() => removeFormVariable(variable.id)}
+                                className="p-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                                title="حذف المتغير"
+                              >
+                                <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Health Insurance Content */}
-                <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700">
+                          {/* Additional options for select type */}
+                          {variable.type === 'select' && (
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                خيارات القائمة (مفصولة بفواصل)
+                              </label>
+                              <input
+                                type="text"
+                                value={variable.options?.join(', ') || ''}
+                                onChange={(e) => updateFormVariable(variable.id, { options: e.target.value.split(',').map(s => s.trim()) })}
+                                className="w-full px-3 py-2 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-sm"
+                                placeholder="الخيار الأول، الخيار الثاني، الخيار الثالث"
+                              />
+                            </div>
+                          )}
+
+                          {/* Placeholder for text inputs */}
+                          {(variable.type === 'text' || variable.type === 'email' || variable.type === 'phone' || variable.type === 'number') && (
+                            <div className="mt-4">
+                              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                                النص التوضيحي
+                              </label>
+                              <input
+                                type="text"
+                                value={variable.placeholder || ''}
+                                onChange={(e) => updateFormVariable(variable.id, { placeholder: e.target.value })}
+                                className="w-full px-3 py-2 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-sm"
+                                placeholder="أدخل النص التوضيحي"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                                     {/* Form Template - Text Editor */}
+                   <div>
+                     <div className="flex items-center justify-between mb-4">
+                       <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                         محتوى النموذج - محاذي من اليسار لليمين
+                       </label>
+                                                <div className="flex items-center space-x-2 space-x-reverse">
+                           <button
+                             type="button"
+                             onClick={() => {
+                               const template = `İL GÖÇ İDARESİ MÜDÜRLÜĞÜNE
+${'{city}'}		${'{date}'}
+
+	
+
+Ben, ${'{nationality}'} uyrukluyum , Adım ${'{full_name}'} ,${'{id_number}'}  numaralı Geçici Koruma Kimlik Belgesi sahibiyim.
+${'{content}'}
+
+GSM : ${'{phone_number}'}  
+Saygılarımla,
+Adı Soyadı: ${'{full_name}'}
+Kimlik No: ${'{id_number}'}  
+İmza: ${'{signature}'}`;
+                               
+                               if (editingForm) {
+                                 setEditingForm({ ...editingForm, template });
+                               } else {
+                                 setNewForm({ ...newForm, template });
+                               }
+                               
+
+                             }}
+                             className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                           >
+                             قالب نموذج جاهز
+                           </button>
+                         </div>
+                     </div>
+                     
+                     {/* Variable Insertion Panel - Above Text Editor */}
+                     <div className="mb-4 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm rounded-lg border border-white/30 dark:border-white/10 p-4 shadow-lg">
+                       <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-3">إدراج متغيرات النموذج (انقر لإدراج في المحرر):</p>
+                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                         {[
+                           { key: '{full_name}', label: 'الاسم الكامل', icon: '👤' },
+                           { key: '{id_number}', label: 'رقم الهوية', icon: '🆔' },
+                           { key: '{phone_number}', label: 'رقم الهاتف', icon: '📞' },
+                           { key: '{city}', label: 'المدينة', icon: '🏙️' },
+                           { key: '{nationality}', label: 'الجنسية', icon: '🌍' },
+                           { key: '{content}', label: 'المحتوى', icon: '📝' },
+                           { key: '{date}', label: 'التاريخ', icon: '📅' },
+                           { key: '{signature}', label: 'التوقيع', icon: '✍️' }
+                         ].map((variable) => (
+                           <button
+                             key={variable.key}
+                             type="button"
+                             onClick={() => {
+                               // إدراج المتغير في TinyMCE Editor
+                               const editor = (window as any).tinymce?.get('tinymce-editor');
+                               if (editor) {
+                                 editor.insertContent(variable.key);
+                               } else {
+                                 // fallback: إضافة في نهاية النص
+                                 const currentContent = editingForm?.template || newForm.template || '';
+                                 const newContent = currentContent + variable.key;
+                                 
+                                 if (editingForm) {
+                                   setEditingForm({ ...editingForm, template: newContent });
+                                 } else {
+                                   setNewForm({ ...newForm, template: newContent });
+                                 }
+                               }
+                             }}
+                             className="flex items-center justify-center px-3 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-sm font-medium cursor-pointer"
+                             title={`انقر لإدراج ${variable.label}`}
+                           >
+                             <span className="ml-1">{variable.icon}</span>
+                             <span>{variable.label}</span>
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+
+
+                     
+                                          <TinyMCEEditor
+                       content={editingForm?.template || newForm.template || ''}
+                       onChange={(content: string) => {
+                         if (editingForm) {
+                           setEditingForm({ ...editingForm, template: content });
+                         } else {
+                           setNewForm({ ...newForm, template: content });
+                         }
+                       }}
+                       placeholder={`İL GÖÇ İDARESİ MÜDÜRLÜĞÜNE
+{city}		{date}
+
+	
+
+Ben, {nationality} uyrukluyum , Adım {full_name} ,{id_number}  numaralı Geçici Koruma Kimlik Belgesi sahibiyim.
+{content}
+
+GSM : {phone_number}  
+Saygılarımla,
+Adı Soyadı: {full_name}
+Kimlik No: {id_number}  
+İmza: {signature}`}
+                       isDarkMode={isDarkMode}
+                     />
+
+
+                     
+                     <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-700/20">
+                       <p className="text-sm text-blue-800 dark:text-blue-300 font-medium mb-2">💡 نصائح لكتابة النموذج:</p>
+                       <ul className="text-xs text-blue-700 dark:text-blue-400 space-y-1 list-disc list-inside">
+                         <li>استخدم المتغيرات بين قوسين مثل {`{full_name}`} لإدراج البيانات</li>
+                         <li>اكتب النموذج بأسلوب رسمي ومحترم</li>
+                         <li>اذكر جميع المعلومات المطلوبة بوضوح ودقة</li>
+                         <li>تأكد من صحة جميع البيانات المدخلة</li>
+                         <li>النص محاذي من اليسار لليمين</li>
+                         <li>💡 <strong>نصيحة:</strong> استخدم المحرر المتقدم للحصول على ميزات تحرير متقدمة</li>
+                       </ul>
+                     </div>
+                   </div>
+
+                  {/* Form Status */}
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={editingForm?.is_active !== false && newForm.is_active !== false}
+                        onChange={(e) => {
+                          if (editingForm) {
+                            setEditingForm({ ...editingForm, is_active: e.target.checked });
+                          } else {
+                            setNewForm({ ...newForm, is_active: e.target.checked });
+                          }
+                        }}
+                        className="ml-2 w-4 h-4 text-blue-600 bg-white border-white/30 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+                      <span className="text-sm text-slate-700 dark:text-slate-300">النموذج نشط</span>
+                    </label>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end space-x-3 space-x-reverse">
+                    <button
+                      onClick={async () => {
+                        // حفظ العريضة مباشرة
+                        saveDynamicForm(editingForm || newForm);
+                      }}
+                      className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-semibold"
+                    >
+                      <Save className="w-4 h-4 ml-2" />
+                      {selectedForm === 'new-form' ? 'إنشاء النموذج' : 'حفظ التغييرات'}
+                    </button>
+
+                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Dynamic Form Display */}
+            {selectedForm !== 'voluntary-return' && selectedForm !== 'new-form' && selectedForm !== 'edit-form' && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-6`}>
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <div className="flex items-center space-x-3 space-x-reverse mb-2">
+                      <h3 className="text-xl font-bold text-slate-800 dark:text-white">
+                        {dynamicForms.find(f => f.id === selectedForm)?.name}
+                      </h3>
+                      {dynamicForms.find(f => f.id === selectedForm)?.is_active && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
+                          <span className="w-1.5 h-1.5 bg-green-500 rounded-full ml-1"></span>
+                          نشط
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      {dynamicForms.find(f => f.id === selectedForm)?.description}
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-3 space-x-reverse">
+                    <button
+                      onClick={() => setShowPrintModal(true)}
+                      className="flex items-center px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
+                    >
+                      <Printer className="w-4 h-4 ml-2" />
+                      طباعة
+                    </button>
+                    <button
+                      onClick={() => {
+                        setEditingForm(dynamicForms.find(f => f.id === selectedForm) || null);
+                        setSelectedForm('edit-form');
+                      }}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                    >
+                      <Edit className="w-4 h-4 ml-2" />
+                      تعديل
+                    </button>
+                  </div>
+                </div>
+
+                {/* Form Content with Variables Input */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Variables Input Section */}
+                  {(dynamicForms.find(f => f.id === selectedForm)?.variables || []).length > 0 && (
+                    <div className="lg:col-span-1">
+                      <div className="bg-white/50 dark:bg-white/5 rounded-xl p-4 border border-white/30 dark:border-white/10">
+                        <div className="flex items-center justify-between mb-4">
+                          <h4 className="text-lg font-semibold text-slate-800 dark:text-white">إدخال المتغيرات</h4>
+                          <button
+                            onClick={() => setFormValues({})}
+                            className="flex items-center px-2 py-1 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors text-xs"
+                          >
+                            <RefreshCw className="w-3 h-3 ml-1" />
+                            مسح
+                          </button>
+                        </div>
+                        <div className="space-y-3">
+                          {(dynamicForms.find(f => f.id === selectedForm)?.variables || []).map((variable) => (
+                            <div key={variable.id} className="space-y-1">
+                              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300">
+                                {variable.label}
+                                {variable.required && <span className="text-red-500 ml-1">*</span>}
+                              </label>
+                              {variable.type === 'select' ? (
+                                <select
+                                  value={formValues[variable.name] || ''}
+                                  onChange={(e) => setFormValues(prev => ({ ...prev, [variable.name]: e.target.value }))}
+                                  className="w-full px-2 py-1 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-xs"
+                                >
+                                  <option value="">{variable.placeholder || 'اختر...'}</option>
+                                  {variable.options?.map((option, index) => (
+                                    <option key={index} value={option}>{option}</option>
+                                  ))}
+                                </select>
+                              ) : variable.type === 'textarea' ? (
+                                <textarea
+                                  value={formValues[variable.name] || ''}
+                                  onChange={(e) => setFormValues(prev => ({ ...prev, [variable.name]: e.target.value }))}
+                                  placeholder={variable.placeholder}
+                                  rows={2}
+                                  className="w-full px-2 py-1 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-xs resize-none"
+                                />
+                              ) : variable.type === 'checkbox' ? (
+                                <label className="flex items-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={formValues[variable.name] === 'true'}
+                                    onChange={(e) => setFormValues(prev => ({ ...prev, [variable.name]: e.target.checked ? 'true' : 'false' }))}
+                                    className="ml-1 w-3 h-3 text-blue-600 bg-white border-white/30 rounded focus:ring-blue-500 focus:ring-1"
+                                  />
+                                  <span className="text-xs text-slate-700 dark:text-slate-300">{variable.placeholder || 'نعم'}</span>
+                                </label>
+                              ) : (
+                                <input
+                                  type={variable.type === 'email' ? 'email' : variable.type === 'phone' ? 'tel' : variable.type === 'date' ? 'date' : variable.type === 'number' ? 'number' : 'text'}
+                                  value={formValues[variable.name] || ''}
+                                  onChange={(e) => setFormValues(prev => ({ ...prev, [variable.name]: e.target.value }))}
+                                  placeholder={variable.placeholder}
+                                  className="w-full px-2 py-1 border border-white/30 dark:border-white/10 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500/50 focus:border-transparent bg-white/50 dark:bg-white/5 backdrop-blur-sm text-slate-900 dark:text-white text-xs"
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Visual Preview Section */}
+                  <div className={`${(dynamicForms.find(f => f.id === selectedForm)?.variables || []).length > 0 ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
+                    <div className="bg-white dark:bg-slate-800 rounded-xl p-6 border border-slate-200 dark:border-slate-700 shadow-lg">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold text-slate-800 dark:text-white">معاينة النموذج</h4>
+                                               <div className="flex items-center space-x-2 space-x-reverse">
+                         <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded-full">
+                           🖊️ انقر على المتغيرات للتعديل
+                         </span>
+                         <span className="text-xs text-slate-500 dark:text-slate-400">محاذي من اليسار لليمين</span>
+                         <Eye className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                       </div>
+                       {/* Debug Info */}
+                       <div className="mt-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-700/30">
+                         <p className="text-xs text-yellow-800 dark:text-yellow-200">
+                           <strong>معلومات التصحيح:</strong><br/>
+                           المتغيرات في النموذج: {(() => {
+                             const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                             return currentForm?.variables?.length || 0;
+                           })()} متغير<br/>
+                           القالب يحتوي متغيرات: {(() => {
+                             const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                             const hasVariables = currentForm?.template?.includes('{') || false;
+                             return hasVariables ? 'نعم' : 'لا';
+                           })()}
+                         </p>
+                         {(() => {
+                           const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                           const hasVariables = currentForm?.template?.includes('{') || false;
+                           const hasFormVariables = (currentForm?.variables?.length || 0) > 0;
+                           
+                           if (!hasVariables || !hasFormVariables) {
+                             return (
+                               <div className="mt-2 space-y-2">
+                                 {!hasVariables && (
+                                   <button
+                                     onClick={() => {
+                                       const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                                       if (currentForm) {
+                                         const updatedTemplate = `İL GÖÇ İDARESİ MÜDÜRLÜĞÜNE
+{city}		{date}
+
+Ben, {nationality} uyrukluyum , Adım {full_name} ,{id_number}  numaralı Geçici Koruma Kimlik Belgesi sahibiyim.
+{content}
+
+GSM : {phone_number}  
+Saygılarımla,
+Adı Soyadı: {full_name}
+Kimlik No: {id_number}  
+İmza: {signature}`;
+                                         
+                                         setEditingForm({ ...currentForm, template: updatedTemplate });
+                                         setSelectedForm('edit-form');
+                                       }
+                                     }}
+                                     className="w-full px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs"
+                                   >
+                                     إضافة متغيرات للقالب
+                                   </button>
+                                 )}
+                                 {!hasFormVariables && (
+                                   <button
+                                     onClick={() => {
+                                       const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                                       if (currentForm) {
+                                         const defaultVariables: FormVariable[] = [
+                                           { id: '1', name: 'full_name', label: 'الاسم الكامل', type: 'text', required: true, placeholder: 'أدخل الاسم الكامل' },
+                                           { id: '2', name: 'id_number', label: 'رقم الهوية', type: 'text', required: true, placeholder: 'أدخل رقم الهوية' },
+                                           { id: '3', name: 'phone_number', label: 'رقم الهاتف', type: 'phone', required: true, placeholder: 'أدخل رقم الهاتف' },
+                                           { id: '4', name: 'city', label: 'المدينة', type: 'text', required: true, placeholder: 'أدخل المدينة' },
+                                           { id: '5', name: 'nationality', label: 'الجنسية', type: 'text', required: true, placeholder: 'أدخل الجنسية' },
+                                           { id: '6', name: 'content', label: 'المحتوى', type: 'textarea', required: true, placeholder: 'أدخل محتوى العريضة' },
+                                           { id: '7', name: 'date', label: 'التاريخ', type: 'date', required: false, placeholder: 'أدخل التاريخ' },
+                                           { id: '8', name: 'signature', label: 'التوقيع', type: 'text', required: false, placeholder: 'أدخل التوقيع' }
+                                         ];
+                                         
+                                         setEditingForm({ ...currentForm, variables: defaultVariables });
+                                         setSelectedForm('edit-form');
+                                       }
+                                     }}
+                                     className="w-full px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs"
+                                   >
+                                     إضافة متغيرات افتراضية
+                                   </button>
+                                 )}
+                               </div>
+                             );
+                           }
+                           return null;
+                         })()}
+                       </div>
+                      </div>
+                                             <div 
+                         className="prose prose-sm max-w-none text-slate-800 dark:text-slate-200 leading-relaxed turkish-petition-preview"
+                         style={{ direction: 'ltr', textAlign: 'left' }}
+                       >
+                         {(() => {
+                           const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                           if (currentForm?.template) {
+                             console.log('Template:', currentForm.template);
+                             console.log('Variables:', currentForm.variables);
+                             console.log('Form Values:', formValues);
+                             
+                             // تقسيم النص إلى أجزاء (نص عادي ومتغيرات)
+                             const parts: TemplatePart[] = [];
+                             let lastIndex = 0;
+                             const variableMatches = currentForm.template.match(/\{([^}]+)\}/g) || [];
+                             
+                             variableMatches.forEach((match, index) => {
+                               const variableName = match.replace(/[{}]/g, '');
+                               const matchIndex = currentForm.template.indexOf(match, lastIndex);
+                               
+                               // إضافة النص قبل المتغير
+                               if (matchIndex > lastIndex) {
+                                 const textBefore = currentForm.template.substring(lastIndex, matchIndex);
+                                 parts.push({ type: 'text', content: textBefore });
+                               }
+                               
+                               // إضافة المتغير
+                               const value = formValues[variableName] || match;
+                               parts.push({ 
+                                 type: 'variable', 
+                                 name: variableName, 
+                                 value: value,
+                                 original: match 
+                               });
+                               
+                               lastIndex = matchIndex + match.length;
+                             });
+                             
+                             // إضافة النص المتبقي
+                             if (lastIndex < currentForm.template.length) {
+                               const remainingText = currentForm.template.substring(lastIndex);
+                               parts.push({ type: 'text', content: remainingText });
+                             }
+                             
+                                                            return parts.map((part: TemplatePart, index) => {
+                                                                  if (part.type === 'text' && part.content) {
+                                   return (
+                                     <span key={index}>
+                                       {part.content.split('\n').map((line, lineIndex) => (
+                                         <span key={lineIndex}>
+                                           {line}
+                                           {lineIndex < part.content!.split('\n').length - 1 && <br />}
+                                         </span>
+                                       ))}
+                                     </span>
+                                   );
+                                 } else if (part.type === 'variable' && part.name) {
+                                 return (
+                                   <span
+                                     key={index}
+                                     className="editable-variable"
+                                     data-variable={part.name}
+                                     style={{
+                                       background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1))',
+                                       border: '2px solid rgba(59, 130, 246, 0.3)',
+                                       borderRadius: '8px',
+                                       padding: '4px 8px',
+                                       cursor: 'pointer',
+                                       display: 'inline-block',
+                                       minWidth: '80px',
+                                       textAlign: 'center',
+                                       transition: 'all 0.3s ease',
+                                       fontWeight: '500',
+                                       color: 'rgba(59, 130, 246, 0.9)',
+                                       position: 'relative',
+                                       boxShadow: '0 2px 4px rgba(59, 130, 246, 0.1)'
+                                     }}
+                                     onMouseOver={(e) => {
+                                       e.currentTarget.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+                                       e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.5)';
+                                       e.currentTarget.style.transform = 'scale(1.05)';
+                                       e.currentTarget.style.boxShadow = '0 4px 8px rgba(59, 130, 246, 0.2)';
+                                     }}
+                                     onMouseOut={(e) => {
+                                       e.currentTarget.style.backgroundColor = 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(99, 102, 241, 0.1))';
+                                       e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                                       e.currentTarget.style.transform = 'scale(1)';
+                                       e.currentTarget.style.boxShadow = '0 2px 4px rgba(59, 130, 246, 0.1)';
+                                     }}
+                                                                            onClick={() => {
+                                         setEditingVariable({ name: part.name!, value: part.value || '' });
+                                       }}
+                                     title="🖊️ انقر للتعديل"
+                                                                        >
+                                       {part.value || part.original || part.name}
+                                     </span>
+                                 );
+                               } else {
+                                 return null;
+                               }
+                             });
+                           }
+                           return 'لا يوجد محتوى محدد للنموذج';
+                         })()}
+                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Moderators Tab */}
+        {activeTab === 'moderators' && (
+          <div className="space-y-6">
+            {/* Standardized Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">إدارة المشرفين</h2>
+            </div>
+
+            {/* Show moderator management for admin users */}
+            {profile?.role === 'admin' && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
+                <ModeratorManagement isDarkMode={isDarkMode} />
+              </div>
+            )}
+            
+            {/* Show access denied for non-admin users */}
+            {profile?.role !== 'admin' && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-8 text-center`}>
+                <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">
+                  🔒 الوصول مرفوض
+                </h2>
+                <p className="text-lg text-slate-600 dark:text-slate-300 mb-6">
+                  فقط الأدمن يمكنه الوصول إلى هذه الصفحة
+                </p>
+                <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    هذه الصفحة مخصصة لإدارة المشرفين وتتطلب صلاحيات أدمن كاملة
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+
+
+        {/* Health Insurance Tab */}
+        {activeTab === 'health-insurance' && (
+          <div className="space-y-6">
+            {/* Standardized Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">إدارة التأمين الصحي</h2>
+            </div>
+
+            {/* Show health insurance management for admin and moderator users */}
+            {(profile?.role === 'admin' || profile?.role === 'moderator') && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
                   <HealthInsuranceManagement />
                 </div>
-              </>
             )}
+            
+            {/* Show access denied for non-admin/moderator users */}
+            {(profile?.role !== 'admin' && profile?.role !== 'moderator') && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-8 text-center`}>
+                <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">
+                  🔒 الوصول مرفوض
+                </h2>
+                <p className="text-lg text-slate-600 dark:text-slate-300 mb-6">
+                  فقط الأدمن والمشرفين يمكنهم الوصول إلى هذه الصفحة
+                </p>
+                <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    هذه الصفحة مخصصة لإدارة التأمين الصحي وتتطلب صلاحيات أدمن أو مشرف
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Webhooks Tab */}
+        {activeTab === 'webhooks' && (
+          <div className="space-y-6">
+            {/* Standardized Header */}
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-white">إدارة الـ Webhooks</h2>
+            </div>
+
+            {(profile?.role === 'admin' || profile?.role === 'moderator') && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10`}>
+                <WebhookSettings isDarkMode={isDarkMode} />
+              </div>
+            )}
+            
+            {/* Show access denied for non-admin/moderator users */}
+            {(profile?.role !== 'admin' && profile?.role !== 'moderator') && (
+              <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 p-8 text-center`}>
+                <div className="w-20 h-20 bg-red-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Shield className="w-10 h-10 text-red-600 dark:text-red-400" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-4">
+                  🔒 الوصول مرفوض
+                </h2>
+                <p className="text-lg text-slate-600 dark:text-slate-300 mb-6">
+                  فقط الأدمن والمشرفين يمكنهم الوصول إلى هذه الصفحة
+                </p>
+                <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-xl p-4">
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    هذه الصفحة مخصصة لإدارة إعدادات الـ webhooks وتتطلب صلاحيات أدمن أو مشرف
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Success Message */}
+        {updateSuccess && (
+          <div className="fixed top-4 right-4 z-50">
+            <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md border border-white/30 dark:border-white/20 rounded-2xl shadow-2xl p-6 text-center animate-fade-in">
+              <div className="w-16 h-16 bg-green-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-in">
+                <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">
+                تم الحفظ بنجاح! ✨
+              </h3>
+              <p className="text-slate-600 dark:text-slate-300 text-sm">
+                تم تحديث البيانات بنجاح
+              </p>
+              
+              {/* Progress bar */}
+              <div className="mt-4 w-full bg-white/20 dark:bg-white/10 rounded-full h-1 overflow-hidden">
+                <div className="h-full bg-green-500/60 rounded-full animate-expand-width"></div>
+              </div>
+            </div>
           </div>
         )}
 
@@ -3554,23 +4835,127 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         </div>
       )}
 
-      {/* Success Message */}
-      {updateSuccess && (
-        <div className="fixed top-4 right-4 z-50">
-          <div className="bg-white/20 dark:bg-white/10 backdrop-blur-md border border-white/30 dark:border-white/20 rounded-2xl shadow-2xl p-6 text-center animate-fade-in">
-            <div className="w-16 h-16 bg-green-500/20 backdrop-blur-sm rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce-in">
-              <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
+      {/* Variable Edit Modal */}
+      {editingVariable && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white">تحرير المتغير</h3>
+              <button
+                onClick={() => setEditingVariable(null)}
+                className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
-            <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2">
-              تم الحفظ بنجاح! ✨
-            </h3>
-            <p className="text-slate-600 dark:text-slate-300 text-sm">
-              تم تحديث البيانات بنجاح
-            </p>
-            
-            {/* Progress bar */}
-            <div className="mt-4 w-full bg-white/20 dark:bg-white/10 rounded-full h-1 overflow-hidden">
-              <div className="h-full bg-green-500/60 rounded-full animate-expand-width"></div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    المتغير: <span className="text-blue-600 dark:text-blue-400">{editingVariable.name}</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editingVariable.value}
+                    onChange={(e) => setEditingVariable({ ...editingVariable, value: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setFormValues(prev => ({ 
+                          ...prev, 
+                          [editingVariable.name]: editingVariable.value 
+                        }));
+                        setEditingVariable(null);
+                      } else if (e.key === 'Escape') {
+                        setEditingVariable(null);
+                      }
+                    }}
+                    className="w-full px-4 py-3 border border-slate-300 dark:border-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                    placeholder="أدخل القيمة الجديدة..."
+                    autoFocus
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+                    💡 اضغط Enter للحفظ، أو Escape للإلغاء
+                  </p>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
+              <button
+                onClick={() => setEditingVariable(null)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => {
+                  if (editingVariable) {
+                    setFormValues(prev => ({ 
+                      ...prev, 
+                      [editingVariable.name]: editingVariable.value 
+                    }));
+                    setEditingVariable(null);
+                  }
+                }}
+                className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+              >
+                <Save className="w-4 h-4 ml-2" />
+                حفظ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Modal */}
+      {showPrintModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700">
+              <h3 className="text-xl font-bold text-slate-800 dark:text-white">معاينة الطباعة</h3>
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm">
+                <div 
+                  className="prose prose-sm max-w-none text-slate-800 leading-relaxed"
+                  dangerouslySetInnerHTML={{
+                    __html: (() => {
+                      const currentForm = dynamicForms.find(f => f.id === selectedForm);
+                      if (currentForm?.template) {
+                        const content = applyFormValues(currentForm.template, formValues);
+                        return content
+                          .replace(/\n/g, '<br>')
+                          .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+                          .replace(/\s{2,}/g, (match) => '&nbsp;'.repeat(match.length));
+                      }
+                      return 'لا يوجد محتوى محدد للنموذج';
+                    })()
+                  }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/50">
+              <button
+                onClick={() => setShowPrintModal(false)}
+                className="px-4 py-2 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => {
+                  printForm();
+                  setShowPrintModal(false);
+                }}
+                className="flex items-center px-6 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors"
+              >
+                <Printer className="w-4 h-4 ml-2" />
+                طباعة
+              </button>
             </div>
           </div>
         </div>

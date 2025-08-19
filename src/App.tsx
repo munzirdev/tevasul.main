@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, Building, ChevronDown, CheckCircle, Shield, Clock, UserPlus, User, Settings, HelpCircle, LogOut, Send, Code, Volume2, VolumeX } from 'lucide-react';
-import CustomCursor from './components/CustomCursor';
 import DebugThemeToggle from './components/DebugThemeToggle';
 import LoadingSpinner from './components/LoadingSpinner';
 import GlassLoadingScreen from './components/GlassLoadingScreen';
@@ -53,7 +52,6 @@ function App() {
     animationsEnabled: true,
     particleCount: 16,
     scrollEffectsEnabled: true,
-    customCursorEnabled: true,
     backgroundMusicEnabled: true,
     realTimeUpdatesEnabled: true,
     visualEffectsIntensity: 'medium' as 'low' | 'medium' | 'high'
@@ -288,6 +286,19 @@ function App() {
   // Handle route changes
   useEffect(() => {
     const path = location.pathname;
+    
+    // Handle privacy policy route
+    if (path === '/privacy-policy') {
+      setShowPrivacy(true);
+      return;
+    }
+    
+    // Handle terms of service route
+    if (path === '/terms-of-service') {
+      setShowTerms(true);
+      return;
+    }
+    
     // Handle service routes
     if (path.startsWith('/services/')) {
       const serviceId = path.split('/services/')[1];
@@ -957,7 +968,6 @@ function App() {
       if (service.id === 'health-insurance') {
         return (
           <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
-            <CustomCursor isDarkMode={isDarkMode} />
             
             <HealthInsurancePage 
               onBack={handleBackToHome} 
@@ -988,7 +998,6 @@ function App() {
       };
       return (
         <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
-          <CustomCursor isDarkMode={isDarkMode} />
           
           <ServicePage 
             service={serviceWithIcon} 
@@ -1105,7 +1114,6 @@ function App() {
   if (location.pathname === '/voluntary-return') {
     return (
       <div className={`min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
-        <CustomCursor isDarkMode={isDarkMode} />
         
         <VoluntaryReturnPage 
           onBack={() => navigate('/')} 
@@ -1152,7 +1160,6 @@ function App() {
   if (location.pathname === '/auth/verify-email') {
     return (
       <div className={`min-h-screen ${isDarkMode ? 'dark' : ''} transition-colors duration-500`}>
-        <CustomCursor isDarkMode={isDarkMode} />
         <EmailVerification isDarkMode={isDarkMode} />
       </div>
     );
@@ -1186,10 +1193,7 @@ function App() {
         isLowPerformance={isLowPerformance}
         deviceCapabilities={deviceCapabilities}
       />
-      <CustomCursor 
-        isDarkMode={isDarkMode} 
-        enabled={performanceSettings.customCursorEnabled}
-      />
+
       <style dangerouslySetInnerHTML={{
         __html: `
           /* Waveform Animation Keyframes */
@@ -2120,7 +2124,7 @@ function App() {
           
           <div className="flex items-center space-x-6 space-x-reverse">
             <button
-              onClick={() => setShowPrivacy(true)}
+              onClick={() => navigate('/privacy-policy')}
               className={`transition-colors text-sm hover:scale-105 transform duration-300 ${
                 isDarkMode 
                   ? 'text-white/60 hover:text-caribbean-300' 
@@ -2130,7 +2134,7 @@ function App() {
               {language === 'ar' ? 'سياسة الخصوصية' : language === 'tr' ? 'Gizlilik Politikası' : 'Privacy Policy'}
             </button>
             <button
-              onClick={() => setShowTerms(true)}
+              onClick={() => navigate('/terms-of-service')}
               className={`transition-colors text-sm hover:scale-105 transform duration-300 ${
                 isDarkMode 
                   ? 'text-white/60 hover:text-indigo-300' 
@@ -2241,7 +2245,13 @@ function App() {
   {/* Terms of Service Modal */}
   {showTerms && (
     <TermsOfService
-      onClose={() => setShowTerms(false)}
+      onClose={() => {
+        setShowTerms(false);
+        // Navigate back to home if accessed via direct URL
+        if (location.pathname === '/terms-of-service') {
+          navigate('/');
+        }
+      }}
       isDarkMode={isDarkMode}
     />
   )}
@@ -2249,7 +2259,13 @@ function App() {
   {/* Privacy Policy Modal */}
   {showPrivacy && (
     <PrivacyPolicy
-      onClose={() => setShowPrivacy(false)}
+      onClose={() => {
+        setShowPrivacy(false);
+        // Navigate back to home if accessed via direct URL
+        if (location.pathname === '/privacy-policy') {
+          navigate('/');
+        }
+      }}
       isDarkMode={isDarkMode}
     />
   )}

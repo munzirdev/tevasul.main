@@ -1,6 +1,6 @@
 import React from 'react';
 import { CheckCircle, Star, Users, Clock, Shield, Phone, Mail } from 'lucide-react';
-import CustomCursor from './CustomCursor';
+
 import { useAuthContext } from './AuthProvider';
 import { useLanguage } from '../hooks/useLanguage';
 import ServiceRequestForm from './ServiceRequestForm';
@@ -129,7 +129,7 @@ const ServicePage: React.FC<ServicePageProps> = ({
 
   return (
     <div className="min-h-screen bg-white dark:bg-jet-800 text-jet-800 dark:text-white overflow-x-hidden font-alexandria">
-      <CustomCursor isDarkMode={isDarkMode} />
+      
       {/* Navigation Bar */}
       <nav className="fixed top-0 w-full z-40 bg-white/95 dark:bg-jet-800/95 backdrop-blur-md shadow-xl border-b border-platinum-300 dark:border-jet-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

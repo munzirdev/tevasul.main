@@ -127,6 +127,14 @@ export const router = createBrowserRouter([
         path: 'theme-test',
         element: <ThemeToggleTest />
       },
+      {
+        path: 'privacy-policy',
+        element: <Outlet />
+      },
+      {
+        path: 'terms-of-service',
+        element: <Outlet />
+      },
       // Service routes
       ...servicesData.map(service => ({
         path: `services/${service.id}`,

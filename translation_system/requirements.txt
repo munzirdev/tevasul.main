@@ -1,0 +1,15 @@
+# Translation System Requirements
+python-docx==0.8.11
+reportlab==4.0.4
+PyQt6==6.6.1
+PyQt6-WebEngine==6.6.0
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+google-api-python-client==2.108.0
+qrcode==7.4.2
+Pillow==10.1.0
+Flask==3.0.0
+python-dotenv==1.0.0
+requests==2.31.0
+PyPDF2==3.0.1
