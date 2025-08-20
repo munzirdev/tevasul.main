@@ -298,17 +298,31 @@ function App() {
       hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token=')
     });
     
-    if ((path === '/' || path === '/reset-password') && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
-      console.log('Detected password reset link, opening reset password modal');
+    // Handle password reset links from email - ONLY on home page with valid parameters
+    if (path === '/' && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
+      console.log('Detected password reset link on home page, opening reset password modal');
       setShowResetPasswordModal(true);
       return;
     }
     
-    // Handle direct access to reset-password page
+    // Handle direct access to reset-password page - ONLY if user has valid reset parameters
     if (path === '/reset-password') {
-      console.log('Direct access to reset-password page, opening modal');
-      setShowResetPasswordModal(true);
-      return;
+      // Check if user has valid reset parameters (from email link)
+      const hasValidResetParams = location.search.includes('access_token=') || 
+                                 location.hash.includes('access_token=') ||
+                                 location.search.includes('type=recovery') ||
+                                 location.hash.includes('type=recovery');
+      
+      if (hasValidResetParams) {
+        console.log('Valid reset parameters detected, opening modal');
+        setShowResetPasswordModal(true);
+        return;
+      } else {
+        console.log('Direct access without valid reset parameters, redirecting to home');
+        // Redirect unauthorized access to home page
+        navigate('/', { replace: true });
+        return;
+      }
     }
     
     // Handle privacy policy route
