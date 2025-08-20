@@ -29,6 +29,7 @@ import TermsOfService from './components/TermsOfService';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import ResetPasswordModal from './components/ResetPasswordModal';
 
 
 
@@ -77,6 +78,7 @@ function App() {
   const [showHelpSupport, setShowHelpSupport] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
 
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showLoginSuccess, setShowLoginSuccess] = useState(false);
@@ -286,6 +288,13 @@ function App() {
   // Handle route changes
   useEffect(() => {
     const path = location.pathname;
+    
+    // Handle password reset links from email
+    if (path === '/' && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
+      console.log('Detected password reset link, opening reset password modal');
+      setShowResetPasswordModal(true);
+      return;
+    }
     
     // Handle privacy policy route
     if (path === '/privacy-policy') {
@@ -2336,6 +2345,15 @@ function App() {
       )}
     </button>
   </div>
+  )}
+
+  {/* Reset Password Modal */}
+  {showResetPasswordModal && (
+    <ResetPasswordModal
+      isOpen={showResetPasswordModal}
+      onClose={() => setShowResetPasswordModal(false)}
+      isDarkMode={isDarkMode}
+    />
   )}
 
 </div>
