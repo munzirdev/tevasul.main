@@ -290,7 +290,7 @@ function App() {
     const path = location.pathname;
     
     // Handle password reset links from email
-    if (path === '/' && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
+    if ((path === '/' || path === '/reset-password') && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
       console.log('Detected password reset link, opening reset password modal');
       setShowResetPasswordModal(true);
       return;

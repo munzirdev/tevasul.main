@@ -111,10 +111,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ isDarkMode }) => {
       setIsSubmitting(true);
       setError(null);
       
+      // تحديد الرابط المناسب حسب البيئة
+      const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      const redirectUrl = isDevelopment 
+        ? `${window.location.origin}/auth/callback`
+        : 'https://tevasul.group/auth/callback';
+      
+      console.log('Google OAuth redirect URL (LoginPage):', redirectUrl);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`
+          redirectTo: redirectUrl
         }
       });
 

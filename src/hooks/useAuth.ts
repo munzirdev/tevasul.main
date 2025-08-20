@@ -1335,10 +1335,19 @@ export const useAuth = () => {
   // إضافة دالة لتسجيل الدخول عبر Google
   const signInWithGoogle = async () => {
     try {
+      // تحديد الرابط المناسب حسب البيئة
+      const isDevelopment = typeof window !== 'undefined' && 
+        (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      const redirectUrl = isDevelopment 
+        ? `${window.location.origin}/auth/callback`
+        : 'https://tevasul.group/auth/callback';
+      
+      console.log('Google OAuth redirect URL (useAuth):', redirectUrl);
+      
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

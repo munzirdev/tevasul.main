@@ -154,7 +154,7 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
       console.log('Redirect URL:', `${window.location.origin}/reset-password`);
       
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `https://tevasul.group`,
+        redirectTo: `https://tevasul.group/reset-password`,
       });
 
       if (error) {
