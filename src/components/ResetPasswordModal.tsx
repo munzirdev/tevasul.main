@@ -141,23 +141,13 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
           setIsValidToken(false);
         }
       } else {
-        // Check if user is already authenticated
-        console.log('Checking existing session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error checking session:', error);
-          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
-          setIsValidToken(false);
-        } else if (session) {
-          console.log('Existing session found:', session.user.email);
-          setIsValidToken(true);
-          setEmail(session.user.email);
-        } else {
-          console.log('No valid session found');
-          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد من صفحة تسجيل الدخول.' : 'Invalid or expired link. Please request a new link from the login page.');
-          setIsValidToken(false);
-        }
+        // No valid reset parameters found
+        console.log('No valid reset parameters found');
+        setError(isArabic 
+          ? 'رابط غير صالح. يرجى استخدام الرابط المرسل إلى بريدك الإلكتروني أو طلب رابط جديد.'
+          : 'Invalid link. Please use the link sent to your email or request a new one.');
+        setIsValidToken(false);
+        return;
       }
     } catch (err) {
       console.error('Unexpected error:', err);
