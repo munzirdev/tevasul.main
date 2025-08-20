@@ -126,23 +126,61 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       if (finalCode) {
         console.log('Code found, attempting to exchange for session...');
         try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(finalCode);
+          // Try multiple methods for different Supabase flows
           
-          if (error) {
-            console.error('Error exchanging code for session:', error);
-            setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
-            setIsValidToken(false);
-            return;
+          // Method 1: Try verifyOtp for recovery flow
+          try {
+            const { data, error } = await supabase.auth.verifyOtp({
+              token_hash: finalCode,
+              type: 'recovery'
+            });
+            
+            if (!error && data.session) {
+              console.log('Session established from OTP verification:', data.session.user.email);
+              setIsValidToken(true);
+              setEmail(data.session.user.email);
+              return;
+            }
+          } catch (otpErr) {
+            console.log('OTP verification failed, trying code exchange...');
           }
           
-          if (data.session) {
-            console.log('Session established from code:', data.session.user.email);
-            setIsValidToken(true);
-            setEmail(data.session.user.email);
-            return;
+          // Method 2: Try exchangeCodeForSession for PKCE flow
+          try {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(finalCode);
+            
+            if (!error && data.session) {
+              console.log('Session established from code exchange:', data.session.user.email);
+              setIsValidToken(true);
+              setEmail(data.session.user.email);
+              return;
+            }
+          } catch (exchangeErr) {
+            console.log('Code exchange failed, trying direct session...');
           }
+          
+          // Method 3: Try to get current session (in case code was already processed)
+          try {
+            const { data: { session }, error } = await supabase.auth.getSession();
+            
+            if (!error && session) {
+              console.log('Session found from current session:', session.user.email);
+              setIsValidToken(true);
+              setEmail(session.user.email);
+              return;
+            }
+          } catch (sessionErr) {
+            console.log('Current session check failed');
+          }
+          
+          // If all methods failed
+          console.error('All authentication methods failed for code:', finalCode);
+          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد من صفحة تسجيل الدخول.' : 'Invalid or expired link. Please request a new link from the login page.');
+          setIsValidToken(false);
+          return;
+          
         } catch (err) {
-          console.error('Error with code exchange:', err);
+          console.error('Error with code authentication:', err);
           setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
           setIsValidToken(false);
           return;
