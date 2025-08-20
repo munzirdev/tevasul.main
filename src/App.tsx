@@ -289,7 +289,7 @@ function App() {
   useEffect(() => {
     const path = location.pathname;
     
-    // Handle password reset links from email
+    // Handle password reset links from email ONLY
     console.log('Checking password reset link:', {
       path,
       search: location.search,
@@ -299,14 +299,7 @@ function App() {
     });
     
     if ((path === '/' || path === '/reset-password') && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
-      console.log('Detected password reset link, opening reset password modal');
-      setShowResetPasswordModal(true);
-      return;
-    }
-    
-    // Handle direct access to reset-password page
-    if (path === '/reset-password') {
-      console.log('Direct access to reset-password page, opening modal');
+      console.log('Detected password reset link from email, opening reset password modal');
       setShowResetPasswordModal(true);
       return;
     }
