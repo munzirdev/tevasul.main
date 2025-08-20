@@ -295,10 +295,14 @@ function App() {
       search: location.search,
       hash: location.hash,
       hasError: location.search.includes('error=') || location.hash.includes('error='),
-      hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token=')
+      hasToken: location.search.includes('token=') || location.hash.includes('token='),
+      hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token='),
+      hasType: location.search.includes('type=') || location.hash.includes('type=')
     });
     
-    if ((path === '/' || path === '/reset-password') && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
+    if ((path === '/' || path === '/reset-password') && 
+        (location.search.includes('error=') || location.search.includes('token=') || location.search.includes('access_token=') || 
+         location.hash.includes('error=') || location.hash.includes('token=') || location.hash.includes('access_token='))) {
       console.log('Detected password reset link from email, opening reset password modal');
       setShowResetPasswordModal(true);
       return;

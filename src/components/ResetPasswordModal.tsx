@@ -39,6 +39,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
   const checkResetToken = async () => {
     try {
       // Check for URL parameters from email link
+      const token = searchParams.get('token');
       const accessToken = searchParams.get('access_token');
       const refreshToken = searchParams.get('refresh_token');
       const type = searchParams.get('type');
@@ -48,7 +49,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       const errorCode = searchParams.get('error_code');
       const errorDescription = searchParams.get('error_description');
       
-      console.log('URL Parameters:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type });
+      console.log('URL Parameters:', { token: !!token, accessToken: !!accessToken, refreshToken: !!refreshToken, type });
       console.log('Error Parameters:', { error, errorCode, errorDescription });
       
       // Handle error cases first
@@ -78,6 +79,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       // Also check for hash fragment parameters (Supabase sometimes uses these)
       const hash = window.location.hash;
       const hashParams = new URLSearchParams(hash.substring(1));
+      const hashToken = hashParams.get('token');
       const hashAccessToken = hashParams.get('access_token');
       const hashRefreshToken = hashParams.get('refresh_token');
       const hashType = hashParams.get('type');
@@ -87,7 +89,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       const hashErrorCode = hashParams.get('error_code');
       const hashErrorDescription = hashParams.get('error_description');
       
-      console.log('Hash Parameters:', { hashAccessToken: !!hashAccessToken, hashRefreshToken: !!hashRefreshToken, hashType });
+      console.log('Hash Parameters:', { hashToken: !!hashToken, hashAccessToken: !!hashAccessToken, hashRefreshToken: !!hashRefreshToken, hashType });
       console.log('Hash Error Parameters:', { hashError, hashErrorCode, hashErrorDescription });
       
       // Handle hash error cases
@@ -115,17 +117,28 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       }
       
       // Use either URL params or hash params
+      const finalToken = token || hashToken;
       const finalAccessToken = accessToken || hashAccessToken;
       const finalRefreshToken = refreshToken || hashRefreshToken;
       const finalType = type || hashType;
       
-      if (finalAccessToken && finalRefreshToken && finalType === 'recovery') {
+      if ((finalAccessToken && finalRefreshToken && finalType === 'recovery') || 
+          (finalToken && finalType === 'recovery')) {
         // User came from email link, set session
         console.log('Setting session from email link tokens...');
-        const { data, error } = await supabase.auth.setSession({
-          access_token: finalAccessToken,
-          refresh_token: finalRefreshToken
-        });
+        
+        if (finalAccessToken && finalRefreshToken) {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: finalAccessToken,
+            refresh_token: finalRefreshToken
+          });
+        } else if (finalToken) {
+          // Handle PKCE flow with token
+          const { data, error } = await supabase.auth.verifyOtp({
+            token_hash: finalToken,
+            type: 'recovery'
+          });
+        }
         
         if (error) {
           console.error('Error setting session:', error);
