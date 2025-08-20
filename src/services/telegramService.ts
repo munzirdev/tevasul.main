@@ -32,6 +32,8 @@ export type RequestType =
   | 'health_insurance_activation'
   | 'health_insurance'
   | 'service_request'
+  | 'tourist_residence_renewal'
+  | 'first_time_tourist_residence'
   | 'general_inquiry';
 
 interface RequestData {
@@ -604,6 +606,8 @@ ${dateStr}`;
       case 'health_insurance_activation': return 'تفعيل تأمين صحي';
       case 'health_insurance': return 'تأمين صحي للأجانب';
       case 'service_request': return 'طلب خدمة';
+      case 'tourist_residence_renewal': return 'تجديد الإقامة السياحية';
+      case 'first_time_tourist_residence': return 'الإقامة السياحية أول مرة';
       case 'general_inquiry': return 'استفسار عام';
       default: return 'طلب عام';
     }

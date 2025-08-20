@@ -28,12 +28,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
     supabaseClient.isConnected = false;
     supabaseClient.connectionError = 'Invalid Supabase URL. URL must contain supabase.co';
   } else {
-    // إنشاء عميل Supabase بأبسط إعدادات ممكنة
+    // إنشاء عميل Supabase مع إعدادات محسنة
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        debug: process.env.NODE_ENV === 'development'
       }
     });
     

@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Lock, CheckCircle, AlertCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useLanguage } from '../hooks/useLanguage';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const ResetPasswordPage: React.FC = () => {
   const { language } = useLanguage();
   const isArabic = language === 'ar';
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,6 +19,7 @@ const ResetPasswordPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [isValidToken, setIsValidToken] = useState(false);
   const [checkingToken, setCheckingToken] = useState(true);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     checkResetToken();
@@ -25,17 +27,126 @@ const ResetPasswordPage: React.FC = () => {
 
   const checkResetToken = async () => {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      // Check for URL parameters from email link
+      const accessToken = searchParams.get('access_token');
+      const refreshToken = searchParams.get('refresh_token');
+      const type = searchParams.get('type');
       
-      if (error) {
-        console.error('Error checking session:', error);
-        setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
+      // Check for error parameters in URL
+      const error = searchParams.get('error');
+      const errorCode = searchParams.get('error_code');
+      const errorDescription = searchParams.get('error_description');
+      
+      console.log('URL Parameters:', { accessToken: !!accessToken, refreshToken: !!refreshToken, type });
+      console.log('Error Parameters:', { error, errorCode, errorDescription });
+      
+      // Handle error cases first
+      if (error || errorCode) {
+        console.error('Error in URL:', { error, errorCode, errorDescription });
+        
+        let errorMessage = '';
+        if (errorCode === 'otp_expired') {
+          errorMessage = isArabic 
+            ? 'رابط إعادة تعيين كلمة المرور منتهي الصلاحية. يرجى طلب رابط جديد.'
+            : 'Password reset link has expired. Please request a new link.';
+        } else if (error === 'access_denied') {
+          errorMessage = isArabic 
+            ? 'تم رفض الوصول. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.'
+            : 'Access denied. Please request a new password reset link.';
+        } else {
+          errorMessage = isArabic 
+            ? 'حدث خطأ في الرابط. يرجى طلب رابط جديد من صفحة تسجيل الدخول.'
+            : 'An error occurred with the link. Please request a new link from the login page.';
+        }
+        
+        setError(errorMessage);
         setIsValidToken(false);
-      } else if (session) {
-        setIsValidToken(true);
+        return;
+      }
+      
+      // Also check for hash fragment parameters (Supabase sometimes uses these)
+      const hash = window.location.hash;
+      const hashParams = new URLSearchParams(hash.substring(1));
+      const hashAccessToken = hashParams.get('access_token');
+      const hashRefreshToken = hashParams.get('refresh_token');
+      const hashType = hashParams.get('type');
+      
+      // Check for error parameters in hash
+      const hashError = hashParams.get('error');
+      const hashErrorCode = hashParams.get('error_code');
+      const hashErrorDescription = hashParams.get('error_description');
+      
+      console.log('Hash Parameters:', { hashAccessToken: !!hashAccessToken, hashRefreshToken: !!hashRefreshToken, hashType });
+      console.log('Hash Error Parameters:', { hashError, hashErrorCode, hashErrorDescription });
+      
+      // Handle hash error cases
+      if (hashError || hashErrorCode) {
+        console.error('Error in Hash:', { hashError, hashErrorCode, hashErrorDescription });
+        
+        let errorMessage = '';
+        if (hashErrorCode === 'otp_expired') {
+          errorMessage = isArabic 
+            ? 'رابط إعادة تعيين كلمة المرور منتهي الصلاحية. يرجى طلب رابط جديد.'
+            : 'Password reset link has expired. Please request a new link.';
+        } else if (hashError === 'access_denied') {
+          errorMessage = isArabic 
+            ? 'تم رفض الوصول. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.'
+            : 'Access denied. Please request a new password reset link.';
+        } else {
+          errorMessage = isArabic 
+            ? 'حدث خطأ في الرابط. يرجى طلب رابط جديد من صفحة تسجيل الدخول.'
+            : 'An error occurred with the link. Please request a new link from the login page.';
+        }
+        
+        setError(errorMessage);
+        setIsValidToken(false);
+        return;
+      }
+      
+      // Use either URL params or hash params
+      const finalAccessToken = accessToken || hashAccessToken;
+      const finalRefreshToken = refreshToken || hashRefreshToken;
+      const finalType = type || hashType;
+      
+      if (finalAccessToken && finalRefreshToken && finalType === 'recovery') {
+        // User came from email link, set session
+        console.log('Setting session from email link tokens...');
+        const { data, error } = await supabase.auth.setSession({
+          access_token: finalAccessToken,
+          refresh_token: finalRefreshToken
+        });
+        
+        if (error) {
+          console.error('Error setting session:', error);
+          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
+          setIsValidToken(false);
+        } else if (data.session) {
+          console.log('Session set successfully:', data.session.user.email);
+          setIsValidToken(true);
+          setEmail(data.session.user.email);
+        } else {
+          console.error('No session after setting tokens');
+          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
+          setIsValidToken(false);
+        }
       } else {
-        setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
-        setIsValidToken(false);
+        // Check if user is already authenticated
+        console.log('Checking existing session...');
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error checking session:', error);
+          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
+          setIsValidToken(false);
+        } else if (session) {
+          console.log('Existing session found:', session.user.email);
+          setIsValidToken(true);
+          setEmail(session.user.email);
+        } else {
+          console.log('No valid session found');
+          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد من صفحة تسجيل الدخول.' : 'Invalid or expired link. Please request a new link from the login page.');
+          setIsValidToken(false);
+        }
       }
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -96,6 +207,11 @@ const ResetPasswordPage: React.FC = () => {
         setSuccess(true);
         setPassword('');
         setConfirmPassword('');
+        
+        // Redirect to login after 3 seconds
+        setTimeout(() => {
+          navigate('/login');
+        }, 3000);
       }
     } catch (err) {
       console.error('Unexpected error:', err);
@@ -140,8 +256,25 @@ const ResetPasswordPage: React.FC = () => {
             </h2>
             
             <p className="text-jet-600 dark:text-jet-400 mb-6">
-              {error || (isArabic ? 'رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية.' : 'The password reset link is invalid or has expired.')}
+              {error || (isArabic ? 'رابط إعادة تعيين كلمة المرور غير صالح أو منتهي الصلاحية. يرجى طلب رابط جديد من صفحة تسجيل الدخول.' : 'The password reset link is invalid or has expired. Please request a new link from the login page.')}
             </p>
+            
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 mb-6">
+              <div className="flex items-start space-x-2 space-x-reverse">
+                <AlertCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300 font-medium mb-1">
+                    {isArabic ? 'نصائح لحل المشكلة:' : 'Tips to resolve this issue:'}
+                  </p>
+                  <ul className="text-xs text-yellow-600 dark:text-yellow-400 space-y-1">
+                    <li>• {isArabic ? 'تأكد من أن الرابط لم يتم نسخه بشكل جزئي' : 'Make sure the link wasn\'t copied partially'}</li>
+                    <li>• {isArabic ? 'لا تنتظر طويلاً قبل الضغط على الرابط' : 'Don\'t wait too long before clicking the link'}</li>
+                    <li>• {isArabic ? 'تحقق من بريدك الإلكتروني في مجلد الرسائل غير المرغوب فيها' : 'Check your email spam folder'}</li>
+                    <li>• {isArabic ? 'اطلب رابطاً جديداً إذا استمرت المشكلة' : 'Request a new link if the problem persists'}</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
             
             <button
               onClick={handleBackToLogin}
@@ -171,8 +304,8 @@ const ResetPasswordPage: React.FC = () => {
             
             <p className="text-jet-600 dark:text-jet-400 mb-6">
               {isArabic 
-                ? 'تم تغيير كلمة المرور الخاصة بك بنجاح. يمكنك الآن تسجيل الدخول باستخدام كلمة المرور الجديدة.'
-                : 'Your password has been changed successfully. You can now log in with your new password.'
+                ? `تم تغيير كلمة المرور الخاصة بك بنجاح${email ? ` لـ ${email}` : ''}. يمكنك الآن تسجيل الدخول باستخدام كلمة المرور الجديدة.`
+                : `Your password has been changed successfully${email ? ` for ${email}` : ''}. You can now log in with your new password.`
               }
             </p>
             
@@ -180,8 +313,14 @@ const ResetPasswordPage: React.FC = () => {
               onClick={handleBackToLogin}
               className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-caribbean-600 to-indigo-700 hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-200 shadow-sm"
             >
-              {isArabic ? 'تسجيل الدخول' : 'Login'}
+              {isArabic ? 'تسجيل الدخول الآن' : 'Login Now'}
             </button>
+            
+            <div className="mt-4 text-center">
+              <p className="text-xs text-jet-500 dark:text-jet-400">
+                {isArabic ? 'سيتم توجيهك تلقائياً خلال 3 ثوان...' : 'You will be redirected automatically in 3 seconds...'}
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -204,8 +343,8 @@ const ResetPasswordPage: React.FC = () => {
             
             <p className="text-jet-600 dark:text-jet-400">
               {isArabic 
-                ? 'أدخل كلمة المرور الجديدة'
-                : 'Enter your new password'
+                ? `أدخل كلمة المرور الجديدة${email ? ` لـ ${email}` : ''}`
+                : `Enter your new password${email ? ` for ${email}` : ''}`
               }
             </p>
           </div>

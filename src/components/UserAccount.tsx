@@ -21,7 +21,15 @@ import {
   ArrowLeft,
   Send,
   Upload,
-  Image
+  Image,
+  RefreshCw,
+  CreditCard,
+  Building,
+  Star,
+  Globe,
+  Shield,
+  Heart,
+  Users
 } from 'lucide-react';
 
 import { supabase } from '../lib/supabase';
@@ -32,6 +40,8 @@ import { UserAvatar } from './UserAvatar';
 import { servicesData } from '../data/services';
 import GlassLoadingScreen from './GlassLoadingScreen';
 import SkeletonLoading from './SkeletonLoading';
+import ResidenceRequestForm from './ResidenceRequestForm';
+import ChangePasswordModal from './ChangePasswordModal';
 
 interface ServiceRequest {
   id: string;
@@ -102,6 +112,13 @@ const UserAccount: React.FC<UserAccountProps> = ({
   const [uploadingFile, setUploadingFile] = useState(false);
   const [creatingRequest, setCreatingRequest] = useState(false);
   const [newRequestSuccess, setNewRequestSuccess] = useState(false);
+
+  // Residence request state
+  const [showResidenceRequestModal, setShowResidenceRequestModal] = useState(false);
+  const [selectedResidenceType, setSelectedResidenceType] = useState<'renewal' | 'first-time'>('first-time');
+
+  // Change password modal state
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   // دوال عرض وتحميل الملفات
   const handleFileView = async (fileUrl: string, fileName: string, requestId?: string) => {
@@ -655,10 +672,29 @@ const UserAccount: React.FC<UserAccountProps> = ({
 
   const getServiceName = (serviceId: string) => {
     const service = servicesData.find(s => s.id === serviceId);
-    if (service) {
-      return language === 'ar' ? getServiceTypeArabic(serviceId) : service.titleKey;
-    }
-    return serviceId;
+    if (!service) return serviceId;
+    
+    // Map service IDs to Arabic names
+    const serviceNames: { [key: string]: string } = {
+      'health-insurance': 'التأمين الصحي',
+      'translation': 'الترجمة',
+      'travel': 'السفر والسياحة',
+      'legal': 'الخدمات القانونية',
+      'government': 'الخدمات الحكومية',
+      'insurance': 'التأمين',
+      'tourist-residence-renewal': 'تجديد الإقامة السياحية',
+      'first-time-tourist-residence': 'الإقامة السياحية أول مرة'
+    };
+    
+    return serviceNames[serviceId] || service.titleKey;
+  };
+
+  const getServiceIcon = (serviceId: string) => {
+    const service = servicesData.find(s => s.id === serviceId);
+    if (!service) return <FileText className="w-5 h-5" />;
+    
+    const IconComponent = service.icon;
+    return <IconComponent className="w-5 h-5" />;
   };
 
   const canUploadFile = (serviceType: string) => {
@@ -819,7 +855,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
             </div>
             <div className="flex justify-center sm:justify-end">
               <button
-                onClick={() => window.location.href = '/reset-password'}
+                onClick={() => setShowChangePasswordModal(true)}
                 className="inline-flex items-center px-4 py-2 text-sm font-medium text-caribbean-600 bg-white/90 backdrop-blur-sm rounded-xl hover:bg-white transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:scale-105 border border-white/30"
               >
                 <Lock className="w-4 h-4 ml-2" />
@@ -910,6 +946,79 @@ const UserAccount: React.FC<UserAccountProps> = ({
               إنشاء طلب جديد
             </span>
           </button>
+        </div>
+
+        {/* Quick Services Section - Enhanced Glass */}
+        <div className="mb-6 sm:mb-8">
+          <h2 className="text-xl sm:text-2xl font-bold text-jet-800 dark:text-white mb-4 text-center">
+            الخدمات السريعة
+          </h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Tourist Residence Renewal */}
+            <button
+              onClick={() => {
+                setSelectedResidenceType('renewal');
+                setShowResidenceRequestModal(true);
+              }}
+              className="bg-gradient-to-r from-emerald-600/80 to-teal-700/80 backdrop-blur-2xl text-white py-4 px-6 rounded-3xl font-semibold hover:from-emerald-700 hover:to-teal-800 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl flex items-center justify-center border border-white/30 relative overflow-hidden"
+            >
+              {/* Glass Pattern */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.05),transparent_50%)]"></div>
+              <span className="relative flex items-center">
+                <RefreshCw className="w-5 h-5 ml-2" />
+                تجديد الإقامة السياحية
+              </span>
+            </button>
+
+            {/* First Time Tourist Residence */}
+            <button
+              onClick={() => {
+                setSelectedResidenceType('first-time');
+                setShowResidenceRequestModal(true);
+              }}
+              className="bg-gradient-to-r from-blue-600/80 to-indigo-700/80 backdrop-blur-2xl text-white py-4 px-6 rounded-3xl font-semibold hover:from-blue-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 shadow-2xl hover:shadow-3xl flex items-center justify-center border border-white/30 relative overflow-hidden"
+            >
+              {/* Glass Pattern */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.05),transparent_50%)]"></div>
+              <span className="relative flex items-center">
+                <Home className="w-5 h-5 ml-2" />
+                الإقامة السياحية أول مرة
+              </span>
+            </button>
+          </div>
+
+          {/* Other Quick Services */}
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { id: 'translation', icon: Users, color: 'from-purple-600/80 to-purple-700/80', hover: 'from-purple-700 to-purple-800' },
+              { id: 'health-insurance', icon: Shield, color: 'from-red-600/80 to-red-700/80', hover: 'from-red-700 to-red-800' },
+              { id: 'legal', icon: Star, color: 'from-yellow-600/80 to-yellow-700/80', hover: 'from-yellow-700 to-yellow-800' },
+              { id: 'travel', icon: Globe, color: 'from-green-600/80 to-green-700/80', hover: 'from-green-700 to-green-800' }
+            ].map((service) => {
+              const IconComponent = service.icon;
+              return (
+                <button
+                  key={service.id}
+                  onClick={() => {
+                    setSelectedServiceType(service.id);
+                    setShowNewRequestModal(true);
+                  }}
+                  className={`bg-gradient-to-r ${service.color} backdrop-blur-2xl text-white py-3 px-4 rounded-2xl font-medium hover:${service.hover} transition-all duration-300 transform hover:scale-105 shadow-xl hover:shadow-2xl flex flex-col items-center justify-center border border-white/30 relative overflow-hidden`}
+                >
+                  {/* Glass Pattern */}
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_70%,rgba(255,255,255,0.1),transparent_50%)]"></div>
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_30%,rgba(255,255,255,0.05),transparent_50%)]"></div>
+                  <span className="relative flex flex-col items-center">
+                    <IconComponent className="w-5 h-5 mb-1" />
+                    <span className="text-xs">{getServiceName(service.id)}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Filters - Enhanced Glass Effect */}
@@ -1296,6 +1405,21 @@ const UserAccount: React.FC<UserAccountProps> = ({
           </div>
         </div>
       )}
+
+      {/* Residence Request Form Modal */}
+      <ResidenceRequestForm
+        isOpen={showResidenceRequestModal}
+        onClose={() => setShowResidenceRequestModal(false)}
+        residenceType={selectedResidenceType}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Change Password Modal */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

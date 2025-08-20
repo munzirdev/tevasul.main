@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار رابط إعادة تعيين كلمة المرور</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .url-display {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+        .param-list {
+            list-style: none;
+            padding: 0;
+        }
+        .param-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .param-list li:last-child {
+            border-bottom: none;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 اختبار رابط إعادة تعيين كلمة المرور</h1>
+        
+        <div class="info-box">
+            <h3>📋 معلومات الرابط الحالي:</h3>
+            <div class="url-display" id="currentUrl"></div>
+        </div>
+
+        <div class="info-box">
+            <h3>🔍 معاملات URL:</h3>
+            <ul class="param-list" id="urlParams"></ul>
+        </div>
+
+        <div class="info-box">
+            <h3>🔍 معاملات Hash:</h3>
+            <ul class="param-list" id="hashParams"></ul>
+        </div>
+
+        <div class="status info" id="status">
+            جاري تحليل الرابط...
+        </div>
+
+        <div class="info-box">
+            <h3>📝 تعليمات الاختبار:</h3>
+            <ol>
+                <li>اضغط على رابط إعادة تعيين كلمة المرور في البريد الإلكتروني</li>
+                <li>سيتم توجيهك إلى هذه الصفحة مع معاملات URL</li>
+                <li>تحقق من أن المعاملات تظهر بشكل صحيح</li>
+                <li>انتقل إلى صفحة إعادة تعيين كلمة المرور الفعلية</li>
+            </ol>
+        </div>
+
+        <div class="info-box">
+            <h3>🔗 رابط اختبار:</h3>
+            <p>يمكنك استخدام هذا الرابط للاختبار:</p>
+            <div class="url-display">
+                http://localhost:5174/reset-password?access_token=test_token&refresh_token=test_refresh&type=recovery
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function analyzeUrl() {
+            const currentUrl = window.location.href;
+            const urlDisplay = document.getElementById('currentUrl');
+            urlDisplay.textContent = currentUrl;
+
+            // تحليل معاملات URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlParamsList = document.getElementById('urlParams');
+            urlParamsList.innerHTML = '';
+
+            if (urlParams.toString() === '') {
+                urlParamsList.innerHTML = '<li>لا توجد معاملات URL</li>';
+            } else {
+                for (const [key, value] of urlParams) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${key}:</strong> ${value ? 'موجود' : 'غير موجود'}`;
+                    urlParamsList.appendChild(li);
+                }
+            }
+
+            // تحليل معاملات Hash
+            const hash = window.location.hash;
+            const hashParams = new URLSearchParams(hash.substring(1));
+            const hashParamsList = document.getElementById('hashParams');
+            hashParamsList.innerHTML = '';
+
+            if (hash === '' || hashParams.toString() === '') {
+                hashParamsList.innerHTML = '<li>لا توجد معاملات Hash</li>';
+            } else {
+                for (const [key, value] of hashParams) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${key}:</strong> ${value ? 'موجود' : 'غير موجود'}`;
+                    hashParamsList.appendChild(li);
+                }
+            }
+
+            // تحليل الحالة
+            const status = document.getElementById('status');
+            const hasAccessToken = urlParams.get('access_token') || hashParams.get('access_token');
+            const hasRefreshToken = urlParams.get('refresh_token') || hashParams.get('refresh_token');
+            const hasType = urlParams.get('type') || hashParams.get('type');
+
+            if (hasAccessToken && hasRefreshToken && hasType === 'recovery') {
+                status.className = 'status success';
+                status.textContent = '✅ الرابط صحيح! جميع المعاملات المطلوبة موجودة.';
+            } else if (hasAccessToken || hasRefreshToken || hasType) {
+                status.className = 'status error';
+                status.textContent = '⚠️ الرابط يحتوي على بعض المعاملات ولكن غير مكتمل.';
+            } else {
+                status.className = 'status info';
+                status.textContent = 'ℹ️ لا توجد معاملات في الرابط. هذا طبيعي إذا لم تأت من رابط البريد الإلكتروني.';
+            }
+
+            console.log('URL Analysis:', {
+                currentUrl,
+                urlParams: Object.fromEntries(urlParams),
+                hashParams: Object.fromEntries(hashParams),
+                hasAccessToken,
+                hasRefreshToken,
+                hasType
+            });
+        }
+
+        // تشغيل التحليل عند تحميل الصفحة
+        analyzeUrl();
+
+        // إعادة التحليل عند تغيير URL
+        window.addEventListener('hashchange', analyzeUrl);
+        window.addEventListener('popstate', analyzeUrl);
+    </script>
+</body>
+</html>

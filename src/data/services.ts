@@ -1,4 +1,4 @@
-import { Users, Globe, Star, FileText, Heart, Shield } from 'lucide-react';
+import { Users, Globe, Star, FileText, Heart, Shield, Home, RefreshCw } from 'lucide-react';
 
 export const servicesData = [
   {
@@ -60,5 +60,25 @@ export const servicesData = [
     featuresKey: 'services.insurance.features',
     benefitsKey: 'services.insurance.benefits',
     processKey: 'services.insurance.process'
+  },
+  {
+    id: 'tourist-residence-renewal',
+    icon: RefreshCw,
+    titleKey: 'services.touristResidenceRenewal.title',
+    descriptionKey: 'services.touristResidenceRenewal.description',
+    fullDescriptionKey: 'services.touristResidenceRenewal.fullDescription',
+    featuresKey: 'services.touristResidenceRenewal.features',
+    benefitsKey: 'services.touristResidenceRenewal.benefits',
+    processKey: 'services.touristResidenceRenewal.process'
+  },
+  {
+    id: 'first-time-tourist-residence',
+    icon: Home,
+    titleKey: 'services.firstTimeTouristResidence.title',
+    descriptionKey: 'services.firstTimeTouristResidence.description',
+    fullDescriptionKey: 'services.firstTimeTouristResidence.fullDescription',
+    featuresKey: 'services.firstTimeTouristResidence.features',
+    benefitsKey: 'services.firstTimeTouristResidence.benefits',
+    processKey: 'services.firstTimeTouristResidence.process'
   }
 ];
