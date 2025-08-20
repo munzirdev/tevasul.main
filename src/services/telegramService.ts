@@ -34,7 +34,10 @@ export type RequestType =
   | 'service_request'
   | 'tourist_residence_renewal'
   | 'first_time_tourist_residence'
-  | 'general_inquiry';
+  | 'general_inquiry'
+  | 'consultation'
+  | 'legal'
+  | 'general';
 
 interface RequestData {
   type: RequestType;
@@ -424,6 +427,75 @@ class TelegramService {
     return this.sendRequestNotificationWithFile({
       type: 'insurance',
       title: requestData.title || 'طلب تأمين جديد',
+      description: requestData.description,
+      userInfo: {
+        name: requestData.user_name,
+        email: requestData.user_email,
+        phone: requestData.user_phone
+      },
+      requestId: requestData.id,
+      priority: requestData.priority || 'medium',
+      status: requestData.status,
+      createdAt: requestData.created_at,
+      additionalData: {
+        hasFile: !!requestData.file_url,
+        fileName: requestData.file_name,
+        fileUrl: requestData.file_url
+      }
+    });
+  }
+
+  // إشعارات طلبات الاستشارة
+  async sendConsultationRequestNotification(requestData: any) {
+    return this.sendRequestNotificationWithFile({
+      type: 'consultation',
+      title: requestData.title || 'طلب استشارة جديد',
+      description: requestData.description,
+      userInfo: {
+        name: requestData.user_name,
+        email: requestData.user_email,
+        phone: requestData.user_phone
+      },
+      requestId: requestData.id,
+      priority: requestData.priority || 'medium',
+      status: requestData.status,
+      createdAt: requestData.created_at,
+      additionalData: {
+        hasFile: !!requestData.file_url,
+        fileName: requestData.file_name,
+        fileUrl: requestData.file_url
+      }
+    });
+  }
+
+  // إشعارات طلبات الخدمات القانونية
+  async sendLegalRequestNotification(requestData: any) {
+    return this.sendRequestNotificationWithFile({
+      type: 'legal',
+      title: requestData.title || 'طلب خدمة قانونية جديد',
+      description: requestData.description,
+      userInfo: {
+        name: requestData.user_name,
+        email: requestData.user_email,
+        phone: requestData.user_phone
+      },
+      requestId: requestData.id,
+      priority: requestData.priority || 'medium',
+      status: requestData.status,
+      createdAt: requestData.created_at,
+      additionalData: {
+        hasFile: !!requestData.file_url,
+        fileName: requestData.file_name,
+        fileUrl: requestData.file_url
+      }
+    });
+  }
+
+  // إشعارات الطلبات العامة
+  async sendGeneralRequestNotification(requestData: any) {
+    return this.sendRequestNotificationWithFile({
+      type: 'general',
+      title: requestData.title || 'طلب خدمة جديد',
       description: requestData.description,
       userInfo: {
         name: requestData.user_name,

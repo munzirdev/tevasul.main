@@ -42,6 +42,7 @@ import GlassLoadingScreen from './GlassLoadingScreen';
 import SkeletonLoading from './SkeletonLoading';
 import ResidenceRequestForm from './ResidenceRequestForm';
 import ChangePasswordModal from './ChangePasswordModal';
+import { telegramService } from '../services/telegramService';
 
 interface ServiceRequest {
   id: string;
@@ -493,7 +494,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
     }
 
     try {
-      const { error: insertError } = await supabase
+      const { data: insertData, error: insertError } = await supabase
         .from('service_requests')
         .insert({
           user_id: user.id,
@@ -505,12 +506,48 @@ const UserAccount: React.FC<UserAccountProps> = ({
           file_url: fileUrl || null,
           file_name: fileName || null,
           file_data: fileData
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) {
         console.error('خطأ في إرسال الطلب:', insertError);
         alert('حدث خطأ في إرسال الطلب. يرجى المحاولة مرة أخرى.');
         return;
+      }
+
+      // إرسال إشعار للتيليجرام
+      if (insertData) {
+        try {
+          const requestData = {
+            id: insertData.id,
+            title: insertData.title,
+            description: insertData.description,
+            service_type: insertData.service_type,
+            priority: insertData.priority,
+            status: insertData.status,
+            created_at: insertData.created_at,
+            file_url: insertData.file_url,
+            file_name: insertData.file_name,
+            user_name: profile?.full_name || 'غير محدد',
+            user_email: profile?.email || 'غير محدد',
+            user_phone: profile?.phone ? `${profile.country_code} ${profile.phone}` : 'غير محدد'
+          };
+
+          // إرسال إشعار حسب نوع الخدمة
+          if (selectedServiceType === 'translation') {
+            await telegramService.sendTranslationRequestNotification(requestData);
+          } else if (selectedServiceType === 'consultation') {
+            await telegramService.sendConsultationRequestNotification(requestData);
+          } else if (selectedServiceType === 'legal') {
+            await telegramService.sendLegalRequestNotification(requestData);
+          } else {
+            await telegramService.sendGeneralRequestNotification(requestData);
+          }
+        } catch (telegramError) {
+          console.error('خطأ في إرسال إشعار التيليجرام:', telegramError);
+          // لا نوقف العملية إذا فشل إرسال الإشعار
+        }
       }
 
       setNewRequestSuccess(true);
