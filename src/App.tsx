@@ -295,10 +295,13 @@ function App() {
       search: location.search,
       hash: location.hash,
       hasError: location.search.includes('error=') || location.hash.includes('error='),
-      hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token=')
+      hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token='),
+      hasCode: location.search.includes('code=') || location.hash.includes('code=')
     });
     
-    if ((path === '/' || path === '/reset-password') && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
+    if ((path === '/' || path === '/reset-password') && 
+        (location.search.includes('error=') || location.search.includes('access_token=') || location.search.includes('code=') ||
+         location.hash.includes('error=') || location.hash.includes('access_token=') || location.hash.includes('code='))) {
       console.log('Detected password reset link, opening reset password modal');
       setShowResetPasswordModal(true);
       return;
@@ -309,8 +312,10 @@ function App() {
       // Check if user has valid reset parameters from email link
       const hasValidResetParams = location.search.includes('access_token=') || 
                                  location.search.includes('type=recovery') ||
+                                 location.search.includes('code=') ||
                                  location.hash.includes('access_token=') ||
-                                 location.hash.includes('type=recovery');
+                                 location.hash.includes('type=recovery') ||
+                                 location.hash.includes('code=');
       
       if (hasValidResetParams) {
         console.log('Valid reset password link detected, opening modal');

@@ -42,6 +42,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       const accessToken = searchParams.get('access_token');
       const refreshToken = searchParams.get('refresh_token');
       const type = searchParams.get('type');
+      const code = searchParams.get('code');
       
       // Check for error parameters in URL
       const error = searchParams.get('error');
@@ -81,6 +82,7 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       const hashAccessToken = hashParams.get('access_token');
       const hashRefreshToken = hashParams.get('refresh_token');
       const hashType = hashParams.get('type');
+      const hashCode = hashParams.get('code');
       
       // Check for error parameters in hash
       const hashError = hashParams.get('error');
@@ -118,6 +120,34 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
       const finalAccessToken = accessToken || hashAccessToken;
       const finalRefreshToken = refreshToken || hashRefreshToken;
       const finalType = type || hashType;
+      const finalCode = code || hashCode;
+      
+      // If we have a code, exchange it for tokens
+      if (finalCode) {
+        console.log('Code found, attempting to exchange for session...');
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(finalCode);
+          
+          if (error) {
+            console.error('Error exchanging code for session:', error);
+            setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
+            setIsValidToken(false);
+            return;
+          }
+          
+          if (data.session) {
+            console.log('Session established from code:', data.session.user.email);
+            setIsValidToken(true);
+            setEmail(data.session.user.email);
+            return;
+          }
+        } catch (err) {
+          console.error('Error with code exchange:', err);
+          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
+          setIsValidToken(false);
+          return;
+        }
+      }
       
       if (finalAccessToken && finalRefreshToken && finalType === 'recovery') {
         // User came from email link, set session
