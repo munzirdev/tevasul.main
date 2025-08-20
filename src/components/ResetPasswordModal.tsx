@@ -59,12 +59,12 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
         let errorMessage = '';
         if (errorCode === 'otp_expired') {
           errorMessage = isArabic 
-            ? 'رابط إعادة تعيين كلمة المرور منتهي الصلاحية. يرجى طلب رابط جديد.'
-            : 'Password reset link has expired. Please request a new link.';
+            ? 'رابط إعادة تعيين كلمة المرور منتهي الصلاحية. يرجى طلب رابط جديد من صفحة تسجيل الدخول.'
+            : 'Password reset link has expired. Please request a new link from the login page.';
         } else if (error === 'access_denied') {
           errorMessage = isArabic 
-            ? 'تم رفض الوصول. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.'
-            : 'Access denied. Please request a new password reset link.';
+            ? 'تم رفض الوصول. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور من صفحة تسجيل الدخول.'
+            : 'Access denied. Please request a new password reset link from the login page.';
         } else {
           errorMessage = isArabic 
             ? 'حدث خطأ في الرابط. يرجى طلب رابط جديد من صفحة تسجيل الدخول.'
@@ -99,12 +99,12 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
         let errorMessage = '';
         if (hashErrorCode === 'otp_expired') {
           errorMessage = isArabic 
-            ? 'رابط إعادة تعيين كلمة المرور منتهي الصلاحية. يرجى طلب رابط جديد.'
-            : 'Password reset link has expired. Please request a new link.';
+            ? 'رابط إعادة تعيين كلمة المرور منتهي الصلاحية. يرجى طلب رابط جديد من صفحة تسجيل الدخول.'
+            : 'Password reset link has expired. Please request a new link from the login page.';
         } else if (hashError === 'access_denied') {
           errorMessage = isArabic 
-            ? 'تم رفض الوصول. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور.'
-            : 'Access denied. Please request a new password reset link.';
+            ? 'تم رفض الوصول. يرجى طلب رابط جديد لإعادة تعيين كلمة المرور من صفحة تسجيل الدخول.'
+            : 'Access denied. Please request a new password reset link from the login page.';
         } else {
           errorMessage = isArabic 
             ? 'حدث خطأ في الرابط. يرجى طلب رابط جديد من صفحة تسجيل الدخول.'
@@ -345,12 +345,21 @@ const ResetPasswordModal: React.FC<ResetPasswordModalProps> = ({
                 </div>
               </div>
               
-              <button
-                onClick={handleClose}
-                className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-caribbean-600 to-indigo-700 hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-200 shadow-sm"
-              >
-                {isArabic ? 'إغلاق' : 'Close'}
-              </button>
+              <div className="space-y-3">
+                <button
+                  onClick={() => window.location.href = '/login'}
+                  className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-gradient-to-r from-caribbean-600 to-indigo-700 hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-200 shadow-sm"
+                >
+                  {isArabic ? 'الذهاب لصفحة تسجيل الدخول' : 'Go to Login Page'}
+                </button>
+                
+                <button
+                  onClick={handleClose}
+                  className="w-full inline-flex justify-center items-center px-4 py-3 border border-jet-300 dark:border-jet-600 text-sm font-medium rounded-lg text-jet-700 dark:text-jet-300 bg-white dark:bg-jet-700 hover:bg-jet-50 dark:hover:bg-jet-600 transition-all duration-200 shadow-sm"
+                >
+                  {isArabic ? 'إغلاق' : 'Close'}
+                </button>
+              </div>
             </div>
           ) : success ? (
             <div className="text-center py-8">
