@@ -289,21 +289,24 @@ function App() {
   useEffect(() => {
     const path = location.pathname;
     
-    // Handle password reset links from email ONLY
+    // Handle password reset links from email
     console.log('Checking password reset link:', {
       path,
       search: location.search,
       hash: location.hash,
       hasError: location.search.includes('error=') || location.hash.includes('error='),
-      hasToken: location.search.includes('token=') || location.hash.includes('token='),
-      hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token='),
-      hasType: location.search.includes('type=') || location.hash.includes('type=')
+      hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token=')
     });
     
-    if ((path === '/' || path === '/reset-password') && 
-        (location.search.includes('error=') || location.search.includes('token=') || location.search.includes('access_token=') || 
-         location.hash.includes('error=') || location.hash.includes('token=') || location.hash.includes('access_token='))) {
-      console.log('Detected password reset link from email, opening reset password modal');
+    if ((path === '/' || path === '/reset-password') && (location.search.includes('error=') || location.search.includes('access_token=') || location.hash.includes('error=') || location.hash.includes('access_token='))) {
+      console.log('Detected password reset link, opening reset password modal');
+      setShowResetPasswordModal(true);
+      return;
+    }
+    
+    // Handle direct access to reset-password page
+    if (path === '/reset-password') {
+      console.log('Direct access to reset-password page, opening modal');
       setShowResetPasswordModal(true);
       return;
     }
