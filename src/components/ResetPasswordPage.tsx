@@ -111,22 +111,41 @@ const ResetPasswordPage: React.FC = () => {
       if (finalAccessToken && finalRefreshToken && finalType === 'recovery') {
         // User came from email link, set session
         console.log('Setting session from email link tokens...');
-        const { data, error } = await supabase.auth.setSession({
-          access_token: finalAccessToken,
-          refresh_token: finalRefreshToken
-        });
         
-        if (error) {
-          console.error('Error setting session:', error);
-          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
-          setIsValidToken(false);
-        } else if (data.session) {
-          console.log('Session set successfully:', data.session.user.email);
-          setIsValidToken(true);
-          setEmail(data.session.user.email);
-        } else {
-          console.error('No session after setting tokens');
-          setError(isArabic ? 'رابط غير صالح أو منتهي الصلاحية' : 'Invalid or expired link');
+        try {
+          const { data, error } = await supabase.auth.setSession({
+            access_token: finalAccessToken,
+            refresh_token: finalRefreshToken
+          });
+          
+          if (error) {
+            console.error('Error setting session:', error);
+            
+            // Check for specific error types
+            if (error.message?.includes('expired') || error.message?.includes('invalid')) {
+              setError(isArabic ? 'رابط منتهي الصلاحية. يرجى طلب رابط جديد.' : 'Link expired. Please request a new link.');
+            } else if (error.message?.includes('already_used')) {
+              setError(isArabic ? 'تم استخدام هذا الرابط مسبقاً. يرجى طلب رابط جديد.' : 'This link has already been used. Please request a new link.');
+            } else {
+              setError(isArabic ? 'رابط غير صالح. يرجى طلب رابط جديد.' : 'Invalid link. Please request a new link.');
+            }
+            setIsValidToken(false);
+          } else if (data.session) {
+            console.log('Session set successfully:', data.session.user.email);
+            setIsValidToken(true);
+            setEmail(data.session.user.email);
+            
+            // Clean up URL parameters after successful session setup
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+          } else {
+            console.error('No session after setting tokens');
+            setError(isArabic ? 'رابط غير صالح. يرجى طلب رابط جديد.' : 'Invalid link. Please request a new link.');
+            setIsValidToken(false);
+          }
+        } catch (sessionError) {
+          console.error('Session setup failed:', sessionError);
+          setError(isArabic ? 'فشل في إعداد الجلسة. يرجى المحاولة مرة أخرى.' : 'Failed to setup session. Please try again.');
           setIsValidToken(false);
         }
       } else {
@@ -431,7 +450,19 @@ const ResetPasswordPage: React.FC = () => {
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
                 <div className="flex items-start space-x-2 space-x-reverse">
                   <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                  <div className="flex-1">
+                    <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+                    {!isValidToken && (
+                      <div className="mt-3">
+                        <button
+                          onClick={() => navigate('/')}
+                          className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 underline"
+                        >
+                          {isArabic ? 'العودة لصفحة تسجيل الدخول لطلب رابط جديد' : 'Go back to login page to request new link'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

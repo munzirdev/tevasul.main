@@ -128,7 +128,7 @@ enabled = true
 # in emails.
 site_url = "https://tevasul.group"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://127.0.0.1:1234", "http://localhost:1234", "https://tevasul.group/auth/verify-email", "http://localhost:5173/auth/verify-email", "https://tevasul.group/auth/callback", "http://localhost:5173/auth/callback"]
+additional_redirect_urls = ["http://127.0.0.1:1234", "http://localhost:1234", "https://tevasul.group/auth/verify-email", "http://localhost:5173/auth/verify-email", "https://tevasul.group/auth/callback", "http://localhost:5173/auth/callback", "https://tevasul.group/reset-password", "http://localhost:5173/reset-password"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
@@ -183,11 +183,11 @@ enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
-max_frequency = "1s"
+max_frequency = "10s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+otp_expiry = 600
 
 # Use a production-ready SMTP server
 [auth.email.smtp]
@@ -214,9 +214,9 @@ content_path = "./supabase/templates/confirm_signup.html"
 # subject = "رابط تسجيل الدخول - Tevasul Group"
 # content_path = "./supabase/templates/magic_link.html"
 
-# [auth.email.template.recovery]
-# subject = "إعادة تعيين كلمة المرور - Tevasul Group"
-# content_path = "./supabase/templates/recovery.html"
+[auth.email.template.recovery]
+subject = "رمز إعادة تعيين كلمة المرور - Tevasul Group"
+content_path = "./supabase/templates/recovery_otp.html"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]

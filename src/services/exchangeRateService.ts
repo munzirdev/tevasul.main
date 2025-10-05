@@ -4,14 +4,14 @@ interface ExchangeRates {
 }
 
 // API key for exchange rates (you can get a free key from exchangerate-api.com)
-const EXCHANGE_API_KEY = 'YOUR_API_KEY'; // يمكنك الحصول على مفتاح مجاني من exchangerate-api.com
+const EXCHANGE_API_KEY = import.meta.env.VITE_EXCHANGE_API_KEY || '';
 const EXCHANGE_API_URL = 'https://v6.exchangerate-api.com/v6';
 
 // خيارات API مجانية بديلة
 const FREE_API_URLS = {
   exchangerate: 'https://api.exchangerate-api.com/v4/latest/TRY',
-  currencyapi: 'https://api.currencyapi.com/v3/latest?apikey=YOUR_KEY&base_currency=TRY',
-  fixer: 'http://data.fixer.io/api/latest?access_key=YOUR_KEY&base=TRY'
+  currencyapi: `https://api.currencyapi.com/v3/latest?apikey=${import.meta.env.VITE_CURRENCY_API_KEY || 'YOUR_KEY'}&base_currency=TRY`,
+  fixer: `http://data.fixer.io/api/latest?access_key=${import.meta.env.VITE_FIXER_API_KEY || 'YOUR_KEY'}&base=TRY`
 };
 
 export const fetchExchangeRates = async (): Promise<ExchangeRates> => {
@@ -32,7 +32,8 @@ export const fetchExchangeRates = async (): Promise<ExchangeRates> => {
         };
       }
     } catch (apiError) {
-      }
+      // API غير متاح، سيتم استخدام الأسعار المحاكاة
+    }
 
     // إذا كان لديك API key مدفوع، استخدم هذا الكود:
     /*
@@ -56,8 +57,6 @@ export const fetchExchangeRates = async (): Promise<ExchangeRates> => {
 
     return mockRates;
   } catch (error) {
-    console.error('خطأ في جلب أسعار الصرف:', error);
-    
     // قيم افتراضية واقعية في حالة الخطأ
     return {
       USD: 31.0,

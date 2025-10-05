@@ -127,10 +127,11 @@ const HealthInsuranceManagement: React.FC = () => {
     try {
       setLoading(true);
       
-      // Load companies
+      // Load companies (only Ankara and Magdeburger)
       const { data: companiesData, error: companiesError } = await supabase
         .from('insurance_companies')
         .select('*')
+        .in('name', ['Ankara Sigorta', 'Ankara Sigorta Eco', 'Magdeburger Sigorta', 'Magdeburger Sigorta Eco', 'Magdeburger Gümüş'])
         .order('name');
 
       if (companiesError) {

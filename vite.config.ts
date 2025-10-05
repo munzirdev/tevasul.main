@@ -13,6 +13,12 @@ export default defineConfig({
       host: 'localhost'
     }
   },
+  define: {
+    // Remove console logs in production
+    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
+    // Add security headers for production
+    __DEV__: process.env.NODE_ENV !== 'production'
+  },
   optimizeDeps: {
     exclude: ['lucide-react'],
     include: ['react', 'react-dom', 'react-router-dom']
@@ -28,6 +34,13 @@ export default defineConfig({
           icons: ['lucide-react']
         }
       }
+    },
+    // Security optimizations
+    sourcemap: process.env.NODE_ENV !== 'production',
+    minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false,
+    // Remove console logs in production
+    esbuild: {
+      drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
     }
   },
   esbuild: {

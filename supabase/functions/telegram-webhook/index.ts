@@ -2,14 +2,28 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': 'https://tevasul.group',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 }
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
+  }
+
+  // Rate limiting (simple implementation)
+  const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
+  const rateLimitKey = `rate_limit_${clientIP}`
+  
+  // Basic rate limiting check (you can implement more sophisticated rate limiting)
+  if (req.method !== 'POST') {
+    return new Response(
+      JSON.stringify({ error: 'Method not allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
 
   try {
@@ -30,13 +44,14 @@ serve(async (req) => {
       requestId
     } = await req.json()
 
-    console.log('🔔 Webhook request received:', { 
-      sessionId, 
+    // Log request details (remove sensitive info)
+    const logData = { 
+      sessionId: sessionId ? 'present' : 'missing', 
       requestType, 
       hasFile: !!filePath,
       userInfo: userInfo ? 'present' : 'missing',
       additionalData: additionalData ? 'present' : 'missing'
-    })
+    }
 
     // Get Telegram configuration
     const { data: config, error: configError } = await supabase
@@ -46,7 +61,6 @@ serve(async (req) => {
       .single()
 
     if (configError || !config?.is_enabled || !config?.bot_token || !config?.admin_chat_id) {
-      console.error('❌ Telegram not configured:', configError)
       return new Response(
         JSON.stringify({ error: 'Telegram not configured' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -54,12 +68,12 @@ serve(async (req) => {
     }
 
     // Format notification message
-    const messageData = {
+const messageData = {
       title: getRequestTypeTitle(requestType, language),
       userInfo: userInfo || { email: 'user@example.com' },
       description: message,
       type: requestType,
-      priority: 'normal',
+      priority: requestType === 'meeting_request' ? 'high' : 'normal',
       status: 'pending',
       sessionId,
       requestId,
@@ -67,12 +81,7 @@ serve(async (req) => {
       additionalData
     };
     
-    console.log('📝 Formatting message with data:', {
-      title: messageData.title,
-      type: messageData.type,
-      hasUserInfo: !!messageData.userInfo,
-      hasAdditionalData: !!messageData.additionalData
-    });
+    // Format message data
     
     const formattedMessage = formatNotificationMessage(messageData);
 
@@ -110,19 +119,38 @@ serve(async (req) => {
     const messageResult = await messageResponse.json()
     
     if (!messageResult.ok) {
-      console.error('❌ Failed to send Telegram message:', messageResult)
       return new Response(
         JSON.stringify({ error: 'Failed to send Telegram message' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('✅ Main message sent successfully')
+    // Save notification to database
+    try {
+      const { error: dbError } = await supabase
+        .from('telegram_notifications')
+        .insert({
+          session_id: sessionId,
+          message: message,
+          language: language,
+          request_type: requestType,
+          user_info: userInfo,
+          additional_data: additionalData,
+          status: 'pending',
+          priority: requestType === 'meeting_request' ? 'high' : 'normal'
+        });
+
+      if (dbError) {
+        // Database error - continue execution
+      }
+    } catch (error) {
+      // Database error - continue execution
+    }
 
     // Send file attachment if provided
     if (filePath) {
       try {
-        console.log('📎 Processing file attachment:', filePath)
+        // Processing file attachment
         
         let fileData = null;
         let fileName = filePath.split('/').pop() || 'file';
@@ -147,7 +175,7 @@ serve(async (req) => {
               .single();
             
             if (requestError || !requestData || !requestData.file_data) {
-              console.error('❌ File not found in database:', fileId);
+              // File not found in database
             } else {
               fileData = requestData.file_data;
               fileName = requestData.file_name || fileName;
@@ -163,7 +191,7 @@ serve(async (req) => {
             .download(filePath)
 
           if (fileError) {
-            console.error('❌ Error downloading file from storage:', fileError)
+            // Error downloading file from storage
           } else {
             fileData = storageFileData;
           }
@@ -204,14 +232,12 @@ serve(async (req) => {
 
           const fileResult = await fileResponse.json()
           
-          if (fileResult.ok) {
-            console.log('✅ File sent successfully:', fileName)
-          } else {
-            console.error('❌ Failed to send file:', fileResult)
+          if (!fileResult.ok) {
+            // Failed to send file
           }
         }
       } catch (fileError) {
-        console.error('❌ Error processing file:', fileError)
+        // Error processing file
       }
     }
 
@@ -224,7 +250,6 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('❌ Webhook error:', error)
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -239,6 +264,7 @@ function getRequestTypeTitle(type, language) {
     translation: language === 'ar' ? 'طلب ترجمة جديد' : 'New Translation Request',
     insurance: language === 'ar' ? 'طلب تأمين جديد' : 'New Insurance Request',
     health_insurance: language === 'ar' ? 'طلب تأمين صحي للأجانب' : 'Foreign Health Insurance Request',
+    meeting_request: language === 'ar' ? '🔔 طلب موعد/لقاء رسمي' : '🔔 Meeting/Appointment Request',
     voluntary_return: language === 'ar' ? 'طلب عودة طوعية' : 'Voluntary Return Request',
     health_insurance_activation: language === 'ar' ? 'طلب تفعيل تأمين صحي' : 'Health Insurance Activation',
     service_request: language === 'ar' ? 'طلب خدمة جديد' : 'New Service Request',

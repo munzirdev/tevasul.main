@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Menu, X, ArrowRight, Star, Users, Zap, Heart, Mail, Phone, MapPin, Sun, Moon, Globe, FileText, Building, ChevronDown, CheckCircle, Shield, Clock, UserPlus, User, Settings, HelpCircle, LogOut, Send, Code, Volume2, VolumeX } from 'lucide-react';
+import { validateEnvironment } from './utils/security';
 import DebugThemeToggle from './components/DebugThemeToggle';
 import LoadingSpinner from './components/LoadingSpinner';
 import GlassLoadingScreen from './components/GlassLoadingScreen';
@@ -30,6 +31,7 @@ import PrivacyPolicy from './components/PrivacyPolicy';
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
 import ResetPasswordModal from './components/ResetPasswordModal';
+import OTPResetPage from './components/OTPResetPage';
 
 
 
@@ -47,6 +49,18 @@ function App() {
   const [isLanguageChanging, setIsLanguageChanging] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
+
+  // Validate environment variables on app start
+  useEffect(() => {
+    try {
+      validateEnvironment();
+    } catch (error) {
+      // Handle environment validation error
+      if (process.env.NODE_ENV === 'development') {
+        console.error('Environment validation failed:', error);
+      }
+    }
+  }, []);
 
   // Performance optimization settings
   const [performanceSettings, setPerformanceSettings] = useState({
@@ -290,43 +304,28 @@ function App() {
     const path = location.pathname;
     
     // Handle password reset links from email
-    console.log('Checking password reset link:', {
-      path,
-      search: location.search,
-      hash: location.hash,
-      hasError: location.search.includes('error=') || location.hash.includes('error='),
-      hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token='),
-      hasCode: location.search.includes('code=') || location.hash.includes('code=')
-    });
+    // console.log('Checking password reset link:', {
+    //   path,
+    //   search: location.search,
+    //   hash: location.hash,
+    //   hasError: location.search.includes('error=') || location.hash.includes('error='),
+    //   hasAccessToken: location.search.includes('access_token=') || location.hash.includes('access_token='),
+    //   hasCode: location.search.includes('code=') || location.hash.includes('code=')
+    // });
     
     if ((path === '/' || path === '/reset-password') && 
         (location.search.includes('error=') || location.search.includes('access_token=') || location.search.includes('code=') ||
          location.hash.includes('error=') || location.hash.includes('access_token=') || location.hash.includes('code='))) {
-      console.log('Detected password reset link, opening reset password modal');
+      // console.log('Detected password reset link, opening reset password modal');
       setShowResetPasswordModal(true);
       return;
     }
     
     // Handle direct access to reset-password page - ONLY if user has valid reset parameters
     if (path === '/reset-password') {
-      // Check if user has valid reset parameters from email link
-      const hasValidResetParams = location.search.includes('access_token=') || 
-                                 location.search.includes('type=recovery') ||
-                                 location.search.includes('code=') ||
-                                 location.hash.includes('access_token=') ||
-                                 location.hash.includes('type=recovery') ||
-                                 location.hash.includes('code=');
-      
-      if (hasValidResetParams) {
-        console.log('Valid reset password link detected, opening modal');
-        setShowResetPasswordModal(true);
-        return;
-      } else {
-        console.log('Direct access to reset-password page without valid parameters - redirecting to home');
-        // Redirect unauthorized access to home page
-        navigate('/', { replace: true });
-        return;
-      }
+      // console.log('Direct access to reset-password page - showing OTP page');
+      // Show OTP page for password reset
+      return;
     }
     
     // Handle privacy policy route
@@ -1207,6 +1206,15 @@ function App() {
     );
   }
 
+  // Check if we're on the reset password page
+  if (location.pathname === '/reset-password') {
+    return (
+      <div className={`min-h-screen ${isDarkMode ? 'dark' : ''} transition-colors duration-500`}>
+        <OTPResetPage />
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen ${isDarkMode ? 'bg-jet-800 text-white' : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 text-slate-800'} overflow-x-hidden font-alexandria ${isLanguageChanging ? 'language-change-blur language-change-animation' : ''}`}>
       <PerformanceOptimizer 
@@ -1382,99 +1390,99 @@ function App() {
         {/* Blurred Background Overlay for Text Readability */}
         <div className="absolute inset-0 backdrop-blur-[2px] bg-black/30 pointer-events-none"></div>
 
-        <div className="relative text-center px-4 max-w-6xl mx-auto py-8 md:py-12">
-          {/* Logo Section - Adjusted for mobile with dangerous scroll animation */}
-          <div className="flex items-center justify-center mb-8 md:mb-12 animate-fade-in relative">
+        <div className="relative text-center px-4 max-w-6xl mx-auto py-4 md:py-12">
+          {/* Logo Section - Optimized for mobile viewport */}
+          <div className="flex items-center justify-center mb-4 md:mb-12 animate-fade-in relative">
 
             
-            {/* Main logo */}
+            {/* Main logo - Smaller on mobile */}
             <img 
               src="/logo-fınal.png" 
               alt="مجموعة تواصل" 
-              className={`w-48 h-48 md:w-60 md:h-60 lg:w-84 lg:h-84 xl:w-96 xl:h-96 object-contain animate-float brightness-0 invert ${isLanguageChanging ? 'language-change-logo' : ''}`}
+              className={`w-32 h-32 md:w-60 md:h-60 lg:w-84 lg:h-84 xl:w-96 xl:h-96 object-contain animate-float brightness-0 invert ${isLanguageChanging ? 'language-change-logo' : ''}`}
             />
             
 
           </div>
           
-          <h1 className={`text-2xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-6 md:mb-8 animate-fade-in-up text-white drop-shadow-lg leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
-            <span className="inline-block animate-text-shimmer bg-gradient-to-r from-white via-caribbean-200 to-white bg-clip-text text-transparent bg-[length:200%_100%] leading-relaxed">
+          <h1 className={`text-xl md:text-4xl lg:text-5xl xl:text-6xl font-bold mb-3 md:mb-8 animate-fade-in-up text-white drop-shadow-lg leading-tight md:leading-relaxed ${isLanguageChanging ? 'language-change-text' : ''}`}>
+            <span className="inline-block animate-text-shimmer bg-gradient-to-r from-white via-caribbean-200 to-white bg-clip-text text-transparent bg-[length:200%_100%] leading-tight md:leading-relaxed">
               {t('hero.mainTitle')}
             </span>
           </h1>
           
-          <div className={`text-lg md:text-2xl lg:text-3xl xl:text-4xl font-semibold mb-8 md:mb-10 text-white/95 drop-shadow-md animate-fade-in-delay-1 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <div className={`text-base md:text-2xl lg:text-3xl xl:text-4xl font-semibold mb-4 md:mb-10 text-white/95 drop-shadow-md animate-fade-in-delay-1 ${isLanguageChanging ? 'language-change-text' : ''}`}>
             <span className="relative">
               {t('hero.withUs')}
               <div className="absolute -bottom-2 left-0 right-0 h-1 bg-gradient-to-r from-caribbean-400 to-indigo-400 rounded-full animate-expand-width"></div>
             </span>
           </div>
           
-          <div className={`text-lg md:text-xl lg:text-2xl xl:text-3xl text-white/90 mb-10 md:mb-12 leading-relaxed animate-fade-in-delay-2 max-w-4xl mx-auto drop-shadow-sm px-4 ${isLanguageChanging ? 'language-change-text' : ''}`}>
+          <div className={`text-sm md:text-xl lg:text-2xl xl:text-3xl text-white/90 mb-6 md:mb-12 leading-relaxed animate-fade-in-delay-2 max-w-4xl mx-auto drop-shadow-sm px-4 ${isLanguageChanging ? 'language-change-text' : ''}`}>
             <span className="inline-block animate-fade-in-up relative">
               {t('hero.description')}
               <div className="absolute -bottom-2 left-0 w-0 h-1 bg-gradient-to-r from-caribbean-400 to-indigo-400 animate-expand-width-delayed"></div>
             </span>
           </div>
           
-          {/* Stats Counter - Simplified for mobile */}
-          <div className="flex justify-center items-center space-x-4 md:space-x-8 space-x-reverse mb-10 md:mb-12 animate-fade-in-delay-2">
+          {/* Stats Counter - Compact for mobile */}
+          <div className="flex justify-center items-center space-x-2 md:space-x-8 space-x-reverse mb-6 md:mb-12 animate-fade-in-delay-2">
             <div className="text-center">
-              <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-caribbean-300 animate-count-up">5000+</div>
+              <div className="text-lg md:text-3xl lg:text-4xl font-bold text-caribbean-300 animate-count-up">5000+</div>
               <div className="text-xs md:text-sm text-white/70">{t('hero.stats.clients')}</div>
             </div>
-            <div className="w-px h-8 md:h-12 bg-white/30"></div>
+            <div className="w-px h-6 md:h-12 bg-white/30"></div>
             <div className="text-center">
-              <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-indigo-300 animate-count-up-delayed">24/7</div>
+              <div className="text-lg md:text-3xl lg:text-4xl font-bold text-indigo-300 animate-count-up-delayed">24/7</div>
               <div className="text-xs md:text-sm text-white/70">{t('hero.stats.service')}</div>
             </div>
-            <div className="w-px h-8 md:h-12 bg-white/30"></div>
+            <div className="w-px h-6 md:h-12 bg-white/30"></div>
             <div className="text-center">
-          <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-sky-300 animate-count-up-delayed-2">10+</div>
+          <div className="text-lg md:text-3xl lg:text-4xl font-bold text-sky-300 animate-count-up-delayed-2">10+</div>
           <div className="text-xs md:text-sm text-white/70">{t('hero.stats.experience')}</div>
         </div>
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-4 md:gap-6 justify-center animate-fade-in-delay-3 mt-4">
+      <div className="flex flex-col sm:flex-row gap-3 md:gap-6 justify-center animate-fade-in-delay-3 mt-2 md:mt-4">
         <button 
           onClick={scrollToServices}
-          className="group relative bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white px-6 md:px-10 py-3 md:py-5 rounded-full font-bold text-lg md:text-xl hover:from-caribbean-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl flex items-center justify-center overflow-hidden animate-pulse-glow border-2 border-white/20 hover:border-white/40"
+          className="group relative bg-gradient-to-r from-caribbean-600 to-indigo-600 text-white px-4 md:px-10 py-2 md:py-5 rounded-full font-bold text-sm md:text-xl hover:from-caribbean-700 hover:to-indigo-700 transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl flex items-center justify-center overflow-hidden animate-pulse-glow border-2 border-white/20 hover:border-white/40"
         >
           <div className="absolute inset-0 bg-white/20 transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
           <div className="absolute inset-0 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 animate-pulse"></div>
           <span className="relative z-10 flex items-center animate-pulse-text-arrow">
             {t('hero.discoverServices')}
-            <ChevronDown className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 text-white/90" />
+            <ChevronDown className="w-4 h-4 md:w-6 md:h-6 mr-1 md:mr-3 text-white/90" />
           </span>
         </button>
         <button 
           onClick={scrollToContact}
-          className="group relative border-3 border-white/80 text-white px-6 md:px-10 py-3 md:py-5 rounded-full font-bold text-lg md:text-xl hover:bg-white/20 hover:border-white transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl overflow-hidden animate-pulse-glow bg-gradient-to-r from-white/5 to-white/10"
+          className="group relative border-3 border-white/80 text-white px-4 md:px-10 py-2 md:py-5 rounded-full font-bold text-sm md:text-xl hover:bg-white/20 hover:border-white transition-all duration-300 transform hover:scale-110 shadow-2xl hover:shadow-3xl overflow-hidden animate-pulse-glow bg-gradient-to-r from-white/5 to-white/10"
         >
           <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
           <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent animate-pulse"></div>
           <span className="relative z-10 flex items-center justify-center">
             {t('hero.contactNow')}
-            <Phone className="mr-2 md:mr-3 w-4 h-4 md:w-5 md:h-5 group-hover:animate-pulse group-hover:scale-110 transition-all duration-300" />
+            <Phone className="mr-1 md:mr-3 w-3 h-3 md:w-5 md:h-5 group-hover:animate-pulse group-hover:scale-110 transition-all duration-300" />
           </span>
         </button>
       </div>
       
       {/* Trust Indicators - Icons in row, text below */}
-      <div className="flex flex-col items-center space-y-4 mt-12 md:mt-16 animate-fade-in-delay-4">
-        {/* Icons Row */}
+      <div className="flex flex-col items-center space-y-4 mt-6 md:mt-16 animate-fade-in-delay-4">
+        {/* Icons Row - Compact for mobile */}
         <div className="flex justify-center items-center space-x-reverse">
           <div className="flex flex-col items-center">
-            <Shield className="w-12 h-12 md:w-16 md:h-16 text-green-400 mb-4" />
-            <span className="text-base md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.licensed')}</span>
+            <Shield className="w-8 h-8 md:w-16 md:h-16 text-green-400 mb-2 md:mb-4" />
+            <span className="text-xs md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.licensed')}</span>
           </div>
-          <div className="flex flex-col items-center mx-20 md:mx-32">
-            <Clock className="w-12 h-12 md:w-16 md:h-16 text-caribbean-400 mb-4" />
-            <span className="text-base md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.fast')}</span>
+          <div className="flex flex-col items-center mx-8 md:mx-32">
+            <Clock className="w-8 h-8 md:w-16 md:h-16 text-caribbean-400 mb-2 md:mb-4" />
+            <span className="text-xs md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.fast')}</span>
           </div>
           <div className="flex flex-col items-center">
-            <Star className="w-12 h-12 md:w-16 md:h-16 text-sky-400 mb-4" />
-            <span className="text-base md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.excellent')}</span>
+            <Star className="w-8 h-8 md:w-16 md:h-16 text-sky-400 mb-2 md:mb-4" />
+            <span className="text-xs md:text-lg font-semibold text-white/90 text-center">{t('hero.trust.excellent')}</span>
           </div>
         </div>
       </div>
@@ -1542,11 +1550,11 @@ function App() {
         <div className="w-16 h-0.5 mx-auto mt-6 rounded-full services-decorative-line"></div>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 services-grid">
+      <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-3 gap-1 sm:gap-2 md:gap-6 lg:gap-8 services-grid">
         {services.map((service, index) => (
                       <div
               key={index}
-              className={`group relative p-8 rounded-2xl shadow-2xl hover:shadow-3xl service-card-hover service-card-enhanced overflow-hidden animate-fade-in service-card-container ${
+              className={`group relative p-1 sm:p-4 md:p-6 lg:p-8 rounded-md sm:rounded-2xl shadow-md sm:shadow-2xl hover:shadow-3xl service-card-hover service-card-enhanced overflow-hidden animate-fade-in service-card-container ${
                 isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'
               }`}
               style={{
@@ -1562,8 +1570,8 @@ function App() {
             {/* Content */}
             <div className="relative z-10 flex flex-col h-full service-card-content">
               <div className="service-content-area">
-                <div className="mb-6 p-4 glass-effect dark:glass-effect-dark rounded-2xl w-fit group-hover:scale-110 transition-transform duration-300 animate-glass-float service-icon-float service-icon-container">
-                  <div className={`service-icon ${
+                <div className="mb-1 sm:mb-4 md:mb-6 p-0.5 sm:p-3 md:p-4 glass-effect dark:glass-effect-dark rounded-md sm:rounded-2xl w-fit group-hover:scale-110 transition-transform duration-300 animate-glass-float service-icon-float service-icon-container">
+                  <div className={`service-icon text-xs sm:text-xl md:text-2xl ${
                     service.id === 'health-insurance' ? 'service-icon-health' :
                     service.id === 'translation' ? 'service-icon-translation' :
                     service.id === 'travel' ? 'service-icon-travel' :
@@ -1575,13 +1583,13 @@ function App() {
             </div>
                 </div>
                 
-                <h3 className={`text-2xl font-bold mb-4 transition-colors duration-300 text-glow-caribbean ${
+                <h3 className={`text-xs sm:text-lg md:text-xl lg:text-2xl font-bold mb-0.5 sm:mb-3 md:mb-4 transition-colors duration-300 text-glow-caribbean ${
                   isDarkMode ? 'text-white group-hover:text-caribbean-300' : 'text-slate-800 group-hover:text-caribbean-600'
                 }`}>
               {service.title}
             </h3>
                 
-                <p className={`leading-relaxed drop-shadow-sm ${
+                <p className={`text-xs sm:text-sm md:text-base leading-tight sm:leading-relaxed drop-shadow-sm ${
                   isDarkMode ? 'text-white/80' : 'text-slate-600'
                 }`}>
               {service.description}
@@ -1592,17 +1600,17 @@ function App() {
               <div className="service-card-buttons service-button-group">
             <button 
               onClick={() => handleServiceClick(service.id)}
-                  className="w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center group/btn backdrop-blur-sm border border-white/20 animate-glass-shimmer glass-button"
+                  className="w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-1 sm:py-3 px-1 sm:px-6 rounded-sm sm:rounded-lg font-medium sm:font-semibold text-xs sm:text-sm hover:from-caribbean-700 hover:to-indigo-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center group/btn backdrop-blur-sm border border-white/20 animate-glass-shimmer glass-button"
             >
                   <span className="relative z-10">{t('services.discoverMore')}</span>
-                  <ArrowRight className="mr-2 w-4 h-4 group-hover/btn:translate-x-1 transition-transform duration-300 relative z-10" />
+                  <ArrowRight className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4 group-hover/btn:translate-x-1 transition-transform duration-300 relative z-10" />
                   <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left rounded-lg"></div>
             </button>
                 
             {user && (
               <button 
                 onClick={() => openServiceRequestForm(service.id, service.title)}
-                    className="w-full glass-effect dark:glass-effect-dark text-white border-2 border-white/30 dark:border-jet-600/30 py-2 px-6 rounded-lg font-semibold hover:bg-white/20 dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center"
+                    className="w-full bg-white/90 dark:bg-jet-800/90 backdrop-blur-sm text-jet-800 dark:text-white border-2 border-jet-300/50 dark:border-jet-600/30 py-0.5 sm:py-2 px-1 sm:px-6 rounded-sm sm:rounded-lg font-medium sm:font-semibold text-xs sm:text-sm hover:bg-white dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow-md"
               >
                 {t('services.quickRequest')}
               </button>
@@ -1611,10 +1619,10 @@ function App() {
             {!user && (
               <button 
                 onClick={() => openServiceRequestForm(service.id, service.title)}
-                    className="w-full login-button text-white border-2 border-white/30 dark:border-jet-600/30 py-2 px-6 rounded-lg font-semibold hover:bg-white/20 dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center login-pulse-glow relative overflow-hidden"
+                    className="w-full login-button text-jet-800 dark:text-white border-2 border-jet-300/30 dark:border-jet-600/30 py-0.5 sm:py-2 px-1 sm:px-6 rounded-sm sm:rounded-lg font-medium sm:font-semibold text-xs sm:text-sm hover:bg-jet-100/50 dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center login-pulse-glow relative overflow-hidden"
               >
                     <span className="relative z-10 flex items-center">
-                      <User className="w-4 h-4 mr-2 login-icon" />
+                      <User className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 login-icon" />
                 {t('services.loginToRequest')}
                     </span>
                     <div className="absolute inset-0 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>

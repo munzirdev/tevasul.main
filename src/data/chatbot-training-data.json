@@ -42,7 +42,65 @@
           "حساب السعر النهائي",
           "تقديم الطلب والحصول على التأمين",
           "استلام وثائق التأمين"
-        ]
+        ],
+        "pricing": {
+          "age_groups": [
+            {
+              "age_range": "0-18 سنة",
+              "price_range": "1200-1800 ليرة تركية سنوياً",
+              "description": "تأمين شامل للأطفال والشباب مع تغطية ممتازة"
+            },
+            {
+              "age_range": "19-30 سنة",
+              "price_range": "1500-2200 ليرة تركية سنوياً",
+              "description": "أفضل أسعار للشباب مع تغطية شاملة"
+            },
+            {
+              "age_range": "31-45 سنة",
+              "price_range": "2000-2800 ليرة تركية سنوياً",
+              "description": "تأمين متوسط السعر مع تغطية ممتازة"
+            },
+            {
+              "age_range": "46-60 سنة",
+              "price_range": "2500-3500 ليرة تركية سنوياً",
+              "description": "تأمين شامل للبالغين مع تغطية متقدمة"
+            },
+            {
+              "age_range": "61 سنة فما فوق",
+              "price_range": "3000-4500 ليرة تركية سنوياً",
+              "description": "تأمين شامل للمسنين مع تغطية شاملة ومتقدمة"
+            }
+          ],
+          "family_packages": [
+            {
+              "type": "باقة العائلة (2 شخص)",
+              "discount": "خصم 15% من السعر الإجمالي",
+              "description": "توفير كبير للعائلات الصغيرة"
+            },
+            {
+              "type": "باقة العائلة الكبيرة (3+ أشخاص)",
+              "discount": "خصم 20% من السعر الإجمالي",
+              "description": "أفضل أسعار للعائلات الكبيرة"
+            }
+          ],
+          "additional_services": [
+            {
+              "service": "تأمين الأسنان",
+              "price": "300-500 ليرة تركية إضافية سنوياً",
+              "description": "تغطية شاملة لعلاج الأسنان"
+            },
+            {
+              "service": "تأمين العيون",
+              "price": "200-400 ليرة تركية إضافية سنوياً",
+              "description": "فحص وعلاج العيون"
+            },
+            {
+              "service": "تأمين الولادة",
+              "price": "1000-1500 ليرة تركية إضافية",
+              "description": "تغطية شاملة للولادة والرعاية الصحية للأم والطفل"
+            }
+          ]
+        }
       },
       "en": {
         "title": "Health Insurance for Foreigners",
@@ -70,7 +128,65 @@
           "Calculate final price",
           "Submit application and obtain insurance",
           "Receive insurance documents"
-        ]
+        ],
+        "pricing": {
+          "age_groups": [
+            {
+              "age_range": "0-18 years",
+              "price_range": "1200-1800 Turkish Lira annually",
+              "description": "Comprehensive insurance for children and youth with excellent coverage"
+            },
+            {
+              "age_range": "19-30 years",
+              "price_range": "1500-2200 Turkish Lira annually",
+              "description": "Best prices for young adults with comprehensive coverage"
+            },
+            {
+              "age_range": "31-45 years",
+              "price_range": "2000-2800 Turkish Lira annually",
+              "description": "Mid-range pricing with excellent coverage"
+            },
+            {
+              "age_range": "46-60 years",
+              "price_range": "2500-3500 Turkish Lira annually",
+              "description": "Comprehensive insurance for adults with advanced coverage"
+            },
+            {
+              "age_range": "61+ years",
+              "price_range": "3000-4500 Turkish Lira annually",
+              "description": "Comprehensive insurance for seniors with full and advanced coverage"
+            }
+          ],
+          "family_packages": [
+            {
+              "type": "Family Package (2 people)",
+              "discount": "15% discount from total price",
+              "description": "Great savings for small families"
+            },
+            {
+              "type": "Large Family Package (3+ people)",
+              "discount": "20% discount from total price",
+              "description": "Best prices for large families"
+            }
+          ],
+          "additional_services": [
+            {
+              "service": "Dental Insurance",
+              "price": "300-500 Turkish Lira additional annually",
+              "description": "Comprehensive dental treatment coverage"
+            },
+            {
+              "service": "Vision Insurance",
+              "price": "200-400 Turkish Lira additional annually",
+              "description": "Eye examination and treatment"
+            },
+            {
+              "service": "Maternity Insurance",
+              "price": "1000-1500 Turkish Lira additional",
+              "description": "Comprehensive coverage for childbirth and healthcare for mother and child"
+            }
+          ]
+        }
       }
     },
     "translation": {
@@ -539,7 +655,7 @@
         },
         {
           "question": "كم تكلفة التأمين الصحي؟",
-          "answer": "تختلف تكلفة التأمين الصحي حسب الفئة العمرية ومدة التأمين. نقدم استشارة مجانية لتحديد أفضل خطة تناسبكم. يمكنكم التواصل معنا للحصول على عرض سعر دقيق."
+          "answer": "أسعار التأمين الصحي حسب العمر:\n• 0-18 سنة: 1200-1800 ليرة تركية سنوياً\n• 19-30 سنة: 1500-2200 ليرة تركية سنوياً\n• 31-45 سنة: 2000-2800 ليرة تركية سنوياً\n• 46-60 سنة: 2500-3500 ليرة تركية سنوياً\n• 61+ سنة: 3000-4500 ليرة تركية سنوياً\n\nنقدم خصومات خاصة للعائلات: 15% لـ 2 شخص، 20% لـ 3+ أشخاص. نقدم استشارة مجانية لتحديد أفضل خطة تناسبكم."
         },
         {
           "question": "كم تكلفة الإقامة في تركيا؟",
@@ -593,7 +709,7 @@
         },
         {
           "question": "How much does health insurance cost?",
-          "answer": "Health insurance costs vary based on age group and insurance duration. We provide free consultation to determine the best plan for you. Contact us for an accurate price quote."
+          "answer": "Health insurance prices by age:\n• 0-18 years: 1200-1800 Turkish Lira annually\n• 19-30 years: 1500-2200 Turkish Lira annually\n• 31-45 years: 2000-2800 Turkish Lira annually\n• 46-60 years: 2500-3500 Turkish Lira annually\n• 61+ years: 3000-4500 Turkish Lira annually\n\nWe offer special family discounts: 15% for 2 people, 20% for 3+ people. We provide free consultation to determine the best plan for you."
         },
         {
           "question": "How much does residence permit cost in Turkey?",
@@ -640,6 +756,108 @@
       ]
     }
   },
+  "service_buttons": {
+    "ar": [
+      {
+        "title": "التأمين الصحي",
+        "description": "أسعار التأمين الصحي حسب العمر",
+        "action": "عرض أسعار التأمين الصحي",
+        "icon": "🩺"
+      },
+      {
+        "title": "تجديد الإقامة",
+        "description": "إجراءات تجديد الإقامة في تركيا",
+        "action": "معلومات تجديد الإقامة",
+        "icon": "📄"
+      },
+      {
+        "title": "الترجمة المحلفة",
+        "description": "ترجمة الوثائق الرسمية",
+        "action": "خدمات الترجمة",
+        "icon": "📝"
+      },
+      {
+        "title": "تحديث البيانات",
+        "description": "تحديث بيانات الحماية المؤقتة",
+        "action": "خدمات تحديث البيانات",
+        "icon": "🔄"
+      },
+      {
+        "title": "تجديد الجواز",
+        "description": "تجديد جواز السفر السوري",
+        "action": "خدمات تجديد الجواز",
+        "icon": "📘"
+      },
+      {
+        "title": "التصوير الفوري",
+        "description": "تصوير الوثائق والصور الشخصية",
+        "action": "خدمة التصوير",
+        "icon": "📸"
+      },
+      {
+        "title": "الاستشارة القانونية",
+        "description": "استشارات قانونية متخصصة",
+        "action": "الاستشارات القانونية",
+        "icon": "⚖️"
+      },
+      {
+        "title": "خدمات السفر",
+        "description": "تنظيم الرحلات السياحية",
+        "action": "خدمات السفر والسياحة",
+        "icon": "✈️"
+      }
+    ],
+    "en": [
+      {
+        "title": "Health Insurance",
+        "description": "Health insurance prices by age",
+        "action": "Show health insurance prices",
+        "icon": "🩺"
+      },
+      {
+        "title": "Residence Renewal",
+        "description": "Residence renewal procedures in Turkey",
+        "action": "Residence renewal information",
+        "icon": "📄"
+      },
+      {
+        "title": "Certified Translation",
+        "description": "Official document translation",
+        "action": "Translation services",
+        "icon": "📝"
+      },
+      {
+        "title": "Data Update",
+        "description": "Temporary protection data updates",
+        "action": "Data update services",
+        "icon": "🔄"
+      },
+      {
+        "title": "Passport Renewal",
+        "description": "Syrian passport renewal",
+        "action": "Passport renewal services",
+        "icon": "📘"
+      },
+      {
+        "title": "Instant Photography",
+        "description": "Document and personal photo services",
+        "action": "Photography service",
+        "icon": "📸"
+      },
+      {
+        "title": "Legal Consultation",
+        "description": "Specialized legal consultations",
+        "action": "Legal consultations",
+        "icon": "⚖️"
+      },
+      {
+        "title": "Travel Services",
+        "description": "Tourist trip organization",
+        "action": "Travel and tourism services",
+        "icon": "✈️"
+      }
+    ]
+  },
   "response_guidelines": {
     "ar": {
       "do": [
@@ -649,7 +867,9 @@
         "كن مختصراً وواضحاً",
         "عرض المساعدة الإضافية",
         "استخدم اسم الشركة: مجموعة تواصل",
-        "قدم معلومات التواصل عند الحاجة"
+        "قدم معلومات التواصل عند الحاجة",
+        "عرض أزرار الخدمات عند الاقتضاء لتوجيه المستخدم",
+        "استخدم أسعار التأمين الصحي المحددة حسب العمر عند السؤال عنها"
       ],
       "dont": [
         "لا تقدم معلومات خاطئة أو غير مؤكدة",
@@ -674,7 +894,9 @@
         "Be concise and clear",
         "Offer additional assistance",
         "Use company name: Tevasul Group",
-        "Provide contact information when needed"
+        "Provide contact information when needed",
+        "Show service buttons when appropriate to guide the user",
+        "Use specific health insurance prices by age when asked about them"
       ],
       "dont": [
         "Don't provide incorrect or unconfirmed information",

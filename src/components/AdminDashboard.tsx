@@ -60,6 +60,7 @@ import VoluntaryReturnChart from './VoluntaryReturnChart';
 import ModeratorManagement from './ModeratorManagement';
 import HealthInsuranceManagement from './HealthInsuranceManagement';
 import TinyMCEEditor from './TinyMCEEditor';
+import TelegramNotifications from './TelegramNotifications';
 
 import WebhookSettings from './WebhookSettings';
 import { formatDisplayDate } from '../lib/utils';
@@ -179,7 +180,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-notifications'>('requests');
   const [voluntaryReturnView, setVoluntaryReturnView] = useState<'list' | 'create' | 'chart'>('list');
   const [healthInsuranceView, setHealthInsuranceView] = useState<'list' | 'create'>('list');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
@@ -518,7 +519,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   }, [location.pathname, location.search, formParam, viewParam]);
 
   // Navigation functions for permalinks
-  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages') => {
+  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-notifications') => {
     setActiveTab(tab);
     // Stay on the same page, just change the active tab
     // No need to navigate to different URLs since everything is in one component
@@ -2285,6 +2286,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             </button>
 
             <button
+              onClick={() => navigateToTab('telegram-notifications')}
+              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
+                activeTab === 'telegram-notifications'
+                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
+              }`}
+            >
+              <div className="flex items-center">
+                <Bot className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
+                <span className="text-sm md:text-base font-medium">إشعارات التلغرام</span>
+              </div>
+            </button>
+
+            <button
               onClick={() => navigateToTab('health-insurance')}
               className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
                 activeTab === 'health-insurance'
@@ -2832,6 +2847,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 ))
               )}
             </div>
+          </div>
+        )}
+
+        {/* Telegram Notifications Tab */}
+        {activeTab === 'telegram-notifications' && (
+          <div className="space-y-6">
+            <TelegramNotifications />
           </div>
         )}
 

@@ -20,13 +20,11 @@ class WebhookService {
 
   private async loadWebhookConfig() {
     try {
-      console.log('Loading webhook config...');
       
       // Check if user is authenticated first
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        console.log('User not authenticated, using default webhook config');
         this.isEnabled = true;
         return;
       }
@@ -39,25 +37,20 @@ class WebhookService {
           .maybeSingle();
 
         if (error) {
-          console.log('Could not access telegram_config (likely due to RLS), using default enabled state');
           this.isEnabled = true;
           // Don't throw error, just use default state
           return;
         }
 
         if (data) {
-          console.log('Webhook config loaded:', data);
           this.isEnabled = data.is_enabled;
         } else {
-          console.log('No telegram_config found, using default enabled state');
           this.isEnabled = true;
         }
       } catch (configError) {
-        console.log('Error accessing telegram_config, using default enabled state:', configError);
         this.isEnabled = true;
       }
     } catch (error) {
-      console.error('Error in loadWebhookConfig:', error);
       // في حالة الخطأ، نستخدم الحالة الافتراضية
       this.isEnabled = true;
     }
@@ -90,8 +83,8 @@ class WebhookService {
 
       await telegramService.sendTranslationRequestNotification(webhookData.data);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار طلب الترجمة:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // إرسال إشعار لطلب تأمين
@@ -121,8 +114,8 @@ class WebhookService {
 
       await telegramService.sendInsuranceRequestNotification(webhookData.data);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار طلب التأمين:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // إرسال إشعار لطلب عودة طوعية
@@ -132,8 +125,8 @@ class WebhookService {
     try {
       await telegramService.sendVoluntaryReturnNotification(formData);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار طلب العودة الطوعية:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // إرسال إشعار لطلب تفعيل التأمين الصحي
@@ -143,8 +136,8 @@ class WebhookService {
     try {
       await telegramService.sendHealthInsuranceActivationNotification(formData);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار طلب تفعيل التأمين الصحي:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // إرسال إشعار لطلب التأمين الصحي للأجانب
@@ -186,25 +179,37 @@ class WebhookService {
 
       await telegramService.sendHealthInsuranceRequestNotification(webhookData.data);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار طلب التأمين الصحي للأجانب:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // إرسال إشعار لطلب خدمة عام
   async sendServiceRequestWebhook(requestData: any) {
-    if (!this.isEnabled) return;
+    if (!this.isEnabled) {
+      return;
+    }
 
     try {
-      // جلب معلومات المستخدم
-      const userProfile = await this.getUserProfile(requestData.user_id);
+      // جلب معلومات المستخدم مع timeout
+      const userProfilePromise = this.getUserProfile(requestData.user_id);
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('User profile timeout')), 5000)
+      );
+      
+      let userProfile = null;
+      try {
+        userProfile = await Promise.race([userProfilePromise, timeoutPromise]);
+      } catch (profileError) {
+        // Failed to get user profile, continuing without it
+      }
       
       const webhookData: WebhookData = {
         type: 'service_request',
         data: {
           ...requestData,
-          user_name: userProfile?.full_name,
-          user_email: userProfile?.email,
-          user_phone: userProfile?.phone,
+          user_name: userProfile?.full_name || requestData.user_name || 'غير محدد',
+          user_email: userProfile?.email || requestData.user_email || 'غير محدد',
+          user_phone: userProfile?.phone || requestData.phone || 'غير محدد',
           additionalData: {
             hasFile: !!requestData.file_url,
             fileName: requestData.file_name,
@@ -216,9 +221,19 @@ class WebhookService {
         userProfile
       };
 
-      await telegramService.sendServiceRequestNotification(webhookData.data);
-      } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار طلب الخدمة:', error);
+      // إرسال الإشعار مع timeout
+      const telegramPromise = telegramService.sendServiceRequestNotification(webhookData.data);
+      const telegramTimeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Telegram timeout')), 8000)
+      );
+      
+      try {
+        await Promise.race([telegramPromise, telegramTimeoutPromise]);
+      } catch (telegramError) {
+        throw telegramError;
+      }
+    } catch (error) {
+      throw error;
     }
   }
 
@@ -229,8 +244,8 @@ class WebhookService {
     try {
       await telegramService.sendSupportRequestNotification(sessionData);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار طلب الدعم الفني:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // إرسال إشعار لرسالة جديدة في المحادثة
@@ -240,8 +255,8 @@ class WebhookService {
     try {
       await telegramService.sendNewMessageNotification(sessionData, messageContent);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار رسالة جديدة:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // إرسال إشعار لرسالة مستعجلة
@@ -251,8 +266,8 @@ class WebhookService {
     try {
       await telegramService.sendUrgentMessageNotification(sessionData, messageContent);
       } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار رسالة مستعجلة:', error);
-    }
+        // Handle error silently in production
+      }
   }
 
   // دالة مساعدة لجلب معلومات المستخدم
@@ -265,13 +280,11 @@ class WebhookService {
         .single();
 
       if (error) {
-        console.error('Error fetching user profile:', error);
         return null;
       }
 
       return data;
     } catch (error) {
-      console.error('Error in getUserProfile:', error);
       return null;
     }
   }
@@ -307,7 +320,6 @@ class WebhookService {
       
       return false;
     } catch (error) {
-      console.error('Error updating webhook config:', error);
       return false;
     }
   }
@@ -332,13 +344,11 @@ class WebhookService {
         .single();
 
       if (error) {
-        console.error('❌ خطأ في جلب إعدادات التيليجرام:', error);
         return null;
       }
 
       return data;
     } catch (error) {
-      console.error('❌ خطأ في getTelegramConfig:', error);
       return null;
     }
   }
@@ -348,7 +358,6 @@ class WebhookService {
     try {
       // التحقق من صحة البيانات
       if (!botToken || !adminChatId) {
-        console.error('❌ البيانات غير صحيحة');
         return false;
       }
 
@@ -360,7 +369,6 @@ class WebhookService {
         .single();
 
       if (fetchError && fetchError.code !== 'PGRST116') {
-        console.error('❌ خطأ في جلب الإعدادات الحالية:', fetchError);
         return false;
       }
 
@@ -388,7 +396,6 @@ class WebhookService {
       }
 
       if (result.error) {
-        console.error('❌ خطأ في حفظ الإعدادات:', result.error);
         return false;
       }
 
@@ -400,7 +407,6 @@ class WebhookService {
         .single();
 
       if (verifyError) {
-        console.error('❌ خطأ في التحقق من الحفظ:', verifyError);
         return false;
       }
 
@@ -416,16 +422,9 @@ class WebhookService {
         
         return true;
       } else {
-        console.error('❌ فشل في التحقق من الحفظ');
-        console.error('المعرفات المتوقعة:', { botToken, adminChatId });
-        console.error('المعرفات المحفوظة:', { 
-          botToken: savedConfig?.bot_token, 
-          adminChatId: savedConfig?.admin_chat_id 
-        });
         return false;
       }
     } catch (error) {
-      console.error('❌ خطأ في حفظ إعدادات التيليجرام:', error);
       return false;
     }
   }
@@ -449,11 +448,9 @@ class WebhookService {
       if (result.ok) {
         return true;
       } else {
-        console.error('❌ فشل في اختبار الاتصال:', result);
         return false;
       }
     } catch (error) {
-      console.error('❌ خطأ في اختبار الاتصال:', error);
       return false;
     }
   }
@@ -469,7 +466,6 @@ class WebhookService {
       
       return hasValidCredentials;
     } catch (error) {
-      console.error('❌ خطأ في التحقق من المعرفات:', error);
       return false;
     }
   }
@@ -487,7 +483,6 @@ class WebhookService {
       // جلب معرفات التيليجرام من قاعدة البيانات
       const config = await this.getTelegramConfig();
       if (!config || !config.bot_token || !config.admin_chat_id) {
-        console.error('❌ لا توجد معرفات التيليجرام محفوظة');
         return false;
       }
 
@@ -499,16 +494,13 @@ class WebhookService {
       });
 
       if (!updateSuccess) {
-        console.error('❌ فشل في تحديث إعدادات التيليجرام في telegramService');
         return false;
       }
 
-      console.log('✅ تم تحديث إعدادات التيليجرام بنجاح');
 
       // التحقق من أن telegramService تم تحديثه بشكل صحيح
       const telegramConfig = telegramService.getConfig();
       if (!telegramConfig.isEnabled) {
-        console.error('❌ telegramService غير مفعل');
         return false;
       }
 
@@ -544,11 +536,9 @@ class WebhookService {
       if (success) {
         return true;
       } else {
-        console.error('❌ فشل في إرسال الإشعار التجريبي');
         return false;
       }
     } catch (error) {
-      console.error('❌ خطأ في إرسال الإشعار التجريبي:', error);
       return false;
     }
   }

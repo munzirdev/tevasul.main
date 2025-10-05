@@ -54,7 +54,6 @@ export const useAuth = () => {
         const { data: { session }, error } = await Promise.race([sessionPromise, sessionTimeoutPromise]) as any;
         
         if (error) {
-          console.error('❌ خطأ في جلب الجلسة:', error);
           setAuthState(prev => ({ ...prev, loading: false }));
           return;
         }
@@ -72,7 +71,6 @@ export const useAuth = () => {
           const { isVerified, shouldBlock } = await checkEmailVerification(session.user);
           
           if (shouldBlock) {
-            console.error('❌ محاولة وصول بدون تأكيد البريد الإلكتروني في getInitialSession');
             // تسجيل الخروج فوراً
             await forceSignOutUnverified();
             
@@ -107,7 +105,6 @@ export const useAuth = () => {
               hasNotifications,
             }));
           } catch (profileError) {
-            console.error('❌ خطأ في جلب الملف الشخصي:', profileError);
             // Keep the user authenticated even if profile loading fails
             
             // Create fallback profile for admin/moderator
@@ -165,7 +162,6 @@ export const useAuth = () => {
           setAuthState(prev => ({ ...prev, loading: false }));
         }
       } catch (error) {
-        console.error('💥 خطأ غير متوقع في getInitialSession:', error);
         setAuthState(prev => ({ ...prev, loading: false }));
       }
     };
@@ -175,7 +171,6 @@ export const useAuth = () => {
     // الاستماع لتغييرات المصادقة
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: string, session: Session | null) => {
-        console.log('Auth state change:', event, session?.user?.email, new Date().toISOString());
         // Handle sign out event immediately
         if (event === 'SIGNED_OUT') {
           setAuthState({
@@ -199,14 +194,12 @@ export const useAuth = () => {
             const { isVerified, shouldBlock } = await checkEmailVerification(session.user);
             
             if (shouldBlock) {
-              console.error('❌ محاولة وصول بدون تأكيد البريد الإلكتروني في onAuthStateChange');
               // تسجيل الخروج فوراً
               await forceSignOutUnverified();
               
               return;
             }
           } else {
-            console.log('User verification failed');
           }
           
           // Only set user if verification passed
@@ -246,8 +239,6 @@ export const useAuth = () => {
             
             setAuthState(newAuthState);
           } catch (error) {
-            console.error('❌ خطأ في تحديث حالة المصادقة:', error);
-            console.log('🔄 Creating fallback profile due to timeout/error');
             
             // Set a fallback state even if profile loading fails
             const isAdminUser = session.user.email === 'admin@tevasul.group';
@@ -299,13 +290,6 @@ export const useAuth = () => {
               loading: false,
               hasNotifications: false,
             };
-            
-            console.log('✅ Fallback profile created:', {
-              email: session.user.email,
-              role: fallbackState.profile.role,
-              isAdmin: isAdminUser,
-              isModerator: isModeratorUser
-            });
             
             setAuthState(fallbackState);
             }
@@ -363,8 +347,6 @@ export const useAuth = () => {
               setAuthState(prev => ({ ...prev, loading: false }));
             }
           }).catch(error => {
-            console.error('❌ خطأ في إنشاء الملف الشخصي:', error);
-            console.log('🔄 Creating immediate fallback profile due to profile creation error');
             
             // Create immediate fallback profile
             if (authState.user) {
@@ -411,13 +393,6 @@ export const useAuth = () => {
                 updated_at: new Date().toISOString(),
               };
               
-              console.log('✅ Immediate fallback profile created from creation error:', {
-                email: authState.user.email,
-                role: fallbackProfile.role,
-                isAdmin: isAdminUser,
-                isModerator: isModeratorUser
-              });
-              
               setAuthState(prev => ({ ...prev, profile: fallbackProfile, loading: false }));
             } else {
               setAuthState(prev => ({ ...prev, loading: false }));
@@ -426,8 +401,6 @@ export const useAuth = () => {
         }
         sessionStorage.removeItem(profileLoadingKey);
       }).catch(error => {
-        console.error('❌ خطأ في جلب الملف الشخصي:', error);
-        console.log('🔄 Creating fallback profile due to profile loading error');
         
         // Create immediate fallback profile
         if (authState.user) {
@@ -473,13 +446,6 @@ export const useAuth = () => {
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           };
-          
-          console.log('✅ Immediate fallback profile created:', {
-            email: authState.user.email,
-            role: fallbackProfile.role,
-            isAdmin: isAdminUser,
-            isModerator: isModeratorUser
-          });
           
           setAuthState(prev => ({ ...prev, profile: fallbackProfile, loading: false }));
         } else {
@@ -583,7 +549,6 @@ export const useAuth = () => {
           .single();
         
         if (updateError) {
-          console.error('❌ خطأ في تحديث الملف الشخصي:', updateError);
           return null;
         }
         
@@ -605,7 +570,6 @@ export const useAuth = () => {
           .single();
         
         if (createError) {
-          console.error('❌ خطأ في إنشاء الملف الشخصي:', createError);
           return null;
         }
         
@@ -614,7 +578,6 @@ export const useAuth = () => {
         
       return profileData;
     } catch (error) {
-      console.error('❌ خطأ في createProfileFromMetadata:', error);
       return null;
     }
   };
@@ -624,7 +587,6 @@ export const useAuth = () => {
       // Get user data first
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        console.error('❌ خطأ في جلب بيانات المستخدم:', userError);
         return null;
       }
       
@@ -712,10 +674,8 @@ export const useAuth = () => {
           };
         }
         
-        console.error('❌ خطأ في جلب الملف الشخصي:', error);
         return null;
       } catch (timeoutError) {
-        console.error('⏰ timeout في جلب الملف الشخصي:', timeoutError);
         // Return fallback profile on timeout
         
         // Check if user is admin or moderator by email - IMPROVED LOGIC
@@ -764,7 +724,6 @@ export const useAuth = () => {
         };
       }
     } catch (error) {
-      console.error('💥 خطأ غير متوقع في جلب الملف الشخصي:', error);
       return null;
     }
   };
@@ -799,7 +758,6 @@ export const useAuth = () => {
       return hasNotifications;
       */
     } catch (error) {
-      console.error('❌ خطأ في التحقق من الإشعارات:', error);
       return false;
     }
   };
@@ -827,7 +785,6 @@ export const useAuth = () => {
       });
 
       if (error) {
-        console.error('❌ خطأ في التسجيل مع تأكيد البريد:', error);
         
         // إذا كان الخطأ متعلق بـ SMTP، جرب التسجيل بدون تأكيد
         if (error.message?.includes('SMTP') || error.message?.includes('email') || error.status === 500) {
@@ -845,7 +802,6 @@ export const useAuth = () => {
           });
 
           if (fallbackError) {
-            console.error('❌ خطأ في التسجيل بدون تأكيد البريد:', fallbackError);
             return { data: null, error: fallbackError };
           }
 
@@ -862,7 +818,6 @@ export const useAuth = () => {
       return { data, error: null };
 
     } catch (error) {
-      console.error('💥 خطأ غير متوقع في التسجيل:', error);
       return { data: null, error: error as any };
     }
   };
@@ -877,7 +832,6 @@ export const useAuth = () => {
           .limit(1);
           
         if (connectionError) {
-          console.error('❌ خطأ في الاتصال:', connectionError);
           if (connectionError.message?.includes('fetch') || connectionError.message?.includes('network')) {
             return { 
               error: {
@@ -889,7 +843,6 @@ export const useAuth = () => {
           }
           }
       } catch (connectionError) {
-        console.error('❌ فشل في اختبار الاتصال:', connectionError);
         return { 
           error: {
             message: 'فشل في الاتصال بخادم Supabase. تحقق من اتصال الإنترنت.',
@@ -905,7 +858,6 @@ export const useAuth = () => {
       });
       
       if (error) {
-        console.error('❌ خطأ في تسجيل الدخول:', error);
         return { error };
       }
       
@@ -914,7 +866,6 @@ export const useAuth = () => {
         const { isVerified, shouldBlock } = await checkEmailVerification(data.user);
         
         if (shouldBlock) {
-          console.error('❌ البريد الإلكتروني غير مؤكد - منع تسجيل الدخول');
           // تسجيل الخروج فوراً لمنع الوصول
           await forceSignOutUnverified();
           
@@ -942,7 +893,6 @@ export const useAuth = () => {
             const isModerator = data.user.email?.includes('moderator') || data.user.email?.includes('admin');
             
             if (!isAdmin && !isModerator) {
-              console.error('❌ تأكيد إضافي: البريد الإلكتروني غير مؤكد في قاعدة البيانات');
               
               // تسجيل الخروج فوراً لمنع الوصول
               await supabase.auth.signOut();
@@ -966,7 +916,6 @@ export const useAuth = () => {
             }
           }
         } catch (dbError) {
-          console.warn('⚠️ لا يمكن التحقق من قاعدة البيانات، متابعة مع البيانات المحلية:', dbError);
         }
       }
       
@@ -976,7 +925,6 @@ export const useAuth = () => {
         const { isVerified, shouldBlock } = await checkEmailVerification(data.user);
         
         if (shouldBlock) {
-          console.error('❌ محاولة تعيين حالة للمستخدم غير المؤكد');
           return { 
             error: {
               message: 'يجب تأكيد البريد الإلكتروني قبل تسجيل الدخول. تحقق من بريدك الإلكتروني واضغط على رابط التأكيد.',
@@ -1036,14 +984,12 @@ export const useAuth = () => {
               }));
               }
           } catch (error) {
-            console.error('❌ خطأ في جلب الملف الشخصي في الخلفية:', error);
           }
         }, 100);
       }
       
       return { error: null };
     } catch (error) {
-      console.error('💥 خطأ غير متوقع في تسجيل الدخول:', error);
       return { error: error as any };
     }
   };
@@ -1091,9 +1037,7 @@ export const useAuth = () => {
       const { error } = await supabase.auth.signOut();
       
       if (error) {
-        console.error('❌ خطأ في تسجيل الخروج من Supabase:', error);
       } else {
-        console.log('✅ تم تسجيل الخروج بنجاح');
       }
       
       // Force a re-render to ensure UI updates
@@ -1104,7 +1048,6 @@ export const useAuth = () => {
       return { error: null };
       
     } catch (error) {
-      console.error('💥 خطأ غير متوقع في تسجيل الخروج:', error);
       
       // Even if there's an error, ensure state is cleared
       setAuthState({
@@ -1154,7 +1097,6 @@ export const useAuth = () => {
       const isVerified = data?.email_verified || user.email_confirmed_at;
       return { isVerified: !!isVerified, shouldBlock: false };
     } catch (error) {
-      console.error('❌ خطأ في التحقق من تأكيد البريد الإلكتروني:', error);
       // If verification fails, allow access but log the issue
       return { isVerified: true, shouldBlock: false };
     }
@@ -1185,7 +1127,6 @@ export const useAuth = () => {
       sessionStorage.clear();
       
     } catch (error) {
-      console.error('❌ خطأ في تسجيل الخروج القسري:', error);
       // Force clear state even if sign out fails
       setAuthState({
         user: null,
@@ -1199,7 +1140,7 @@ export const useAuth = () => {
 
   // Debug function to check current auth state
   const debugAuthState = () => {
-    console.log('🔍 Current Auth State:', {
+    const debugInfo = {
       user: authState.user ? {
         id: authState.user.id,
         email: authState.user.email,
@@ -1210,7 +1151,7 @@ export const useAuth = () => {
       profile: authState.profile,
       loading: authState.loading,
       hasNotifications: authState.hasNotifications
-    });
+    };
     
     // Additional moderator-specific debugging
     if (authState.user) {
@@ -1220,7 +1161,7 @@ export const useAuth = () => {
                                    authState.user.app_metadata?.role === 'moderator';
       const isModeratorByProfile = authState.profile?.role === 'moderator';
       
-      console.log('🔍 Moderator Detection Debug:', {
+      const moderatorDebug = {
         email: authState.user.email,
         isModeratorByEmail,
         isModeratorByMetadata,
@@ -1228,8 +1169,12 @@ export const useAuth = () => {
         user_metadata_role: authState.user.user_metadata?.role,
         app_metadata_role: authState.user.app_metadata?.role,
         profile_role: authState.profile?.role
-      });
+      };
+      
+      return { ...debugInfo, moderatorDebug };
     }
+    
+    return debugInfo;
   };
 
   // Force clear auth state
@@ -1242,7 +1187,7 @@ export const useAuth = () => {
       hasNotifications: false,
     });
     setInitialized(false);
-    };
+  };
 
   // Test sign out function
   const testSignOut = async () => {
@@ -1253,8 +1198,6 @@ export const useAuth = () => {
 
   // Simple synchronous sign out (bypasses Supabase)
   const simpleSignOut = () => {
-    console.log('Simple sign out called');
-    
     // Clear local state
     setAuthState({
       user: null,
@@ -1281,8 +1224,7 @@ export const useAuth = () => {
     
     // Mark that user has manually signed out
     localStorage.setItem('manuallySignedOut', 'true');
-    
-    };
+  };
 
   // Check if user can access protected pages
   const canAccessProtectedPages = () => {
@@ -1321,13 +1263,11 @@ export const useAuth = () => {
       const result = await EmailService.resendVerificationEmail(email);
       
       if (!result.success) {
-        console.error('❌ خطأ في إعادة إرسال البريد الإلكتروني:', result.error);
         return { error: result.error };
       }
       
       return { error: null };
     } catch (error) {
-      console.error('💥 خطأ غير متوقع في إعادة إرسال البريد الإلكتروني:', error);
       return { error: error as any };
     }
   };
@@ -1342,7 +1282,6 @@ export const useAuth = () => {
         ? `${window.location.origin}/auth/callback`
         : 'https://tevasul.group/auth/callback';
       
-      console.log('Google OAuth redirect URL (useAuth):', redirectUrl);
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -1356,13 +1295,11 @@ export const useAuth = () => {
       });
 
       if (error) {
-        console.error('❌ خطأ في تسجيل الدخول عبر Google:', error);
         return { error };
       }
 
       return { data, error: null };
     } catch (error) {
-      console.error('❌ خطأ غير متوقع في تسجيل الدخول عبر Google:', error);
       return { error };
     }
   };

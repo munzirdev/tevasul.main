@@ -1,19 +1,22 @@
 import { createClient } from '@supabase/supabase-js';
 
 // التحقق من متغيرات البيئة
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://fctvityawavmuethxxix.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjdHZpdHlhd2F2bXVldGh4eGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUwNzA5ODAsImV4cCI6MjA3MDY0Njk4MH0.d6T4MrGgV3vKZjcQ02vjf8_oDeRu9SJQXNgA0LJHlq0';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// إنشاء عميل Supabase
-let supabaseClient: any;
-
+// التحقق من وجود المتغيرات المطلوبة
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ متغيرات البيئة مفقودة!');
   console.error('❌ يرجى إنشاء ملف .env في مجلد المشروع الرئيسي');
   console.error('❌ محتوى الملف المطلوب:');
   console.error('VITE_SUPABASE_URL=https://your-project-ref.supabase.co');
   console.error('VITE_SUPABASE_ANON_KEY=your-anon-key-here');
-  
+}
+
+// إنشاء عميل Supabase
+let supabaseClient: any;
+
+if (!supabaseUrl || !supabaseAnonKey) {
   // إنشاء عميل وهمي لتجنب أخطاء التطبيق
   supabaseClient = createClient('https://dummy.supabase.co', 'dummy-key');
   
@@ -23,7 +26,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
 } else {
   // التحقق من صحة URL
   if (!supabaseUrl.includes('supabase.co')) {
-    console.error('❌ URL غير صحيح! يجب أن يحتوي على supabase.co');
     supabaseClient = createClient('https://dummy.supabase.co', 'dummy-key');
     supabaseClient.isConnected = false;
     supabaseClient.connectionError = 'Invalid Supabase URL. URL must contain supabase.co';
@@ -35,7 +37,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
         persistSession: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
-        debug: process.env.NODE_ENV === 'development'
+        debug: false // تعطيل رسائل اللوغ
       }
     });
     
@@ -47,18 +49,15 @@ if (!supabaseUrl || !supabaseAnonKey) {
         });
         
         const connectionPromise = supabaseClient.auth.getSession();
-        const { data, error } = await Promise.race([connectionPromise, timeoutPromise]) as any;
+        const { error } = await Promise.race([connectionPromise, timeoutPromise]) as any;
         
         if (error) {
-          console.error('❌ خطأ في الاتصال مع Supabase:', error);
-          console.error('❌ تأكد من صحة متغيرات البيئة');
           supabaseClient.isConnected = false;
           supabaseClient.connectionError = error.message;
         } else {
           supabaseClient.isConnected = true;
         }
       } catch (error) {
-        console.error('❌ فشل في اختبار الاتصال:', error);
         supabaseClient.isConnected = false;
         supabaseClient.connectionError = error instanceof Error ? error.message : 'Connection failed';
         

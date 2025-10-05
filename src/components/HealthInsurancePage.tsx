@@ -153,12 +153,13 @@ const HealthInsurancePage: React.FC<HealthInsurancePageProps> = ({
       
 
       
-      // Load only companies that have pricing data
+      // Load only companies that have pricing data and filter to Ankara and Magdeburger only
       const { data: companiesData, error: companiesError } = await supabase
         .from('insurance_companies')
         .select('*')
         .eq('is_active', true)
         .in('id', companiesWithPricing)
+        .in('name', ['Ankara Sigorta', 'Ankara Sigorta Eco', 'Magdeburger Sigorta', 'Magdeburger Sigorta Eco', 'Magdeburger Gümüş'])
         .order('name');
 
       if (companiesError) {

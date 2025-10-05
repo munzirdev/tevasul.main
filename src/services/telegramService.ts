@@ -86,7 +86,6 @@ class TelegramService {
         } else {
         }
     } catch (error) {
-      console.error('❌ خطأ في تحميل إعدادات التيليجرام:', error);
     }
   }
 
@@ -107,10 +106,8 @@ class TelegramService {
         return true;
       }
       
-      console.error('❌ خطأ في تحديث إعدادات التيليجرام:', error);
       return false;
     } catch (error) {
-      console.error('❌ خطأ في تحديث إعدادات التيليجرام:', error);
       return false;
     }
   }
@@ -128,13 +125,11 @@ class TelegramService {
       });
 
       if (error) {
-        console.error('❌ خطأ في إرسال رسالة التيليجرام:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('❌ خطأ في إرسال رسالة التيليجرام:', error);
       return false;
     }
   }
@@ -159,13 +154,11 @@ class TelegramService {
       });
 
       if (error) {
-        console.error('❌ خطأ في إرسال رد المدير إلى التيليجرام:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('❌ خطأ في إرسال رد المدير إلى التيليجرام:', error);
       return false;
     }
   }
@@ -185,13 +178,11 @@ class TelegramService {
       });
 
       if (error) {
-        console.error('❌ خطأ في إرسال الملف إلى التيليجرام:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('❌ خطأ في إرسال الملف إلى التيليجرام:', error);
       return false;
     }
   }
@@ -211,13 +202,11 @@ class TelegramService {
       });
 
       if (error) {
-        console.error('❌ خطأ في إرسال الملف الفعلي إلى التيليجرام:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('❌ خطأ في إرسال الملف الفعلي إلى التيليجرام:', error);
       return false;
     }
   }
@@ -244,7 +233,6 @@ class TelegramService {
             .single();
           
           if (requestError || !requestData || !requestData.file_data) {
-            console.error('❌ لم يتم العثور على الملف في قاعدة البيانات');
             return null;
           }
           
@@ -264,7 +252,6 @@ class TelegramService {
       
       return null;
     } catch (error) {
-      console.error('❌ خطأ في جلب الملف من قاعدة البيانات:', error);
       return null;
     }
   }
@@ -294,7 +281,7 @@ class TelegramService {
       // استخدام Supabase Edge Function بدلاً من السيرفر
       const { data, error } = await supabase.functions.invoke('telegram-webhook', {
         body: {
-          sessionId: requestData.sessionId,
+          sessionId: requestData.sessionId || `req-${Date.now()}`,
           message: requestData.description || '',
           language: 'ar',
           requestType: requestData.type,
@@ -306,13 +293,14 @@ class TelegramService {
       });
 
       if (error) {
-        console.error('❌ خطأ في استدعاء Edge Function:', error);
+        console.error('Edge function error:', error);
         return false;
       }
 
+      console.log('Edge function response:', data);
       return true;
     } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار الطلب مع الملف:', error);
+      console.error('Error in sendRequestNotificationWithFile:', error);
       return false;
     }
   }
@@ -335,13 +323,11 @@ class TelegramService {
       });
 
       if (error) {
-        console.error('❌ خطأ في استدعاء Edge Function:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('❌ خطأ في إرسال إشعار الطلب:', error);
       return false;
     }
   }
@@ -587,26 +573,31 @@ class TelegramService {
 
   // إشعارات طلبات الخدمات العامة
   async sendServiceRequestNotification(requestData: any) {
-    return this.sendRequestNotificationWithFile({
-      type: 'service_request',
-      title: requestData.title || 'طلب خدمة جديد',
-      description: requestData.description,
-      userInfo: {
-        name: requestData.user_name,
-        email: requestData.user_email,
-        phone: requestData.user_phone
-      },
-      requestId: requestData.id,
-      priority: requestData.priority || 'medium',
-      status: requestData.status,
-      createdAt: requestData.created_at,
-      additionalData: {
-        serviceType: requestData.service_type || requestData.additionalData?.serviceType,
-        hasFile: !!requestData.file_url,
-        fileName: requestData.file_name,
-        fileUrl: requestData.file_url
-      }
-    });
+    try {
+      return await this.sendRequestNotificationWithFile({
+        type: 'service_request',
+        title: requestData.title || 'طلب خدمة جديد',
+        description: requestData.description,
+        userInfo: {
+          name: requestData.user_name,
+          email: requestData.user_email,
+          phone: requestData.user_phone
+        },
+        requestId: requestData.id,
+        priority: requestData.priority || 'medium',
+        status: requestData.status,
+        createdAt: requestData.created_at,
+        additionalData: {
+          serviceType: requestData.service_type || requestData.additionalData?.serviceType,
+          hasFile: !!requestData.file_url,
+          fileName: requestData.file_name,
+          fileUrl: requestData.file_url
+        }
+      });
+    } catch (error) {
+      console.error('Error in sendServiceRequestNotification:', error);
+      throw error;
+    }
   }
 
   private formatRequestNotification(requestData: RequestData): string {
@@ -875,13 +866,11 @@ ${dateStr}`;
       });
 
       if (error) {
-        console.error('❌ خطأ في اختبار الاتصال:', error);
         return false;
       }
 
       return true;
     } catch (error) {
-      console.error('❌ خطأ في اختبار الاتصال:', error);
       return false;
     }
   }

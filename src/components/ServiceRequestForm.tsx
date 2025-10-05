@@ -327,10 +327,21 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({
           created_at: new Date().toISOString()
         };
         
-        // استخدام webhookService لإرسال الإشعار
-        await webhookService.sendServiceRequestWebhook(requestData);
+        // استخدام webhookService لإرسال الإشعار مع timeout
+        const webhookPromise = webhookService.sendServiceRequestWebhook(requestData);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000) // 10 ثواني timeout
+        );
+        
+        try {
+          await Promise.race([webhookPromise, timeoutPromise]);
         } catch (webhookError) {
-        console.error('Error sending webhook notification:', webhookError);
+          console.error('Error sending webhook notification:', webhookError);
+          // لا نوقف العملية إذا فشل إرسال الإشعار
+        }
+      } catch (webhookError) {
+        console.error('Error in webhook section:', webhookError);
+        // لا نوقف العملية إذا فشل إرسال الإشعار
       }
       
       // إغلاق النافذة بعد 2 ثانية
@@ -342,7 +353,9 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({
     } catch (error) {
       console.error('خطأ غير متوقع:', error);
       setError('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.');
+      setLoading(false);
     } finally {
+      // التأكد من إيقاف حالة التحميل في جميع الحالات
       setLoading(false);
     }
   };

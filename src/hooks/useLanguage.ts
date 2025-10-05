@@ -44,7 +44,9 @@ const translations = {
     
     // Health Insurance Services
     'services.healthInsurance.title': 'التأمين الصحي للأجانب',
+    'services.healthInsurance.titleShort': 'التأمين الصحي',
     'services.healthInsurance.description': 'تأمين صحي شامل للأجانب في تركيا بأفضل الأسعار والتغطية',
+    'services.healthInsurance.descriptionShort': 'تأمين صحي شامل',
     'services.healthInsurance.fullDescription': 'نقدم خدمات التأمين الصحي الشاملة للأجانب في تركيا. نحن نتعاون مع أفضل شركات التأمين التركية لتقديم أفضل الأسعار والتغطية الشاملة. تأميننا يشمل جميع الخدمات الطبية والعلاجية مع شبكة واسعة من المستشفيات والعيادات في جميع أنحاء تركيا.',
     'services.healthInsurance.features': [
       'تأمين صحي شامل للأفراد والعائلات',
@@ -72,7 +74,9 @@ const translations = {
     
     // Translation Services
     'services.translation.title': 'خدمات الترجمة المحلفة',
+    'services.translation.titleShort': 'الترجمة المحلفة',
     'services.translation.description': 'ترجمة معتمدة لجميع الوثائق والمستندات الرسمية والقانونية',
+    'services.translation.descriptionShort': 'ترجمة معتمدة',
     'services.translation.fullDescription': 'نقدم خدمات الترجمة المحلفة الأكثر دقة واحترافية في تركيا. فريقنا من المترجمين المعتمدين يضمن ترجمة دقيقة لجميع وثائقك الرسمية والقانونية والطبية والأكاديمية. نحن معتمدون من قبل الجهات الرسمية التركية ونضمن قبول ترجماتنا في جميع المؤسسات الحكومية والخاصة.',
     'services.translation.features': [
       'ترجمة معتمدة من الجهات الرسمية',
@@ -100,7 +104,9 @@ const translations = {
     
     // Travel Services
     'services.travel.title': 'خدمات السفر والسياحة',
+    'services.travel.titleShort': 'السفر والسياحة',
     'services.travel.description': 'تنظيم الرحلات السياحية وحجز الفنادق وخدمات النقل والمواصلات',
+    'services.travel.descriptionShort': 'رحلات سياحية',
     'services.travel.fullDescription': 'اكتشف جمال تركيا مع باقاتنا السياحية المتنوعة والمصممة خصيصاً لتناسب جميع الأذواق والميزانيات. نحن نقدم تجربة سياحية لا تُنسى تشمل أفضل الوجهات التركية مع خدمات متكاملة من النقل والإقامة والجولات السياحية المصحوبة بمرشدين عرب متخصصين.',
     'services.travel.features': [
       'برامج سياحية متنوعة ومخصصة',
@@ -128,7 +134,9 @@ const translations = {
     
     // Legal Services
     'services.legal.title': 'الاستشارات القانونية',
+    'services.legal.titleShort': 'الاستشارات القانونية',
     'services.legal.description': 'استشارات قانونية متخصصة في القانون التركي والإجراءات القضائية',
+    'services.legal.descriptionShort': 'استشارات قانونية',
     'services.legal.fullDescription': 'احصل على أفضل الاستشارات القانونية من فريق من المحامين المتخصصين في القانون التركي. نحن نقدم خدمات قانونية شاملة تغطي جميع جوانب القانون التركي من العقارات والشركات إلى قضايا الأسرة والجنسية. خبرتنا الواسعة تضمن لك الحصول على أفضل النتائج.',
     'services.legal.features': [
       'محامون متخصصون في القانون التركي',
@@ -156,7 +164,9 @@ const translations = {
     
     // Government Services
     'services.government.title': 'الخدمات الحكومية',
+    'services.government.titleShort': 'الخدمات الحكومية',
     'services.government.description': 'إنجاز جميع المعاملات الحكومية والرسمية في تركيا بسرعة وكفاءة عالية',
+    'services.government.descriptionShort': 'معاملات حكومية',
     'services.government.fullDescription': 'نحن خبراؤك في إنجاز جميع المعاملات الحكومية في تركيا. من استخراج الوثائق الرسمية إلى تجديد الإقامات وإنجاز معاملات الجنسية، نحن نوفر عليك الوقت والجهد ونضمن إنجاز معاملاتك بأسرع وقت ممكن وبأعلى مستوى من الدقة والاحترافية.',
     'services.government.features': [
       'استخراج جميع الوثائق الرسمية',
@@ -184,7 +194,9 @@ const translations = {
     
     // Insurance Services
     'services.insurance.title': 'خدمات التأمين الصحي وتأمين المركبات',
+    'services.insurance.titleShort': 'التأمين',
     'services.insurance.description': 'مساعدة في الحصول على التأمين الصحي وتأمين المركبات بأفضل الأسعار',
+    'services.insurance.descriptionShort': 'تأمين صحي ومركبات',
     'services.insurance.fullDescription': 'احم نفسك وعائلتك ومركبتك مع خدماتنا المتخصصة في التأمين. نحن نساعدك في اختيار أفضل بوالص التأمين الصحي وتأمين المركبات التي تناسب احتياجاتك وميزانيتك. شراكاتنا مع أفضل شركات التأمين في تركيا تضمن لك الحصول على أفضل الأسعار والتغطية الشاملة.',
     'services.insurance.features': [
       'تأمين صحي شامل للأفراد والعائلات',
@@ -208,6 +220,62 @@ const translations = {
       'اختيار البوليصة الأنسب لك',
       'إتمام إجراءات التأمين والدفع',
       'متابعة مستمرة وخدمة ما بعد البيع'
+    ],
+
+    // Tourist Residence Renewal Services
+    'services.touristResidenceRenewal.title': 'تجديد الإقامة السياحية',
+    'services.touristResidenceRenewal.titleShort': 'تجديد الإقامة',
+    'services.touristResidenceRenewal.description': 'خدمات تجديد الإقامة السياحية بسرعة وكفاءة عالية',
+    'services.touristResidenceRenewal.descriptionShort': 'تجديد إقامة',
+    'services.touristResidenceRenewal.fullDescription': 'نحن متخصصون في تجديد الإقامات السياحية في تركيا. فريقنا الخبير يضمن إنجاز عملية التجديد بأسرع وقت ممكن وبأعلى مستوى من الدقة. نحن نتعامل مع جميع الإجراءات الرسمية نيابة عنك ونوفر عليك الوقت والجهد.',
+    'services.touristResidenceRenewal.features': [
+      'تجديد سريع للإقامة السياحية',
+      'معالجة جميع الإجراءات الرسمية',
+      'متابعة مستمرة لحالة الطلب',
+      'خدمة عملاء متميزة',
+      'أسعار تنافسية وشفافة',
+      'ضمان إنجاز في الوقت المحدد'
+    ],
+    'services.touristResidenceRenewal.benefits': [
+      'توفير الوقت والجهد',
+      'ضمان تجديد ناجح',
+      'تجنب الأخطاء والتأخير',
+      'خدمة موثوقة ومضمونة'
+    ],
+    'services.touristResidenceRenewal.process': [
+      'تقديم الوثائق المطلوبة',
+      'مراجعة وتقييم الوثائق',
+      'إرسال الطلب للجهات المختصة',
+      'متابعة حالة الطلب',
+      'استلام الإقامة الجديدة'
+    ],
+
+    // First Time Tourist Residence Services
+    'services.firstTimeTouristResidence.title': 'إقامة سياحية أول مرة',
+    'services.firstTimeTouristResidence.titleShort': 'إقامة أول مرة',
+    'services.firstTimeTouristResidence.description': 'الحصول على الإقامة السياحية للمرة الأولى في تركيا',
+    'services.firstTimeTouristResidence.descriptionShort': 'إقامة سياحية جديدة',
+    'services.firstTimeTouristResidence.fullDescription': 'نساعدك في الحصول على الإقامة السياحية للمرة الأولى في تركيا. فريقنا المتخصص يرشدك خلال جميع الخطوات المطلوبة ويضمن تقديم طلبك بشكل صحيح ومكتمل. نحن نتعامل مع جميع الإجراءات الرسمية ونوفر عليك التعقيدات.',
+    'services.firstTimeTouristResidence.features': [
+      'إرشاد شامل للحصول على الإقامة',
+      'مساعدة في تجهيز جميع الوثائق',
+      'معالجة الإجراءات الرسمية',
+      'متابعة مستمرة للطلب',
+      'استشارة مجانية أولية',
+      'ضمان تقديم طلب صحيح'
+    ],
+    'services.firstTimeTouristResidence.benefits': [
+      'تجربة سلسة وبسيطة',
+      'توفير الوقت والجهد',
+      'ضمان نجاح الطلب',
+      'دعم مستمر طوال العملية'
+    ],
+    'services.firstTimeTouristResidence.process': [
+      'استشارة مجانية لتحديد المتطلبات',
+      'تجهيز وتجميع الوثائق المطلوبة',
+      'تقديم الطلب للجهات المختصة',
+      'متابعة حالة الطلب',
+      'استلام الإقامة السياحية'
     ],
 
     // How We Work Section
@@ -523,6 +591,58 @@ const translations = {
       'Sürekli takip ve satış sonrası hizmet'
     ],
 
+    // Tourist Residence Renewal Services
+    'services.touristResidenceRenewal.title': 'Turist İkameti Yenileme',
+    'services.touristResidenceRenewal.description': 'Turist ikametini hızlı ve verimli şekilde yenileme hizmetleri',
+    'services.touristResidenceRenewal.fullDescription': 'Türkiye\'de turist ikameti yenileme konusunda uzmanız. Uzman ekibimiz, yenileme sürecini mümkün olan en kısa sürede ve en yüksek doğruluk seviyesinde tamamlamanızı garanti eder. Tüm resmi işlemleri sizin adınıza halleder ve size zaman ve emek tasarrufu sağlarız.',
+    'services.touristResidenceRenewal.features': [
+      'Hızlı turist ikameti yenileme',
+      'Tüm resmi işlemlerin halli',
+      'Başvuru durumunun sürekli takibi',
+      'Mükemmel müşteri hizmetleri',
+      'Rekabetçi ve şeffaf fiyatlar',
+      'Zamanında tamamlama garantisi'
+    ],
+    'services.touristResidenceRenewal.benefits': [
+      'Zaman ve emek tasarrufu',
+      'Başarılı yenileme garantisi',
+      'Hata ve gecikmelerden kaçınma',
+      'Güvenilir ve garantili hizmet'
+    ],
+    'services.touristResidenceRenewal.process': [
+      'Gerekli belgelerin teslimi',
+      'Belgelerin incelenmesi ve değerlendirilmesi',
+      'Başvurunun ilgili makamlara gönderilmesi',
+      'Başvuru durumunun takibi',
+      'Yeni ikametin teslim alınması'
+    ],
+
+    // First Time Tourist Residence Services
+    'services.firstTimeTouristResidence.title': 'İlk Kez Turist İkameti',
+    'services.firstTimeTouristResidence.description': 'Türkiye\'de ilk kez turist ikameti alma',
+    'services.firstTimeTouristResidence.fullDescription': 'Türkiye\'de ilk kez turist ikameti almanıza yardımcı oluyoruz. Uzman ekibimiz, gerekli tüm adımlarda size rehberlik eder ve başvurunuzun doğru ve eksiksiz şekilde sunulmasını garanti eder. Tüm resmi işlemleri halleder ve karmaşıklıkları sizin için basitleştiririz.',
+    'services.firstTimeTouristResidence.features': [
+      'İkamet alma konusunda kapsamlı rehberlik',
+      'Gerekli tüm belgelerin hazırlanmasında yardım',
+      'Resmi işlemlerin halli',
+      'Başvurunun sürekli takibi',
+      'Ücretsiz ilk danışmanlık',
+      'Doğru başvuru sunma garantisi'
+    ],
+    'services.firstTimeTouristResidence.benefits': [
+      'Sorunsuz ve basit deneyim',
+      'Zaman ve emek tasarrufu',
+      'Başarılı başvuru garantisi',
+      'Süreç boyunca sürekli destek'
+    ],
+    'services.firstTimeTouristResidence.process': [
+      'Gereksinimleri belirlemek için ücretsiz danışmanlık',
+      'Gerekli belgelerin hazırlanması ve toplanması',
+      'Başvurunun ilgili makamlara sunulması',
+      'Başvuru durumunun takibi',
+      'Turist ikametinin teslim alınması'
+    ],
+
     // How We Work Section
     'howWeWork.title': 'Nasıl Çalışıyoruz?',
     'howWeWork.step1': 'Kişisel güvenlik ihtiyaçlarınızı değerlendirme',
@@ -710,7 +830,9 @@ const translations = {
     
     // Translation Services
     'services.translation.title': 'Certified Translation Services',
+    'services.translation.titleShort': 'Certified Translation',
     'services.translation.description': 'Certified translation for all official and legal documents',
+    'services.translation.descriptionShort': 'Certified translation',
     'services.translation.fullDescription': 'We provide the most accurate and professional certified translation services in Turkey. Our team of certified translators ensures accurate translation of all your official, legal, medical, and academic documents. We are certified by Turkish official authorities and guarantee the acceptance of our translations in all government and private institutions.',
     'services.translation.features': [
       'Certified translation from official authorities',
@@ -738,7 +860,9 @@ const translations = {
     
     // Travel Services
     'services.travel.title': 'Travel and Tourism Services',
+    'services.travel.titleShort': 'Travel & Tourism',
     'services.travel.description': 'Tour organization, hotel booking, and transportation services',
+    'services.travel.descriptionShort': 'Tour packages',
     'services.travel.fullDescription': 'Discover the beauty of Turkey with our diverse and specially designed tour packages. Suitable for all tastes and budgets. We offer an unforgettable tourist experience covering the best Turkish destinations with comprehensive services including transportation, accommodation, and tourist tours accompanied by Arab expert guides.',
     'services.travel.features': [
       'Diverse and customized tour programs',
@@ -766,7 +890,9 @@ const translations = {
     
     // Legal Services
     'services.legal.title': 'Legal Consultancy',
+    'services.legal.titleShort': 'Legal Consultancy',
     'services.legal.description': 'Specialized legal consultancy in Turkish law and judicial procedures',
+    'services.legal.descriptionShort': 'Legal consultancy',
     'services.legal.fullDescription': 'Get the best legal consultancy from a team of lawyers specialized in Turkish law. We provide comprehensive legal services covering all aspects of Turkish law from real estate and companies to family and citizenship cases. Our extensive experience guarantees you the best results.',
     'services.legal.features': [
       'Lawyers specialized in Turkish law',
@@ -794,7 +920,9 @@ const translations = {
     
     // Government Services
     'services.government.title': 'Government Services',
+    'services.government.titleShort': 'Government Services',
     'services.government.description': 'Complete all official transactions in Turkey quickly and with high efficiency',
+    'services.government.descriptionShort': 'Government transactions',
     'services.government.fullDescription': 'We are your experts in completing all government transactions in Turkey. From extracting official documents to renewing residence permits and completing citizenship transactions, we save you time and effort and guarantee the completion of your transactions in the shortest possible time with the highest level of accuracy and professionalism.',
     'services.government.features': [
       'Extract all official documents',
@@ -822,7 +950,9 @@ const translations = {
     
     // Health Insurance Services
     'services.healthInsurance.title': 'Health Insurance for Foreigners',
+    'services.healthInsurance.titleShort': 'Health Insurance',
     'services.healthInsurance.description': 'Comprehensive health insurance for foreigners in Turkey with the best prices and coverage',
+    'services.healthInsurance.descriptionShort': 'Comprehensive health insurance',
     'services.healthInsurance.fullDescription': 'We provide comprehensive health insurance services for foreigners in Turkey. We collaborate with the best Turkish insurance companies to offer the best prices and comprehensive coverage. Our insurance covers all medical and treatment services with a wide network of hospitals and clinics throughout Turkey.',
     'services.healthInsurance.features': [
       'Comprehensive health insurance for individuals and families',
@@ -850,7 +980,9 @@ const translations = {
 
     // Insurance Services
     'services.insurance.title': 'Health Insurance and Vehicle Insurance Services',
+    'services.insurance.titleShort': 'Insurance',
     'services.insurance.description': 'Assistance in obtaining health insurance and vehicle insurance at the best prices',
+    'services.insurance.descriptionShort': 'Health & vehicle insurance',
     'services.insurance.fullDescription': 'Protect yourself, your family, and your vehicle with our specialized insurance services. We help you choose the best health insurance and vehicle insurance policies that suit your needs and budget. Our partnerships with the best insurance companies in Turkey guarantee you the best prices and comprehensive coverage.',
     'services.insurance.features': [
       'Comprehensive health insurance for individuals and families',
@@ -874,6 +1006,62 @@ const translations = {
       'Choose the most suitable policy for you',
       'Complete insurance procedures and payment',
       'Continuous follow-up and after-sales service'
+    ],
+
+    // Tourist Residence Renewal Services
+    'services.touristResidenceRenewal.title': 'Tourist Residence Renewal',
+    'services.touristResidenceRenewal.titleShort': 'Residence Renewal',
+    'services.touristResidenceRenewal.description': 'Fast and efficient tourist residence renewal services',
+    'services.touristResidenceRenewal.descriptionShort': 'Residence renewal',
+    'services.touristResidenceRenewal.fullDescription': 'We are specialists in tourist residence renewal in Turkey. Our expert team ensures the renewal process is completed in the shortest time possible with the highest level of accuracy. We handle all official procedures on your behalf and save you time and effort.',
+    'services.touristResidenceRenewal.features': [
+      'Fast tourist residence renewal',
+      'Handling all official procedures',
+      'Continuous follow-up of application status',
+      'Excellent customer service',
+      'Competitive and transparent prices',
+      'Guaranteed completion on time'
+    ],
+    'services.touristResidenceRenewal.benefits': [
+      'Time and effort savings',
+      'Guaranteed successful renewal',
+      'Avoiding errors and delays',
+      'Reliable and guaranteed service'
+    ],
+    'services.touristResidenceRenewal.process': [
+      'Submit required documents',
+      'Review and evaluate documents',
+      'Send application to relevant authorities',
+      'Follow up on application status',
+      'Receive new residence permit'
+    ],
+
+    // First Time Tourist Residence Services
+    'services.firstTimeTouristResidence.title': 'First Time Tourist Residence',
+    'services.firstTimeTouristResidence.titleShort': 'First Time Residence',
+    'services.firstTimeTouristResidence.description': 'Getting tourist residence for the first time in Turkey',
+    'services.firstTimeTouristResidence.descriptionShort': 'New tourist residence',
+    'services.firstTimeTouristResidence.fullDescription': 'We help you get tourist residence for the first time in Turkey. Our specialized team guides you through all required steps and ensures your application is submitted correctly and completely. We handle all official procedures and simplify the complexities for you.',
+    'services.firstTimeTouristResidence.features': [
+      'Comprehensive guidance for obtaining residence',
+      'Assistance in preparing all required documents',
+      'Handling official procedures',
+      'Continuous follow-up of application',
+      'Free initial consultation',
+      'Guaranteed correct application submission'
+    ],
+    'services.firstTimeTouristResidence.benefits': [
+      'Smooth and simple experience',
+      'Time and effort savings',
+      'Guaranteed successful application',
+      'Continuous support throughout the process'
+    ],
+    'services.firstTimeTouristResidence.process': [
+      'Free consultation to determine requirements',
+      'Prepare and collect required documents',
+      'Submit application to relevant authorities',
+      'Follow up on application status',
+      'Receive tourist residence permit'
     ],
 
     // How We Work Section
