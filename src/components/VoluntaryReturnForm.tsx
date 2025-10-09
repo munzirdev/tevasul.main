@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, FileText, Download, Printer, Plus, X, Users, Globe, Shield, Heart, Building, MapPin, Zap, Save } from 'lucide-react';
+import { ArrowRight, FileText, Download, Printer, Plus, X, Users, Globe, Shield, Heart, Building, MapPin } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { useAuthContext } from './AuthProvider';
@@ -28,7 +28,6 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
   const { user } = useAuthContext();
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
-  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const [formData, setFormData] = useState({
     fullNameTR: '',
     fullNameAR: '',
@@ -58,47 +57,6 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
     setRefakatEntries(updated);
   };
 
-  const testDatabaseConnection = async () => {
-    setIsTestingConnection(true);
-    setSaveMessage('');
-    
-    try {
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError) {
-        throw new Error('خطأ في المصادقة: ' + authError.message);
-      }
-      
-      if (!user) {
-        throw new Error('المستخدم غير مسجل الدخول');
-      }
-      
-      // اختبار الاتصال بجدول voluntary_return_forms
-      const { data, error } = await supabase
-        .from('voluntary_return_forms')
-        .select('id')
-        .limit(1);
-      
-      if (error) {
-        if (error.code === 'PGRST205') {
-          throw new Error('الجدول voluntary_return_forms غير موجود. يرجى إنشاؤه أولاً.');
-        } else if (error.message?.includes('permission') || error.message?.includes('denied')) {
-          throw new Error('خطأ في الصلاحيات. تأكد من إعدادات RLS والسياسات.');
-        } else {
-          throw new Error('خطأ في الاتصال بقاعدة البيانات: ' + error.message);
-        }
-      }
-      
-      setSaveMessage(language === 'ar' ? '✅ الاتصال بقاعدة البيانات يعمل بشكل صحيح' : '✅ Database connection is working');
-      
-    } catch (error: any) {
-      console.error('❌ خطأ في اختبار الاتصال:', error);
-      setSaveMessage(language === 'ar' ? '❌ خطأ في الاتصال: ' + error.message : '❌ Connection error: ' + error.message);
-    } finally {
-      setIsTestingConnection(false);
-      setTimeout(() => setSaveMessage(''), 5000);
-    }
-  };
 
   const saveFormToDatabase = async () => {
     if (!user) {
@@ -189,6 +147,91 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
     }
   };
 
+  const handleCreateAndSaveForms = async () => {
+    const { fullNameTR, fullNameAR, kimlikNo, sinirKapisi, gsm, changeDate, customDate } = formData;
+
+    if (!fullNameTR || !fullNameAR || !kimlikNo || !sinirKapisi) {
+      alert(language === 'ar' ? 'الرجاء تعبئة جميع الحقول المطلوبة' : 'Lütfen tüm zorunlu alanları doldurunuz');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('');
+
+    try {
+      // حفظ النموذج في قاعدة البيانات أولاً (إذا كان المستخدم مسجل دخول)
+      if (user) {
+        const validRefakat = refakatEntries.filter(entry => entry.id && entry.name);
+        const formDataToSave = {
+          full_name_tr: fullNameTR,
+          full_name_ar: fullNameAR,
+          kimlik_no: kimlikNo,
+          sinir_kapisi: sinirKapisi,
+          gsm: gsm || undefined,
+          custom_date: changeDate === 'yes' && customDate ? customDate : undefined,
+          refakat_entries: validRefakat
+        };
+
+        const { data, error } = await voluntaryReturnService.createForm(formDataToSave);
+
+        if (error) {
+          console.error('❌ خطأ من الخدمة:', error);
+          throw error;
+        }
+
+        // إرسال إشعار التيليجرام
+        try {
+          if (data) {
+            await webhookService.sendVoluntaryReturnWebhook(data);
+          }
+        } catch (webhookError) {
+          console.error('Error sending webhook notification:', webhookError);
+        }
+
+        // إعادة تعيين النموذج بعد الحفظ الناجح
+        setFormData({
+          fullNameTR: '',
+          fullNameAR: '',
+          kimlikNo: '',
+          sinirKapisi: '',
+          gsm: '',
+          changeDate: 'no',
+          customDate: ''
+        });
+        setRefakatEntries([{ id: '', name: '' }]);
+      }
+
+      // إنشاء النماذج للعرض
+      generateForms();
+
+      const successMessage = user 
+        ? (language === 'ar' ? 'تم إنشاء وحفظ النموذج بنجاح!' : 'Form created and saved successfully!')
+        : (language === 'ar' ? 'تم إنشاء النموذج بنجاح!' : 'Form created successfully!');
+      setSaveMessage(successMessage);
+      setTimeout(() => setSaveMessage(''), 5000);
+
+    } catch (error: any) {
+      console.error('💥 خطأ في إنشاء وحفظ النموذج:', error);
+      
+      let errorMessage = language === 'ar' ? 'خطأ في إنشاء وحفظ النموذج' : 'Error creating and saving form';
+      
+      if (error?.message) {
+        if (error.message.includes('المصادقة')) {
+          errorMessage = language === 'ar' ? 'خطأ في المصادقة - يرجى إعادة تسجيل الدخول' : 'Authentication error - please login again';
+        } else if (error.message.includes('مكتملة')) {
+          errorMessage = language === 'ar' ? 'جميع الحقول المطلوبة يجب أن تكون مملوءة' : 'All required fields must be filled';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setSaveMessage(errorMessage);
+      setTimeout(() => setSaveMessage(''), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const generateForms = () => {
     const { fullNameTR, fullNameAR, kimlikNo, sinirKapisi, gsm, changeDate, customDate } = formData;
 
@@ -196,6 +239,9 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
       alert(language === 'ar' ? 'الرجاء تعبئة جميع الحقول المطلوبة' : 'Lütfen tüm zorunlu alanları doldurunuz');
       return;
     }
+
+    // حفظ موضع السكرول الحالي
+    const currentScrollPos = window.pageYOffset || document.documentElement.scrollTop;
 
     let requestDateTR, requestDateAR;
     if (changeDate === "yes" && customDate) {
@@ -262,6 +308,11 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
     `;
 
     setOutput(turkishForm + arabicForm);
+    
+    // استعادة موضع السكرول بعد تحديث المحتوى
+    setTimeout(() => {
+      window.scrollTo(0, currentScrollPos);
+    }, 0);
   };
 
   const printForms = async () => {
@@ -406,7 +457,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
             <Users className="w-8 h-8 text-indigo-300" />
           </div>
           <div className="absolute bottom-1/3 left-1/6 w-16 h-16 bg-caribbean-600/40 rounded-full flex items-center justify-center animate-bounce-wide-slower shadow-lg">
-            <Zap className="w-8 h-8 text-caribbean-300" />
+            <FileText className="w-8 h-8 text-caribbean-300" />
           </div>
           
           {/* Translation Service */}
@@ -480,10 +531,14 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
         </div>
 
         {/* Form */}
-        <div className="bg-white/95 dark:bg-jet-800/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-white/20 dark:border-jet-600/50">
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
+        <div className="bg-white/10 dark:bg-white/5 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 relative overflow-hidden">
+          {/* Glass effect overlay */}
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 rounded-3xl pointer-events-none"></div>
+          <div className="absolute inset-0 bg-gradient-to-tl from-transparent via-white/5 to-transparent rounded-3xl pointer-events-none"></div>
+          <div className="relative z-10">
+            <div className="grid md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+              <label className="block text-sm font-medium text-white/90 dark:text-white mb-2">
                 الاسم الكامل (بالتركية)
               </label>
               <input
@@ -491,12 +546,12 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                 value={formData.fullNameTR}
                 onChange={(e) => setFormData({...formData, fullNameTR: e.target.value})}
                 placeholder="Örn: Muhammed Muhammed"
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white placeholder-white/60 shadow-inner"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+              <label className="block text-sm font-medium text-white/90 dark:text-white mb-2">
                 الاسم الكامل (بالعربية)
               </label>
               <input
@@ -504,7 +559,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                 value={formData.fullNameAR}
                 onChange={(e) => setFormData({...formData, fullNameAR: e.target.value})}
                 placeholder="مثال: محمد المحمد"
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white placeholder-white/60 shadow-inner"
                 required
               />
             </div>
@@ -512,7 +567,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
 
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+              <label className="block text-sm font-medium text-white/90 dark:text-white mb-2">
                 رقم الحماية المؤقتة
               </label>
               <input
@@ -520,18 +575,18 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                 value={formData.kimlikNo}
                 onChange={(e) => setFormData({...formData, kimlikNo: e.target.value})}
                 placeholder="Örn: 99605285486"
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white placeholder-white/60 shadow-inner"
                 required
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+              <label className="block text-sm font-medium text-white/90 dark:text-white mb-2">
                 اسم المعبر
               </label>
               <select
                 value={formData.sinirKapisi}
                 onChange={(e) => setFormData({...formData, sinirKapisi: e.target.value})}
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white shadow-inner"
                 required
               >
                 <option value="">اختر المعبر</option>
@@ -548,7 +603,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
 
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             <div>
-              <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+              <label className="block text-sm font-medium text-white/90 dark:text-white mb-2">
                 رقم الهاتف
               </label>
               <input
@@ -556,11 +611,11 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                 value={formData.gsm}
                 onChange={(e) => setFormData({...formData, gsm: e.target.value})}
                 placeholder="Örn: 0541 717 57 49"
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white placeholder-white/60 shadow-inner"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+              <label className="block text-sm font-medium text-white/90 dark:text-white mb-2">
                 هل تريد تغيير تاريخ الطلب؟
               </label>
               <select
@@ -569,7 +624,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                   setFormData({...formData, changeDate: e.target.value});
                   setShowDatePicker(e.target.value === 'yes');
                 }}
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white shadow-inner"
               >
                 <option value="no">لا</option>
                 <option value="yes">نعم</option>
@@ -579,26 +634,26 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
 
           {showDatePicker && (
             <div className="mb-6">
-              <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-2">
+              <label className="block text-sm font-medium text-white/90 dark:text-white mb-2">
                 اختر التاريخ الجديد
               </label>
               <input
                 type="date"
                 value={formData.customDate}
                 onChange={(e) => setFormData({...formData, customDate: e.target.value})}
-                className="w-full px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white shadow-inner"
               />
             </div>
           )}
 
           {/* Refakat Section */}
           <div className="mb-6">
-            <label className="block text-sm font-medium text-jet-700 dark:text-platinum-300 mb-4">
+            <label className="block text-sm font-medium text-white/90 dark:text-white mb-4">
               المرافقين
             </label>
             {refakatEntries.map((entry, index) => (
               <div key={index} className="flex items-center gap-4 mb-3">
-                <span className="text-sm font-medium text-jet-600 dark:text-platinum-400 min-w-[80px]">
+                <span className="text-sm font-medium text-white/80 dark:text-white/80 min-w-[80px]">
                   مرافق {index + 1}
                 </span>
                 <input
@@ -606,14 +661,14 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                   value={entry.id}
                   onChange={(e) => updateRefakat(index, 'id', e.target.value)}
                   placeholder="رقم الهوية"
-                  className="flex-1 px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                  className="flex-1 px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white placeholder-white/60 shadow-inner"
                 />
                 <input
                   type="text"
                   value={entry.name}
                   onChange={(e) => updateRefakat(index, 'name', e.target.value)}
                   placeholder="الاسم الكامل"
-                  className="flex-1 px-4 py-3 border border-platinum-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 focus:border-transparent transition-all duration-300 bg-white dark:bg-jet-800 text-jet-900 dark:text-white"
+                  className="flex-1 px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white placeholder-white/60 shadow-inner"
                 />
                 {refakatEntries.length > 1 && (
                   <button
@@ -627,7 +682,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
             ))}
             <button
               onClick={addRefakat}
-              className="flex items-center gap-2 px-4 py-2 bg-caribbean-600 text-white rounded-lg hover:bg-caribbean-700 transition-colors duration-300"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-caribbean-500/80 to-indigo-500/80 backdrop-blur-sm text-white rounded-xl hover:from-caribbean-400/90 hover:to-indigo-400/90 transition-all duration-300 shadow-lg border border-white/20"
             >
               <Plus className="w-4 h-4" />
               إضافة مرافق جديد
@@ -636,50 +691,31 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
 
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-4 justify-center">
-            {/* Test Database Connection Button */}
             <button
-              onClick={testDatabaseConnection}
-              disabled={isTestingConnection}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-lg font-semibold hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Zap className="w-4 h-4" />
-              {isTestingConnection ? (language === 'ar' ? 'اختبار الاتصال...' : 'Testing...') : (language === 'ar' ? 'اختبار الاتصال' : 'Test Connection')}
-            </button>
-            
-            {user && (
-              <button
-                onClick={saveFormToDatabase}
-                disabled={isSaving}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-700 text-white rounded-lg font-semibold hover:from-green-700 hover:to-emerald-800 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save className="w-5 h-5" />
-                {isSaving ? (language === 'ar' ? 'جاري الحفظ...' : 'Kaydediliyor...') : (language === 'ar' ? 'حفظ النموذج' : 'Formu Kaydet')}
-              </button>
-            )}
-            <button
-              onClick={generateForms}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white rounded-lg font-semibold hover:from-caribbean-700 hover:to-indigo-800 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              onClick={handleCreateAndSaveForms}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-caribbean-500/80 to-indigo-600/80 backdrop-blur-sm text-white rounded-xl font-semibold hover:from-caribbean-400/90 hover:to-indigo-500/90 transition-all duration-300 transform hover:scale-105 shadow-lg border border-white/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <FileText className="w-5 h-5" />
-              إنشاء النماذج
+              {isSaving ? (language === 'ar' ? 'جاري الإنشاء والحفظ...' : 'Creating and Saving...') : (language === 'ar' ? 'إنشاء وحفظ النموذج' : 'Create & Save Form')}
             </button>
             <button
               onClick={printTurkish}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-lg font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500/80 to-red-500/80 backdrop-blur-sm text-white rounded-xl font-semibold hover:from-orange-400/90 hover:to-red-400/90 transition-all duration-300 transform hover:scale-105 shadow-lg border border-white/20"
             >
               <Printer className="w-5 h-5" />
               طباعة التركية
             </button>
             <button
               onClick={printArabic}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 text-white rounded-lg font-semibold hover:from-green-600 hover:to-teal-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-500/80 to-teal-500/80 backdrop-blur-sm text-white rounded-xl font-semibold hover:from-green-400/90 hover:to-teal-400/90 transition-all duration-300 transform hover:scale-105 shadow-lg border border-white/20"
             >
               <Printer className="w-5 h-5" />
               طباعة العربية
             </button>
             <button
               onClick={printForms}
-              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 transform hover:scale-105 shadow-lg"
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500/80 to-pink-500/80 backdrop-blur-sm text-white rounded-xl font-semibold hover:from-purple-400/90 hover:to-pink-400/90 transition-all duration-300 transform hover:scale-105 shadow-lg border border-white/20"
             >
               <Download className="w-5 h-5" />
               طباعة الكل
@@ -688,27 +724,33 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
           
           {/* Save Message */}
           {saveMessage && (
-            <div className={`mt-4 p-3 rounded-lg text-center font-medium ${
+            <div className={`mt-4 p-3 rounded-xl text-center font-medium backdrop-blur-sm border ${
               saveMessage.includes('نجاح') || saveMessage.includes('başarıyla') 
-                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' 
-                : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                ? 'bg-green-500/20 text-green-100 border-green-400/30' 
+                : 'bg-red-500/20 text-red-100 border-red-400/30'
             }`}>
               {saveMessage}
             </div>
           )}
+          </div>
         </div>
 
         {/* Output */}
         {output && (
-          <div className="mt-8 bg-white/95 dark:bg-jet-800/95 backdrop-blur-md p-8 rounded-2xl shadow-2xl border border-white/20 dark:border-jet-600/50">
-            <h3 className="text-xl font-bold text-jet-800 dark:text-platinum-200 mb-4">
+          <div className="mt-8 bg-white/10 dark:bg-white/5 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white/20 dark:border-white/10 relative overflow-hidden">
+            {/* Glass effect overlay */}
+            <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-white/10 rounded-3xl pointer-events-none"></div>
+            <div className="absolute inset-0 bg-gradient-to-tl from-transparent via-white/5 to-transparent rounded-3xl pointer-events-none"></div>
+            <div className="relative z-10">
+            <h3 className="text-xl font-bold text-white/90 dark:text-white mb-4">
               النماذج المُنشأة
             </h3>
             <div 
               id="output"
-              className="prose dark:prose-invert max-w-none"
+              className="prose dark:prose-invert max-w-none text-white/90"
               dangerouslySetInnerHTML={{ __html: output }}
             />
+            </div>
           </div>
         )}
       </div>

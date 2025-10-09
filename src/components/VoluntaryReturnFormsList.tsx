@@ -43,6 +43,8 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   const [selectedForm, setSelectedForm] = useState<VoluntaryReturnForm | null>(null);
   const [editingForm, setEditingForm] = useState<VoluntaryReturnForm | null>(null);
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
   
   // Delete modal state
   const [deleteModal, setDeleteModal] = useState<{
@@ -164,6 +166,19 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   };
 
   const filteredForms = getFilteredForms();
+
+  // حساب عدد الصفحات الكلي
+  const totalPages = Math.ceil(filteredForms.length / itemsPerPage);
+  
+  // الحصول على النماذج للصفحة الحالية
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedForms = filteredForms.slice(startIndex, endIndex);
+
+  // إعادة تعيين الصفحة إلى 1 عند تغيير الفلتر
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [timeFilter]);
 
   const openPrintWindow = (content: string) => {
     const printWindow = window.open('', '_blank', 'width=900,height=700');
@@ -331,6 +346,7 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
   }
 
   return (
+    <>
     <div className="p-3 md:p-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4 md:mb-6 space-y-3 md:space-y-0">
         <h2 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white text-center md:text-right">
@@ -424,8 +440,9 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
           </button>
         </div>
       ) : (
+        <>
         <div className="space-y-3 md:space-y-4">
-          {filteredForms.map((form) => (
+          {paginatedForms.map((form) => (
             <div
               key={form.id}
               className="bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-2xl shadow-xl border border-white/30 dark:border-white/20 p-4 md:p-6"
@@ -540,21 +557,131 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
             </div>
           ))}
         </div>
-      )}
 
-      <ConfirmDeleteModal
-        isOpen={deleteModal.isOpen}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-        title={language === 'ar' ? 'تأكيد الحذف' : 'Confirm Delete'}
-        message={language === 'ar' 
-          ? 'هل أنت متأكد من أنك تريد حذف نموذج العودة الطوعية'
-          : 'Are you sure you want to delete the voluntary return form'
-        }
-        itemName={deleteModal.formName}
-        isLoading={deleteModal.isLoading}
-      />
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/20">
+            <div className="text-sm text-slate-600 dark:text-slate-400">
+              {language === 'ar' 
+                ? `الصفحة ${currentPage} من ${totalPages} (${filteredForms.length} نموذج)`
+                : `Sayfa ${currentPage} / ${totalPages} (${filteredForms.length} form)`
+              }
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* زر الصفحة الأولى */}
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className={`px-3 py-2 rounded-lg transition-all duration-200 ${
+                  currentPage === 1
+                    ? 'bg-white/10 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-white/30 dark:hover:bg-white/20'
+                }`}
+                title={language === 'ar' ? 'الصفحة الأولى' : 'İlk Sayfa'}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                </svg>
+              </button>
+
+              {/* زر السابق */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                  currentPage === 1
+                    ? 'bg-white/10 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-white/30 dark:hover:bg-white/20'
+                }`}
+              >
+                {language === 'ar' ? 'السابق' : 'Önceki'}
+              </button>
+
+              {/* أرقام الصفحات */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                  // إظهار الصفحة الحالية و 2 صفحات قبلها و 2 بعدها
+                  if (
+                    pageNum === 1 ||
+                    pageNum === totalPages ||
+                    (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`min-w-[40px] px-3 py-2 rounded-lg transition-all duration-200 ${
+                          currentPage === pageNum
+                            ? 'bg-blue-600 text-white font-bold shadow-lg'
+                            : 'bg-white/20 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-white/30 dark:hover:bg-white/20'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  } else if (
+                    pageNum === currentPage - 2 ||
+                    pageNum === currentPage + 2
+                  ) {
+                    return (
+                      <span key={pageNum} className="px-2 text-slate-500 dark:text-slate-400">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              {/* زر التالي */}
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-4 py-2 rounded-lg transition-all duration-200 ${
+                  currentPage === totalPages
+                    ? 'bg-white/10 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-white/30 dark:hover:bg-white/20'
+                }`}
+              >
+                {language === 'ar' ? 'التالي' : 'Sonraki'}
+              </button>
+
+              {/* زر الصفحة الأخيرة */}
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-2 rounded-lg transition-all duration-200 ${
+                  currentPage === totalPages
+                    ? 'bg-white/10 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-700 dark:text-white hover:bg-white/30 dark:hover:bg-white/20'
+                }`}
+                title={language === 'ar' ? 'الصفحة الأخيرة' : 'Son Sayfa'}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+        </>
+      )}
     </div>
+
+    <ConfirmDeleteModal
+      isOpen={deleteModal.isOpen}
+      onClose={handleDeleteCancel}
+      onConfirm={handleDeleteConfirm}
+      title={language === 'ar' ? 'تأكيد الحذف' : 'Confirm Delete'}
+      message={language === 'ar' 
+        ? 'هل أنت متأكد من أنك تريد حذف نموذج العودة الطوعية'
+        : 'Are you sure you want to delete the voluntary return form'
+      }
+      itemName={deleteModal.formName}
+      isLoading={deleteModal.isLoading}
+    />
+    </>
   );
 };
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle, Trash2 } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -25,7 +26,7 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-50 overflow-y-auto">
       {/* Backdrop */}
       <div 
@@ -117,6 +118,8 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ConfirmDeleteModal;
