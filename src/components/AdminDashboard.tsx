@@ -638,43 +638,63 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
     try {
       setChatLoading(true);
       
-      const { data, error } = await supabase
-        .from('chat_messages')
+      // First, get chat sessions from telegram_chat_sessions table
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('telegram_chat_sessions')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('خطأ في جلب المحادثات:', error);
+      if (sessionsError) {
+        console.error('خطأ في جلب جلسات المحادثات:', sessionsError);
         return;
       }
 
-      // Group messages by session_id
-      const sessionsMap = new Map();
-      data?.forEach((message: any) => {
-        if (!sessionsMap.has(message.session_id)) {
-          sessionsMap.set(message.session_id, {
-            session_id: message.session_id,
-            messages: [],
-            last_message: message,
-            message_count: 0,
-            created_at: message.created_at
-          });
-        }
-        sessionsMap.get(message.session_id).messages.push(message);
-        sessionsMap.get(message.session_id).message_count += 1;
-      });
+      if (!sessionsData || sessionsData.length === 0) {
+        setChatSessions([]);
+        return;
+      }
 
-      const sessions = Array.from(sessionsMap.values());
-      setChatSessions(sessions);
+      // Get messages for each session to calculate counts and last message
+      const sessionsWithMessages = await Promise.all(
+        sessionsData.map(async (session: any) => {
+          const { data: messagesData, error: messagesError } = await supabase
+            .from('chat_messages')
+            .select('*')
+            .eq('session_id', session.session_id)
+            .order('created_at', { ascending: false });
+
+          if (messagesError) {
+            console.error(`خطأ في جلب رسائل الجلسة ${session.session_id}:`, messagesError);
+            return {
+              ...session,
+              messages: [],
+              message_count: 0,
+              last_message: null,
+              hasNewMessage: false
+            };
+          }
+
+          return {
+            ...session,
+            messages: messagesData || [],
+            message_count: messagesData?.length || 0,
+            last_message: messagesData?.[0] || null,
+            hasNewMessage: false
+          };
+        })
+      );
+
+      setChatSessions(sessionsWithMessages);
       
       // Select first session by default
-      if (sessions.length > 0 && !selectedChatSession) {
-        setSelectedChatSession(sessions[0].session_id);
-        setChatMessages(sessions[0].messages);
+      if (sessionsWithMessages.length > 0 && !selectedChatSession) {
+        const firstSession = sessionsWithMessages[0];
+        setSelectedChatSession(firstSession.session_id);
+        setChatMessages(firstSession.messages);
         
         // Remove new message indicator for default session
         setChatSessions(prev => prev.map(session => 
-          session.session_id === sessions[0].session_id 
+          session.session_id === firstSession.session_id 
             ? { ...session, hasNewMessage: false }
             : session
         ));
@@ -682,7 +702,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
       
       // Check for claimed sessions from database
       const claimedSessionsFromDB = new Set<string>();
-      for (const session of sessions) {
+      for (const session of sessionsWithMessages) {
         const { data: claimMessages } = await supabase
           .from('chat_messages')
           .select('content')
@@ -705,7 +725,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         });
       }
       
-      } catch (error) {
+    } catch (error) {
       console.error('خطأ غير متوقع في جلب المحادثات:', error);
     } finally {
       setChatLoading(false);
@@ -3085,7 +3105,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                   <div className="mr-4">
                     <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">رسائل العملاء</p>
                     <p className="text-2xl font-bold text-slate-800 dark:text-white">
-                      {chatMessages.filter(m => m.sender === 'user').length}
+                      {chatSessions.reduce((total, session) => 
+                        total + (session.messages?.filter((m: any) => m.sender === 'user').length || 0), 0
+                      )}
                     </p>
                   </div>
                 </div>
@@ -3100,7 +3122,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                   <div className="mr-4">
                     <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">ردود البوت</p>
                     <p className="text-2xl font-bold text-slate-800 dark:text-white">
-                      {chatMessages.filter(m => m.sender === 'bot').length}
+                      {chatSessions.reduce((total, session) => 
+                        total + (session.messages?.filter((m: any) => m.sender === 'bot').length || 0), 0
+                      )}
                     </p>
                   </div>
                 </div>
@@ -3115,7 +3139,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                   <div className="mr-4">
                     <p className="text-sm text-slate-600 dark:text-slate-300 font-medium">ردود المدير</p>
                     <p className="text-2xl font-bold text-slate-800 dark:text-white">
-                      {chatMessages.filter(m => m.sender === 'admin').length}
+                      {chatSessions.reduce((total, session) => 
+                        total + (session.messages?.filter((m: any) => m.sender === 'admin').length || 0), 0
+                      )}
                     </p>
                   </div>
                 </div>
@@ -3152,7 +3178,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             </div>
 
             {/* Chat Sessions and Messages Layout - Full Height Responsive */}
-            <div className="grid grid-cols-1 xl:grid-cols-8 lg:grid-cols-7 md:grid-cols-1 gap-4 h-[calc(100vh-300px)] min-h-[600px]">
+            <div className="grid grid-cols-1 xl:grid-cols-5 lg:grid-cols-5 md:grid-cols-1 gap-4 h-[calc(100vh-300px)] min-h-[600px]">
               {/* Chat Sessions List */}
               <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 overflow-hidden flex flex-col xl:col-span-2 lg:col-span-2 md:col-span-1`}>
                 <div className="p-4 md:p-6 border-b border-white/20 dark:border-white/10 flex-shrink-0">
@@ -3163,24 +3189,43 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                     </div>
                   ) : filteredChatSessions.length === 0 ? (
                     <div className="text-center py-8">
-                      <MessageCircle className="w-8 md:w-12 h-8 md:h-12 text-slate-400 mx-auto mb-3" />
-                      <p className="text-sm md:text-base text-slate-600 dark:text-slate-400">لا توجد محادثات</p>
+                      <MessageCircle className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                      <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">لا توجد محادثات</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-500">ستظهر الجلسات هنا عند بدء العملاء محادثات جديدة</p>
                     </div>
                   ) : (
-                    <div className="space-y-2 md:space-y-3 flex-1 overflow-y-auto max-h-[400px] scrollbar-thin">
+                    <div className="space-y-2 md:space-y-3 flex-1 overflow-y-auto max-h-[500px] scrollbar-thin">
                       {filteredChatSessions.map((session) => (
                         <div
                           key={session.session_id}
-                          className={`w-full p-3 md:p-4 rounded-xl text-right transition-all duration-300 hover:shadow-lg cursor-pointer ${
+                          className={`w-full p-3 md:p-4 rounded-xl text-right transition-all duration-300 hover:shadow-lg cursor-pointer border ${
                             selectedChatSession === session.session_id
                               ? 'bg-blue-100 dark:bg-blue-900/30 border-2 border-blue-300 dark:border-blue-600'
-                              : 'bg-white/50 dark:bg-white/5 hover:bg-white/70 dark:hover:bg-white/10'
+                              : 'bg-white/50 dark:bg-white/5 hover:bg-white/70 dark:hover:bg-white/10 border-white/20 dark:border-white/10'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs text-slate-500 dark:text-slate-400">
-                              {new Date(session.created_at).toLocaleDateString('ar-SA')}
-                            </span>
+                          {/* Session Header */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex flex-col space-y-1">
+                              <div className="flex items-center space-x-2 space-x-reverse">
+                                <span className="text-xs text-slate-500 dark:text-slate-400">
+                                  {new Date(session.created_at).toLocaleDateString('ar-SA', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric'
+                                  })}
+                                </span>
+                                <span className="text-xs text-slate-400 dark:text-slate-500">
+                                  #{session.session_id.substring(0, 8)}
+                                </span>
+                              </div>
+                              <div className="text-xs text-slate-400 dark:text-slate-500">
+                                {new Date(session.created_at).toLocaleTimeString('ar-SA', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
                             <div className="flex items-center space-x-1 md:space-x-2 space-x-reverse">
                               {claimedSessions.has(session.session_id) && (
                                 <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-full flex items-center gap-1">
@@ -3210,6 +3255,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                               </button>
                             </div>
                           </div>
+
+                          {/* Customer Info */}
+                          {(session.customer_name || session.customer_email) && (
+                            <div className="mb-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                              <div className="space-y-2">
+                                {session.customer_name && (
+                                  <div className="flex items-center space-x-2 space-x-reverse">
+                                    <span className="text-slate-600 dark:text-slate-400">👤</span>
+                                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                      {session.customer_name}
+                                    </span>
+                                  </div>
+                                )}
+                                {session.customer_email && (
+                                  <div className="flex items-center space-x-2 space-x-reverse">
+                                    <span className="text-slate-600 dark:text-slate-400">📧</span>
+                                    <span className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                                      {session.customer_email}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Session Status */}
+                          <div className="mb-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${
+                              session.status === 'active' 
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                : session.status === 'closed'
+                                ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                                : 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-400'
+                            }`}>
+                              {session.status === 'active' ? '🟢 نشطة' : 
+                               session.status === 'closed' ? '🔴 مغلقة' : '📁 مؤرشفة'}
+                            </span>
+                          </div>
+
+                          {/* Last Message Preview */}
                           <button
                             onClick={() => handleChatSessionSelect(session.session_id)}
                             className={`w-full text-right transition-all duration-200 ${
@@ -3219,9 +3304,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                             }`}
                             disabled={chatLoading && clickedSessionId === session.session_id}
                           >
-                            <p className="text-xs md:text-sm font-medium text-slate-800 dark:text-white truncate">
-                              {session.last_message?.content?.substring(0, 40)}...
-                            </p>
+                            {session.last_message ? (
+                              <div className="text-left">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center space-x-2 space-x-reverse">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                      session.last_message.sender === 'user'
+                                        ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
+                                        : session.last_message.sender === 'admin'
+                                        ? 'bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200'
+                                        : 'bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+                                    }`}>
+                                      {session.last_message.sender === 'user' ? '👤 العميل' : 
+                                       session.last_message.sender === 'admin' ? '🛡️ المدير' : '🤖 البوت'}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                                    {new Date(session.last_message.created_at).toLocaleTimeString('ar-SA')}
+                                  </span>
+                                </div>
+                                <div className="bg-white/50 dark:bg-white/5 p-2 rounded-lg border border-white/20 dark:border-white/10">
+                                  <p className="text-xs md:text-sm font-medium text-slate-800 dark:text-white leading-relaxed">
+                                    {session.last_message.content?.substring(0, 80)}
+                                    {session.last_message.content?.length > 80 ? '...' : ''}
+                                  </p>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="text-center py-4">
+                                <MessageCircle className="w-6 h-6 text-slate-400 mx-auto mb-2" />
+                                <p className="text-xs text-slate-500 dark:text-slate-400 italic">
+                                  لا توجد رسائل بعد
+                                </p>
+                              </div>
+                            )}
+                            
                             {chatLoading && selectedChatSession === session.session_id && (
                               <div className="flex items-center justify-center mt-2">
                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
@@ -3237,7 +3354,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               </div>
 
               {/* Chat Messages - Full Height */}
-              <div className="xl:col-span-6 lg:col-span-5 md:col-span-1">
+              <div className="xl:col-span-3 lg:col-span-3 md:col-span-1">
                 <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl border border-white/20 dark:border-white/10 h-full flex flex-col`}>
                   <div className="p-4 md:p-6 border-b border-white/20 dark:border-white/10 flex-shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -3280,26 +3397,58 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                           {filteredChatMessages.map((message) => (
                             <div
                               key={message.id}
-                              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                              className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'} mb-4`}
                             >
                               <div
-                                className={`max-w-xs lg:max-w-md p-4 rounded-2xl ${
+                                className={`max-w-xs lg:max-w-md p-4 rounded-2xl shadow-sm border ${
                                   message.sender === 'user'
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-slate-800 dark:text-white'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-slate-800 dark:text-white border-green-200 dark:border-green-700'
                                     : message.sender === 'admin'
-                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-slate-800 dark:text-white'
-                                    : 'bg-gray-100 dark:bg-gray-900/30 text-slate-800 dark:text-white'
+                                    ? 'bg-blue-100 dark:bg-blue-900/30 text-slate-800 dark:text-white border-blue-200 dark:border-blue-700'
+                                    : 'bg-gray-100 dark:bg-gray-900/30 text-slate-800 dark:text-white border-gray-200 dark:border-gray-700'
                                 }`}
                               >
-                                <div className="flex items-center mb-2">
+                                {/* Message Header */}
+                                <div className="flex items-center justify-between mb-3">
+                                  <div className="flex items-center space-x-2 space-x-reverse">
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                      message.sender === 'user'
+                                        ? 'bg-green-200 dark:bg-green-800 text-green-800 dark:text-green-200'
+                                        : message.sender === 'admin'
+                                        ? 'bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200'
+                                        : 'bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-gray-200'
+                                    }`}>
+                                      {message.sender === 'user' ? '👤 العميل' : 
+                                       message.sender === 'admin' ? '🛡️ المدير' : '🤖 البوت'}
+                                    </span>
+                                  </div>
                                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                                    {message.sender === 'user' ? 'العميل' : message.sender === 'admin' ? 'المدير' : 'البوت'}
-                                  </span>
-                                  <span className="text-xs text-slate-400 dark:text-slate-500 mr-2">
-                                    {new Date(message.created_at).toLocaleTimeString('ar-SA')}
+                                    {new Date(message.created_at).toLocaleDateString('ar-SA', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}
                                   </span>
                                 </div>
-                                <p className="text-sm">{message.content}</p>
+                                
+                                {/* Message Content */}
+                                <div className="text-sm leading-relaxed">
+                                  {message.content.split('\n').map((line: string, index: number) => (
+                                    <p key={index} className="mb-1 last:mb-0">
+                                      {line}
+                                    </p>
+                                  ))}
+                                </div>
+                                
+                                {/* Message Footer */}
+                                <div className="mt-3 pt-2 border-t border-white/20 dark:border-white/10">
+                                  <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                                    <span>ID: {message.id.substring(0, 8)}</span>
+                                    <span>الجلسة: {message.session_id.substring(0, 8)}</span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           ))}
