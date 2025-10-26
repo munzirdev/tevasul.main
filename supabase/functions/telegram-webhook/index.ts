@@ -60,9 +60,40 @@ serve(async (req) => {
       .eq('id', 2)
       .single()
 
-    if (configError || !config?.is_enabled || !config?.bot_token || !config?.admin_chat_id) {
+    if (configError || !config?.is_enabled || !config?.bot_token) {
       return new Response(
         JSON.stringify({ error: 'Telegram not configured' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Get all active allowed users with telegram_chat_id
+    const { data: allowedUsers, error: usersError } = await supabase
+      .from('telegram_allowed_users')
+      .select('telegram_chat_id, full_name')
+      .eq('is_active', true)
+      .not('telegram_chat_id', 'is', null)
+
+    // Create list of chat IDs to send to
+    const chatIds: string[] = []
+    
+    // إضافة admin_chat_id إذا كان موجوداً
+    if (config.admin_chat_id) {
+      chatIds.push(config.admin_chat_id)
+    }
+    
+    // إضافة chat IDs للمستخدمين المصرح لهم
+    if (allowedUsers && !usersError) {
+      allowedUsers.forEach(user => {
+        if (user.telegram_chat_id && !chatIds.includes(user.telegram_chat_id)) {
+          chatIds.push(user.telegram_chat_id)
+        }
+      })
+    }
+
+    if (chatIds.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'No recipients configured' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -85,42 +116,57 @@ const messageData = {
     
     const formattedMessage = formatNotificationMessage(messageData);
 
-    // Send main message with interactive buttons
-    const messageResponse = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: config.admin_chat_id,
-        text: formattedMessage,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [
-              { 
-                text: language === 'ar' ? 'عرض الطلب' : 'View Request', 
-                callback_data: `view_request:${requestId || sessionId}` 
-              },
-              { 
-                text: language === 'ar' ? 'التواصل مع العميل' : 'Contact User', 
-                callback_data: `contact_user:${requestId || sessionId}` 
-              }
-            ],
-            [
-              { 
-                text: language === 'ar' ? 'تم التعامل معه' : 'Mark Resolved', 
-                callback_data: `mark_resolved:${requestId || sessionId}` 
-              }
-            ]
-          ]
-        }
-      })
+    // إرسال الرسالة لجميع المستخدمين المصرح لهم
+    const sendPromises = chatIds.map(async (chatId) => {
+      try {
+        const response = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: formattedMessage,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { 
+                    text: language === 'ar' ? 'عرض الطلب' : 'View Request', 
+                    callback_data: `view_request:${requestId || sessionId}` 
+                  },
+                  { 
+                    text: language === 'ar' ? 'التواصل مع العميل' : 'Contact User', 
+                    callback_data: `contact_user:${requestId || sessionId}` 
+                  }
+                ],
+                [
+                  { 
+                    text: language === 'ar' ? 'تم التعامل معه' : 'Mark Resolved', 
+                    callback_data: `mark_resolved:${requestId || sessionId}` 
+                  }
+                ]
+              ]
+            }
+          })
+        })
+        
+        const result = await response.json()
+        return { chatId, success: result.ok, error: result.ok ? null : result.description }
+      } catch (error) {
+        return { chatId, success: false, error: error.message }
+      }
     })
 
-    const messageResult = await messageResponse.json()
+    const results = await Promise.all(sendPromises)
+    const successCount = results.filter(r => r.success).length
+    const failedResults = results.filter(r => !r.success)
     
-    if (!messageResult.ok) {
+    // إذا فشلت جميع المحاولات
+    if (successCount === 0) {
       return new Response(
-        JSON.stringify({ error: 'Failed to send Telegram message' }),
+        JSON.stringify({ 
+          error: 'Failed to send to all recipients',
+          details: failedResults 
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
@@ -218,23 +264,27 @@ const messageData = {
             blob = fileData;
           }
 
-          // Create FormData for file upload
-          const formData = new FormData()
-          formData.append('chat_id', config.admin_chat_id)
-          formData.append('document', blob, fileName)
-          formData.append('caption', language === 'ar' ? '📎 ملف مرفق مع الطلب' : '📎 File attached with request')
+          // إرسال الملف لجميع المستخدمين
+          const filePromises = chatIds.map(async (chatId) => {
+            try {
+              const formData = new FormData()
+              formData.append('chat_id', chatId)
+              formData.append('document', blob, fileName)
+              formData.append('caption', language === 'ar' ? '📎 ملف مرفق مع الطلب' : '📎 File attached with request')
 
-          // Send file to Telegram
-          const fileResponse = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendDocument`, {
-            method: 'POST',
-            body: formData
+              const fileResponse = await fetch(`https://api.telegram.org/bot${config.bot_token}/sendDocument`, {
+                method: 'POST',
+                body: formData
+              })
+
+              const fileResult = await fileResponse.json()
+              return { chatId, success: fileResult.ok }
+            } catch (error) {
+              return { chatId, success: false }
+            }
           })
 
-          const fileResult = await fileResponse.json()
-          
-          if (!fileResult.ok) {
-            // Failed to send file
-          }
+          await Promise.all(filePromises)
         }
       } catch (fileError) {
         // Error processing file
@@ -244,7 +294,10 @@ const messageData = {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: language === 'ar' ? 'تم إرسال الإشعار بنجاح' : 'Notification sent successfully'
+        message: language === 'ar' ? 'تم إرسال الإشعار بنجاح' : 'Notification sent successfully',
+        sentTo: successCount,
+        totalRecipients: chatIds.length,
+        failed: failedResults.length > 0 ? failedResults : undefined
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )

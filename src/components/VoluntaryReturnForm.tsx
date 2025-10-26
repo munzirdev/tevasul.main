@@ -321,11 +321,6 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
       return;
     }
     
-    // Auto-save form before printing
-    if (user) {
-      await saveFormToDatabase();
-    }
-    
     openPrintWindow(output);
   };
 
@@ -336,11 +331,6 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
       return;
     }
     
-    // Auto-save form before printing
-    if (user) {
-      await saveFormToDatabase();
-    }
-    
     openPrintWindow(turkishContent.outerHTML);
   };
 
@@ -349,11 +339,6 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
     if (!arabicContent) {
       alert(language === 'ar' ? 'الرجاء إنشاء الطلب أولاً' : 'Lütfen önce formu oluşturun');
       return;
-    }
-    
-    // Auto-save form before printing
-    if (user) {
-      await saveFormToDatabase();
     }
     
     openPrintWindow(arabicContent.outerHTML);
@@ -586,17 +571,17 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
               <select
                 value={formData.sinirKapisi}
                 onChange={(e) => setFormData({...formData, sinirKapisi: e.target.value})}
-                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white shadow-inner"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white shadow-inner [&>option]:bg-slate-800 [&>option]:text-white [&>option]:dark:bg-jet-900 [&>option]:dark:text-white"
                 required
               >
-                <option value="">اختر المعبر</option>
-                <option value="yayladağı">YAYLADAĞI / كسب</option>
-                <option value="cilvegözü">CİLVEGÖZÜ / باب الهوى</option>
-                <option value="öncüpınar">ÖNCÜPINAR / باب السلامة</option>
-                <option value="istanbul havalimanı">İSTANBUL HAVALİMANI / مطار اسطنبول</option>
-                <option value="çobanbey">ÇOBANBEY / الراعي</option>
-                <option value="zeytindalı">ZEYTİNDALI / غصن الزيتون</option>
-                <option value="karakamış">KARAKAMIŞ / جرابلس</option>
+                <option value="" className="bg-slate-800 text-white dark:bg-jet-900">اختر المعبر</option>
+                <option value="yayladağı" className="bg-slate-800 text-white dark:bg-jet-900">YAYLADAĞI / كسب</option>
+                <option value="cilvegözü" className="bg-slate-800 text-white dark:bg-jet-900">CİLVEGÖZÜ / باب الهوى</option>
+                <option value="öncüpınar" className="bg-slate-800 text-white dark:bg-jet-900">ÖNCÜPINAR / باب السلامة</option>
+                <option value="istanbul havalimanı" className="bg-slate-800 text-white dark:bg-jet-900">İSTANBUL HAVALİMANI / مطار اسطنبول</option>
+                <option value="çobanbey" className="bg-slate-800 text-white dark:bg-jet-900">ÇOBANBEY / الراعي</option>
+                <option value="zeytindalı" className="bg-slate-800 text-white dark:bg-jet-900">ZEYTİNDALI / غصن الزيتون</option>
+                <option value="karakamış" className="bg-slate-800 text-white dark:bg-jet-900">KARAKAMIŞ / جرابلس</option>
               </select>
             </div>
           </div>
@@ -624,10 +609,10 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                   setFormData({...formData, changeDate: e.target.value});
                   setShowDatePicker(e.target.value === 'yes');
                 }}
-                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white shadow-inner"
+                className="w-full px-4 py-3 border border-white/30 dark:border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-caribbean-400/50 focus:border-caribbean-400/50 transition-all duration-300 bg-white/10 dark:bg-white/5 backdrop-blur-sm text-white shadow-inner [&>option]:bg-slate-800 [&>option]:text-white [&>option]:dark:bg-jet-900 [&>option]:dark:text-white"
               >
-                <option value="no">لا</option>
-                <option value="yes">نعم</option>
+                <option value="no" className="bg-slate-800 text-white dark:bg-jet-900">لا</option>
+                <option value="yes" className="bg-slate-800 text-white dark:bg-jet-900">نعم</option>
               </select>
             </div>
           </div>

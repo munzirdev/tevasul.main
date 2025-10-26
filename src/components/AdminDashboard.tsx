@@ -60,7 +60,7 @@ import VoluntaryReturnChart from './VoluntaryReturnChart';
 import ModeratorManagement from './ModeratorManagement';
 import HealthInsuranceManagement from './HealthInsuranceManagement';
 import TinyMCEEditor from './TinyMCEEditor';
-import TelegramNotifications from './TelegramNotifications';
+import TelegramUsersManagement from './TelegramUsersManagement';
 
 import WebhookSettings from './WebhookSettings';
 import { formatDisplayDate } from '../lib/utils';
@@ -180,7 +180,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-notifications'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-users'>('requests');
   const [voluntaryReturnView, setVoluntaryReturnView] = useState<'list' | 'create' | 'chart'>('list');
   const [healthInsuranceView, setHealthInsuranceView] = useState<'list' | 'create'>('list');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
@@ -519,7 +519,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   }, [location.pathname, location.search, formParam, viewParam]);
 
   // Navigation functions for permalinks
-  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-notifications') => {
+  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-users') => {
     setActiveTab(tab);
     // Stay on the same page, just change the active tab
     // No need to navigate to different URLs since everything is in one component
@@ -2189,6 +2189,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 {activeTab === 'ready-forms' && 'نماذج جاهزة'}
                 {activeTab === 'moderators' && (profile?.role === 'admin' ? 'إدارة المشرفين' : 'الوصول مرفوض')}
                 {activeTab === 'chat-messages' && 'المحادثات'}
+                {activeTab === 'telegram-users' && 'مستخدمي التلغرام'}
+                {activeTab === 'health-insurance' && 'التأمين الصحي'}
+                {activeTab === 'webhooks' && 'الـ Webhooks'}
               </span>
             </>
           )}
@@ -2203,129 +2206,313 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
           )}
         </div>
 
-        {/* Enhanced Glass Morphism Tabs */}
-        <div className={`${isDarkMode ? 'glass-card-dark' : 'glass-card'} rounded-2xl shadow-xl mb-8 overflow-hidden border border-white/20 dark:border-white/10`}>
-          <div className="flex border-b border-white/20 dark:border-white/10 overflow-x-auto bg-gradient-to-r from-white/10 via-transparent to-white/10 dark:from-white/5 dark:via-transparent dark:to-white/5">
-            <button
-              onClick={() => navigateToTab('requests')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'requests'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <FileText className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">طلبات ({requests.length})</span>
+        {/* Glass Morphism Navigation Cards */}
+        <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 md:gap-3 mb-8">
+          {/* طلبات Card */}
+          <button
+            onClick={() => navigateToTab('requests')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'requests'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'requests'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'requests'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    طلبات ({requests.length})
+                  </h3>
+                </div>
               </div>
-            </button>
-            <button
-              onClick={() => navigateToTab('support')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'support'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <Mail className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">دعم ({supportMessages.length})</span>
-              </div>
-            </button>
-            <button
-              onClick={() => navigateToTab('faqs')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'faqs'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <HelpCircle className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">أسئلة ({faqs.length})</span>
-              </div>
-            </button>
-            <button
-              onClick={() => navigateToTab('ready-forms')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'ready-forms'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <Globe className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">نماذج جاهزة</span>
-              </div>
-            </button>
-            <button
-              onClick={() => navigateToTab('moderators')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'moderators'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <Shield className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">المشرفين</span>
-              </div>
-            </button>
-            <button
-              onClick={() => navigateToTab('chat-messages')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'chat-messages'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <MessageCircle className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">المحادثات</span>
-              </div>
-            </button>
+            </div>
+            {activeTab === 'requests' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
 
-            <button
-              onClick={() => navigateToTab('telegram-notifications')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'telegram-notifications'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <Bot className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">إشعارات التلغرام</span>
+          {/* دعم Card */}
+          <button
+            onClick={() => navigateToTab('support')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'support'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'support'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'support'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    دعم ({supportMessages.length})
+                  </h3>
+                </div>
               </div>
-            </button>
+            </div>
+            {activeTab === 'support' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
 
-            <button
-              onClick={() => navigateToTab('health-insurance')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'health-insurance'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <Heart className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">التأمين الصحي</span>
+          {/* أسئلة Card */}
+          <button
+            onClick={() => navigateToTab('faqs')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'faqs'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'faqs'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <HelpCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'faqs'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    أسئلة ({faqs.length})
+                  </h3>
+                </div>
               </div>
-            </button>
-            <button
-              onClick={() => navigateToTab('webhooks')}
-              className={`px-4 md:px-6 py-4 md:py-5 font-semibold transition-all duration-300 whitespace-nowrap flex-shrink-0 relative ${
-                activeTab === 'webhooks'
-                  ? 'text-blue-600 dark:text-blue-400 bg-white/20 dark:bg-white/10 border-b-2 border-blue-500 dark:border-blue-400'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white/10 dark:hover:bg-white/5'
-              }`}
-            >
-              <div className="flex items-center">
-                <Zap className="w-5 h-5 md:w-6 md:h-6 ml-2 md:ml-3" />
-                <span className="text-sm md:text-base font-medium">الـ Webhooks</span>
+            </div>
+            {activeTab === 'faqs' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
+
+          {/* نماذج جاهزة Card */}
+          <button
+            onClick={() => navigateToTab('ready-forms')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'ready-forms'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'ready-forms'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'ready-forms'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    نماذج جاهزة
+                  </h3>
+                </div>
               </div>
-            </button>
-          </div>
+            </div>
+            {activeTab === 'ready-forms' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
+
+          {/* المشرفين Card */}
+          <button
+            onClick={() => navigateToTab('moderators')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'moderators'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'moderators'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <Shield className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'moderators'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    المشرفين
+                  </h3>
+                </div>
+              </div>
+            </div>
+            {activeTab === 'moderators' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
+
+          {/* المحادثات Card */}
+          <button
+            onClick={() => navigateToTab('chat-messages')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'chat-messages'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'chat-messages'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <MessageCircle className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'chat-messages'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    المحادثات
+                  </h3>
+                </div>
+              </div>
+            </div>
+            {activeTab === 'chat-messages' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
+
+          {/* مستخدمي التلغرام Card */}
+          <button
+            onClick={() => navigateToTab('telegram-users')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'telegram-users'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'telegram-users'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <UserPlus className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'telegram-users'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    مستخدمي التلغرام
+                  </h3>
+                </div>
+              </div>
+            </div>
+            {activeTab === 'telegram-users' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
+
+          {/* التأمين الصحي Card */}
+          <button
+            onClick={() => navigateToTab('health-insurance')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'health-insurance'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'health-insurance'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <Heart className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'health-insurance'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    التأمين الصحي
+                  </h3>
+                </div>
+              </div>
+            </div>
+            {activeTab === 'health-insurance' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
+
+          {/* الـ Webhooks Card */}
+          <button
+            onClick={() => navigateToTab('webhooks')}
+            className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+              activeTab === 'webhooks'
+                ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+            }`}
+          >
+            <div className="p-2 md:p-3">
+              <div className="flex flex-col items-center text-center space-y-2">
+                <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                  activeTab === 'webhooks'
+                    ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                    : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                }`}>
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                    activeTab === 'webhooks'
+                      ? 'text-blue-700 dark:text-blue-300'
+                      : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                  }`}>
+                    الـ Webhooks
+                  </h3>
+                </div>
+              </div>
+            </div>
+            {activeTab === 'webhooks' && (
+              <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+            )}
+          </button>
         </div>
 
         {/* Service Requests Tab */}
@@ -2850,10 +3037,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
           </div>
         )}
 
-        {/* Telegram Notifications Tab */}
-        {activeTab === 'telegram-notifications' && (
+        {/* Telegram Users Management Tab */}
+        {activeTab === 'telegram-users' && (
           <div className="space-y-6">
-            <TelegramNotifications />
+            <TelegramUsersManagement isDarkMode={isDarkMode} />
           </div>
         )}
 
@@ -3431,49 +3618,118 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
             {/* Voluntary Return Form Content */}
             {selectedForm === 'voluntary-return' && (
               <>
-                {/* Voluntary Return Navigation Tabs */}
-                <div className="bg-white dark:bg-jet-800 rounded-xl shadow-sm border border-platinum-200 dark:border-jet-700 mb-8">
-                  <div className="flex border-b border-platinum-200 dark:border-jet-700 overflow-x-auto">
-                    <button
-                      onClick={() => navigateToVoluntaryReturnView('list')}
-                      className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                        voluntaryReturnView === 'list'
-                          ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                          : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <FileText className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                        <span className="text-sm md:text-base">قائمة النماذج المنشأة</span>
+                {/* Voluntary Return Glass Navigation Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-8">
+                  {/* قائمة النماذج المنشأة Glass Card */}
+                  <button
+                    onClick={() => navigateToVoluntaryReturnView('list')}
+                    className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+                      voluntaryReturnView === 'list'
+                        ? 'bg-gradient-to-br from-caribbean-500/30 to-teal-500/20 dark:from-caribbean-400/20 dark:to-teal-400/10 border-caribbean-400/50 dark:border-caribbean-300/30 shadow-caribbean-500/25'
+                        : 'hover:border-caribbean-300/30 dark:hover:border-caribbean-400/20'
+                    }`}
+                  >
+                    <div className="p-4">
+                      <div className="flex flex-col items-center text-center space-y-3">
+                        <div className={`p-3 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                          voluntaryReturnView === 'list'
+                            ? 'bg-caribbean-500/20 dark:bg-caribbean-400/20 text-caribbean-600 dark:text-caribbean-400 shadow-lg shadow-caribbean-500/25'
+                            : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-caribbean-500/20 dark:group-hover:bg-caribbean-400/20 group-hover:text-caribbean-600 dark:group-hover:text-caribbean-400'
+                        }`}>
+                          <FileText className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-semibold transition-colors duration-300 ${
+                            voluntaryReturnView === 'list'
+                              ? 'text-caribbean-700 dark:text-caribbean-300'
+                              : 'text-slate-700 dark:text-slate-300 group-hover:text-caribbean-700 dark:group-hover:text-caribbean-300'
+                          }`}>
+                            قائمة النماذج المنشأة
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            عرض وإدارة جميع النماذج المقدمة
+                          </p>
+                        </div>
                       </div>
-                    </button>
-                    <button
-                      onClick={() => navigateToVoluntaryReturnView('create')}
-                      className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                        voluntaryReturnView === 'create'
-                          ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                          : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <Plus className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                        <span className="text-sm md:text-base">إنشاء نموذج عريضة جديد</span>
+                    </div>
+                    {voluntaryReturnView === 'list' && (
+                      <div className="absolute top-4 left-4 w-3 h-3 bg-caribbean-500 dark:bg-caribbean-400 rounded-full animate-pulse shadow-lg shadow-caribbean-500/50"></div>
+                    )}
+                  </button>
+
+                  {/* إنشاء نموذج عريضة جديد Glass Card */}
+                  <button
+                    onClick={() => navigateToVoluntaryReturnView('create')}
+                    className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+                      voluntaryReturnView === 'create'
+                        ? 'bg-gradient-to-br from-caribbean-500/30 to-teal-500/20 dark:from-caribbean-400/20 dark:to-teal-400/10 border-caribbean-400/50 dark:border-caribbean-300/30 shadow-caribbean-500/25'
+                        : 'hover:border-caribbean-300/30 dark:hover:border-caribbean-400/20'
+                    }`}
+                  >
+                    <div className="p-4">
+                      <div className="flex flex-col items-center text-center space-y-3">
+                        <div className={`p-3 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                          voluntaryReturnView === 'create'
+                            ? 'bg-caribbean-500/20 dark:bg-caribbean-400/20 text-caribbean-600 dark:text-caribbean-400 shadow-lg shadow-caribbean-500/25'
+                            : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-caribbean-500/20 dark:group-hover:bg-caribbean-400/20 group-hover:text-caribbean-600 dark:group-hover:text-caribbean-400'
+                        }`}>
+                          <Plus className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-semibold transition-colors duration-300 ${
+                            voluntaryReturnView === 'create'
+                              ? 'text-caribbean-700 dark:text-caribbean-300'
+                              : 'text-slate-700 dark:text-slate-300 group-hover:text-caribbean-700 dark:group-hover:text-caribbean-300'
+                          }`}>
+                            إنشاء نموذج عريضة جديد
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            إضافة نموذج عريضة جديد للموقع
+                          </p>
+                        </div>
                       </div>
-                    </button>
-                    <button
-                      onClick={() => navigateToVoluntaryReturnView('chart')}
-                      className={`px-3 md:px-6 py-3 md:py-4 font-medium transition-colors duration-200 whitespace-nowrap flex-shrink-0 ${
-                        voluntaryReturnView === 'chart'
-                          ? 'text-caribbean-600 dark:text-caribbean-400 border-b-2 border-caribbean-600 dark:border-caribbean-400'
-                          : 'text-jet-600 dark:text-platinum-400 hover:text-caribbean-600 dark:hover:text-caribbean-400'
-                      }`}
-                    >
-                      <div className="flex items-center">
-                        <BarChart3 className="w-4 h-4 md:w-5 md:h-5 ml-1 md:ml-2" />
-                        <span className="text-sm md:text-base">الإحصائيات</span>
+                    </div>
+                    {voluntaryReturnView === 'create' && (
+                      <div className="absolute top-4 left-4 w-3 h-3 bg-caribbean-500 dark:bg-caribbean-400 rounded-full animate-pulse shadow-lg shadow-caribbean-500/50"></div>
+                    )}
+                  </button>
+
+                  {/* الإحصائيات Glass Card */}
+                  <button
+                    onClick={() => navigateToVoluntaryReturnView('chart')}
+                    className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+                      voluntaryReturnView === 'chart'
+                        ? 'bg-gradient-to-br from-caribbean-500/30 to-teal-500/20 dark:from-caribbean-400/20 dark:to-teal-400/10 border-caribbean-400/50 dark:border-caribbean-300/30 shadow-caribbean-500/25'
+                        : 'hover:border-caribbean-300/30 dark:hover:border-caribbean-400/20'
+                    }`}
+                  >
+                    <div className="p-4">
+                      <div className="flex flex-col items-center text-center space-y-3">
+                        <div className={`p-3 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                          voluntaryReturnView === 'chart'
+                            ? 'bg-caribbean-500/20 dark:bg-caribbean-400/20 text-caribbean-600 dark:text-caribbean-400 shadow-lg shadow-caribbean-500/25'
+                            : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-caribbean-500/20 dark:group-hover:bg-caribbean-400/20 group-hover:text-caribbean-600 dark:group-hover:text-caribbean-400'
+                        }`}>
+                          <BarChart3 className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-semibold transition-colors duration-300 ${
+                            voluntaryReturnView === 'chart'
+                              ? 'text-caribbean-700 dark:text-caribbean-300'
+                              : 'text-slate-700 dark:text-slate-300 group-hover:text-caribbean-700 dark:group-hover:text-caribbean-300'
+                          }`}>
+                            الإحصائيات
+                          </h3>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            عرض إحصائيات وتقارير مفصلة
+                          </p>
+                        </div>
                       </div>
-                    </button>
-                  </div>
+                    </div>
+                    {voluntaryReturnView === 'chart' && (
+                      <div className="absolute top-4 left-4 w-3 h-3 bg-caribbean-500 dark:bg-caribbean-400 rounded-full animate-pulse shadow-lg shadow-caribbean-500/50"></div>
+                    )}
+                  </button>
                 </div>
 
                 {/* Voluntary Return Content */}

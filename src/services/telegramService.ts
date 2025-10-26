@@ -308,9 +308,16 @@ class TelegramService {
   // دالة عامة لإرسال إشعارات لجميع أنواع الطلبات
   async sendRequestNotification(requestData: RequestData): Promise<boolean> {
     try {
-      // استخدام Supabase Edge Function بدلاً من السيرفر
-      const { data, error } = await supabase.functions.invoke('telegram-webhook', {
-        body: {
+      // استخدام fetch مباشرة بدلاً من supabase.functions.invoke
+      // لأن edge function الآن بدون JWT verification
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/telegram-webhook`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           sessionId: requestData.sessionId,
           message: requestData.description || '',
           language: 'ar',
@@ -319,15 +326,19 @@ class TelegramService {
           userInfo: requestData.userInfo,
           additionalData: requestData.additionalData,
           requestId: requestData.requestId
-        }
+        })
       });
 
-      if (error) {
+      if (!response.ok) {
+        console.error('Telegram webhook error:', await response.text());
         return false;
       }
 
+      const data = await response.json();
+      console.log('Telegram notification sent:', data);
       return true;
     } catch (error) {
+      console.error('Error sending telegram notification:', error);
       return false;
     }
   }
