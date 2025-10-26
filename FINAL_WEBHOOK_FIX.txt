@@ -1,0 +1,10 @@
+Run this command in PowerShell:
+
+$botToken = '8498029918:AAGPbTv2z3HEE82gQxWZpXddwCGRsbf0r0c'
+Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/deleteWebhook?drop_pending_updates=true"
+Start-Sleep -Seconds 2
+Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/setWebhook?url=https://fctvityawavmuethxxix.supabase.co/functions/v1/telegram-bot-updates"
+Start-Sleep -Seconds 1
+Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/getWebhookInfo"
+
+Then press the button in Telegram and check the logs.

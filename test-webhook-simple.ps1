@@ -1,0 +1,16 @@
+$botToken = '8498029918:AAGPbTv2z3HEE82gQxWZpXddwCGRsbf0r0c'
+
+Write-Host "Testing bot token..."
+$result = Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/getMe"
+Write-Host "Bot username: $($result.result.username)"
+Write-Host "Bot name: $($result.result.first_name)"
+Write-Host ""
+Write-Host "Getting webhook info..."
+$webhook = Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/getWebhookInfo"
+Write-Host "Webhook URL: $($webhook.url)"
+Write-Host "Pending updates: $($webhook.pending_update_count)"
+Write-Host ""
+Write-Host "Setting webhook..."
+$setResult = Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/setWebhook?url=https://fctvityawavmuethxxix.supabase.co/functions/v1/telegram-bot-updates"
+Write-Host "Result: $($setResult.description)"
+Write-Host "OK: $($setResult.ok)"

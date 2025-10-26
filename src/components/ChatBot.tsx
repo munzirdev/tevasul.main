@@ -40,6 +40,10 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSessionClaimed, setIsSessionClaimed] = useState(false);
   const [showServiceButtons, setShowServiceButtons] = useState(true);
+  const [supportRequested, setSupportRequested] = useState(false);
+  const [showSupportForm, setShowSupportForm] = useState(false);
+  const [supportFormData, setSupportFormData] = useState({ name: '', email: '', phone: '' });
+  const notificationSentRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -134,12 +138,43 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
     };
   }, [sessionId]);
 
-  // Periodic check for new messages (fallback)
+  // Periodic check for new messages and session status (fallback)
   useEffect(() => {
     if (!sessionId) return;
 
     const interval = setInterval(async () => {
       try {
+                    // Check for active telegram chat session
+            const { data: activeSession } = await supabase
+              .from('telegram_chat_sessions')
+              .select('*')
+              .eq('session_id', sessionId)
+              .eq('status', 'active')
+              .limit(1)
+              .maybeSingle();
+            
+            const wasClaimed = !!activeSession;
+            const previouslyClaimed = isSessionClaimed;
+            
+            // If session is newly claimed, show notification only once
+            if (!previouslyClaimed && wasClaimed && !notificationSentRef.current) {
+              notificationSentRef.current = true;
+              const notificationMsg = addMessage(
+                language === 'ar' 
+                  ? '✅ تم استلام المحادثة من قبل ممثل خدمة العملاء. يمكنك الآن التحدث مباشرة معه.'
+                  : '✅ Chat has been claimed by a customer service representative. You can now chat directly with them.',
+                'bot'
+              );
+              try {
+                await saveMessageToDatabase(notificationMsg);
+              } catch (error) {
+                console.error('Error saving claim notification:', error);
+              }
+            }
+            
+            setIsSessionClaimed(wasClaimed);
+
+        // Check for new messages
         const { data: newMessages, error } = await supabase
           .from('chat_messages')
           .select('*')
@@ -168,13 +203,6 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
               }));
 
             if (messagesToAdd.length > 0) {
-              // Check for claim messages
-              messagesToAdd.forEach(msg => {
-                if (msg.sender === 'admin' && msg.content.includes('تم استلام المحادثة')) {
-                  setIsSessionClaimed(true);
-                }
-              });
-              
               return [...prev, ...messagesToAdd];
             }
             
@@ -218,13 +246,31 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
         }));
         
         setMessages(formattedMessages);
-        // Check if session is claimed by admin
-        const isClaimed = messages.some(msg => 
-          msg.sender === 'admin' && 
-          msg.content.includes('تم استلام المحادثة')
-        );
         
-        setIsSessionClaimed(isClaimed);
+        // Check if there's an active telegram chat session for this session
+        const { data: activeSession } = await supabase
+          .from('telegram_chat_sessions')
+          .select('*')
+          .eq('session_id', sessionId)
+          .eq('status', 'active')
+          .limit(1)
+          .maybeSingle();
+        
+        setIsSessionClaimed(!!activeSession);
+        
+        // Check if support was requested
+        const supportMessage = messages.find(msg => 
+          msg.content.includes('طلب التحدث مع ممثل') || 
+          msg.content.includes('Request to speak with a real')
+        );
+        setSupportRequested(!!supportMessage);
+        
+        // Check if notification was already sent in this session
+        const hasNotification = messages.find(msg => 
+          msg.content.includes('تم استلام المحادثة من قبل ممثل') ||
+          msg.content.includes('Chat has been claimed by a customer service representative')
+        );
+        notificationSentRef.current = !!hasNotification;
       }
     } catch (error) {
       console.error('Error loading conversation history:', error);
@@ -832,13 +878,31 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
     }
   };
 
-  const requestHumanSupport = async () => {
-    if (isLoading) {
+  const requestHumanSupport = () => {
+    if (isLoading || supportRequested || isSessionClaimed) {
+      return;
+    }
+    setShowSupportForm(true);
+  };
+
+  const handleSupportFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!supportFormData.name.trim()) {
+      alert(language === 'ar' ? 'الرجاء إدخال اسمك' : 'Please enter your name');
+      return;
+    }
+    
+    if (!supportFormData.email.trim() && !supportFormData.phone.trim()) {
+      alert(language === 'ar' ? 'الرجاء إدخال بريدك الإلكتروني أو رقم هاتفك' : 'Please enter your email or phone');
       return;
     }
     
     setIsLoading(true);
     setIsTyping(true);
+    setSupportRequested(true);
+    setShowSupportForm(false);
+    
     try {
       const supportMessage = addMessage(
         language === 'ar' 
@@ -858,9 +922,9 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
         await webhookService.sendChatSupportWebhook({
           session_id: sessionId,
           user_info: {
-            name: user?.user_metadata?.full_name || 'مستخدم',
-            email: user?.email || 'غير محدد',
-            phone: user?.user_metadata?.phone || 'غير محدد'
+            name: supportFormData.name || user?.user_metadata?.full_name || 'مستخدم',
+            email: supportFormData.email || user?.email || 'غير محدد',
+            phone: supportFormData.phone || user?.user_metadata?.phone || 'غير محدد'
           },
           last_message: supportMessage.content,
           last_message_time: new Date().toISOString(),
@@ -1184,16 +1248,93 @@ const ChatBot: React.FC<ChatBotProps> = ({ isOpen, onToggle, isMinimized, onTogg
               </button>
             </div>
             
+            {/* Support Form Modal */}
+            {showSupportForm && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white dark:bg-jet-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                    {language === 'ar' ? 'بيانات التواصل' : 'Contact Information'}
+                  </h3>
+                  <form onSubmit={handleSupportFormSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                        {language === 'ar' ? 'الاسم' : 'Name'} <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={supportFormData.name}
+                        onChange={(e) => setSupportFormData({ ...supportFormData, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 dark:bg-jet-700 dark:text-white text-sm"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                        {language === 'ar' ? 'البريد الإلكتروني' : 'Email'} <span className="text-gray-400">({language === 'ar' ? 'اختياري' : 'optional'})</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={supportFormData.email}
+                        onChange={(e) => setSupportFormData({ ...supportFormData, email: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 dark:bg-jet-700 dark:text-white text-sm"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                        {language === 'ar' ? 'رقم الهاتف' : 'Phone'} <span className="text-gray-400">({language === 'ar' ? 'اختياري' : 'optional'})</span>
+                      </label>
+                      <input
+                        type="tel"
+                        value={supportFormData.phone}
+                        onChange={(e) => setSupportFormData({ ...supportFormData, phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-jet-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-caribbean-500 dark:bg-jet-700 dark:text-white text-sm"
+                      />
+                    </div>
+                    
+                    <div className="flex gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowSupportForm(false)}
+                        className="flex-1 px-4 py-2 bg-gray-200 dark:bg-jet-600 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-jet-500 transition-colors text-sm"
+                      >
+                        {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                      </button>
+                      <button
+                        type="submit"
+                        className="flex-1 px-4 py-2 bg-caribbean-600 hover:bg-caribbean-700 text-white rounded-lg transition-colors text-sm"
+                      >
+                        {language === 'ar' ? 'إرسال الطلب' : 'Send Request'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+            
             {/* Support Button */}
             <button
               onClick={requestHumanSupport}
-              disabled={false}
-              className="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-white py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center space-x-2 space-x-reverse"
+              disabled={supportRequested || isSessionClaimed}
+              className={`w-full mt-2 py-2 px-4 rounded-lg text-sm transition-colors flex items-center justify-center space-x-2 space-x-reverse ${
+                supportRequested || isSessionClaimed
+                  ? isSessionClaimed
+                    ? 'bg-green-500 cursor-not-allowed'
+                    : 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white'
+              }`}
               onMouseEnter={() => {}}
             >
               <Phone size={16} />
               <span>
-                {language === 'ar' ? 'طلب ممثل خدمة العملاء' : 'Talk to Real Representative'}
+                {supportRequested || isSessionClaimed
+                  ? isSessionClaimed
+                    ? (language === 'ar' ? '✅ تم استلام المحادثة - ممثل يتحدث' : '✅ Chat Claimed - Representative Online')
+                    : (language === 'ar' ? 'تم الطلب - جاري الانتظار' : 'Requested - Waiting')
+                  : (language === 'ar' ? 'طلب ممثل خدمة العملاء' : 'Talk to Real Representative')
+                }
               </span>
             </button>
           </div>

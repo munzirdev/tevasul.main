@@ -308,6 +308,12 @@ class TelegramService {
   // دالة عامة لإرسال إشعارات لجميع أنواع الطلبات
   async sendRequestNotification(requestData: RequestData): Promise<boolean> {
     try {
+      console.log('Sending telegram notification:', {
+        type: requestData.type,
+        sessionId: requestData.sessionId,
+        hasUserInfo: !!requestData.userInfo
+      });
+
       // استخدام fetch مباشرة بدلاً من supabase.functions.invoke
       // لأن edge function الآن بدون JWT verification
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;

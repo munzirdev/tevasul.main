@@ -15,15 +15,20 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
   
-  // Allow requests without authorization (for webhook calls)
-  // We'll validate based on the request content instead
-  
   // Log the request for debugging
   console.log('Webhook request received:', {
     method: req.method,
     url: req.url,
     headers: Object.fromEntries(req.headers.entries())
   });
+  
+  // Check if authorization header is present but allow requests without it
+  const authHeader = req.headers.get('authorization');
+  if (authHeader) {
+    console.log('Authorization header present:', authHeader.substring(0, 20) + '...');
+  } else {
+    console.log('No authorization header - allowing request');
+  }
   
   // Basic rate limiting check (you can implement more sophisticated rate limiting)
   if (req.method !== 'POST') {
@@ -40,6 +45,18 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Parse request body
+    let requestBody;
+    try {
+      requestBody = await req.json();
+    } catch (parseError) {
+      console.error('Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
     const { 
       sessionId, 
       message, 
@@ -49,16 +66,15 @@ serve(async (req) => {
       userInfo,
       additionalData,
       requestId
-    } = await req.json()
+    } = requestBody;
 
-    // Log request details (remove sensitive info)
-    const logData = { 
-      sessionId: sessionId ? 'present' : 'missing', 
-      requestType, 
+    console.log('Parsed request data:', {
+      sessionId: sessionId ? 'present' : 'missing',
+      requestType,
       hasFile: !!filePath,
       userInfo: userInfo ? 'present' : 'missing',
       additionalData: additionalData ? 'present' : 'missing'
-    }
+    });
 
     // Get Telegram configuration
     const { data: config, error: configError } = await supabase
