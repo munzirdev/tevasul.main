@@ -17,22 +17,7 @@ export const voluntaryReturnService = {
         return { data: null, error: { message: 'يجب تسجيل الدخول لحفظ النموذج' } };
       }
 
-      // التحقق من صلاحيات المستخدم
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (profileError) {
-        console.error('❌ خطأ في جلب بيانات المستخدم:', profileError);
-        return { data: null, error: { message: 'خطأ في جلب بيانات المستخدم', details: profileError } };
-      }
-      
-      // التحقق من أن المستخدم يمكنه إنشاء النماذج (اختياري)
-      if (!profile?.role) {
-        console.log('User role not found, proceeding anyway');
-      }
+      // التحقق من صلاحيات المستخدم (اختياري)
 
       // التحقق من صحة البيانات
       if (!formData.full_name_tr || !formData.full_name_ar || !formData.kimlik_no || !formData.sinir_kapisi) {
@@ -101,22 +86,7 @@ export const voluntaryReturnService = {
         return { data: null, error: { message: 'يجب تسجيل الدخول' } };
       }
       
-      // التحقق من صلاحيات المستخدم
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (profileError) {
-        console.error('❌ خطأ في جلب بيانات المستخدم:', profileError);
-        return { data: null, error: { message: 'خطأ في جلب بيانات المستخدم', details: profileError } };
-      }
-      
-      // التحقق من أن المستخدم admin (اختياري - يمكن إزالته إذا كان هناك مشاكل في الصلاحيات)
-      if (profile?.role !== 'admin') {
-        console.log('Non-admin user accessing admin function');
-      }
+      // التحقق من صلاحيات المستخدم (اختياري)
       
       const { data, error } = await supabase
         .from('voluntary_return_forms')
@@ -151,22 +121,7 @@ export const voluntaryReturnService = {
         return { data: null, error: { message: 'يجب تسجيل الدخول' } };
       }
       
-      // التحقق من صلاحيات المستخدم
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (profileError) {
-        console.error('❌ خطأ في جلب بيانات المستخدم:', profileError);
-        return { data: null, error: { message: 'خطأ في جلب بيانات المستخدم', details: profileError } };
-      }
-      
-      // التحقق من أن المستخدم يمكنه الوصول إلى نماذجه (اختياري)
-      if (!profile?.role) {
-        console.log('User role not found, proceeding anyway');
-      }
+      // التحقق من صلاحيات المستخدم (اختياري)
       
       const { data, error } = await supabase
         .from('voluntary_return_forms')
@@ -215,7 +170,9 @@ export const voluntaryReturnService = {
       }
       
       // التحقق من أن المستخدم يمكنه الوصول إلى النموذج
-      if (!profile?.role) {
+      const userRole = profile?.role || 'user';
+      
+      if (!userRole) {
         console.error('❌ المستخدم ليس لديه دور محدد');
         return { data: null, error: { message: 'المستخدم ليس لديه دور محدد' } };
       }
@@ -267,9 +224,7 @@ export const voluntaryReturnService = {
       }
       
       // التحقق من أن المستخدم يمكنه تحديث النماذج (اختياري)
-      if (!profile?.role) {
-        console.log('User role not found, proceeding anyway');
-      }
+      const userRole = profile?.role || 'user';
       
       // التحقق من أن النموذج موجود وأن المستخدم يمكنه تحديثه
       const { data: existingForm, error: fetchError } = await supabase
@@ -284,7 +239,7 @@ export const voluntaryReturnService = {
       }
       
       // التحقق من أن المستخدم يمكنه تحديث هذا النموذج
-      if (profile?.role !== 'admin' && existingForm?.user_id !== user.id) {
+      if (userRole !== 'admin' && userRole !== 'moderator' && existingForm?.user_id !== user.id) {
         console.error('❌ المستخدم لا يمكنه تحديث هذا النموذج');
         return { data: null, error: { message: 'لا يمكنك تحديث هذا النموذج' } };
       }
@@ -319,7 +274,6 @@ export const voluntaryReturnService = {
   // Delete a form
   async deleteForm(id: string): Promise<{ error: any }> {
     try {
-      // التحقق من المستخدم الحالي
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
       if (authError) {
@@ -332,7 +286,6 @@ export const voluntaryReturnService = {
         return { error: { message: 'يجب تسجيل الدخول' } };
       }
       
-      // التحقق من صلاحيات المستخدم
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -344,43 +297,53 @@ export const voluntaryReturnService = {
         return { error: { message: 'خطأ في جلب بيانات المستخدم', details: profileError } };
       }
       
-      // التحقق من أن المستخدم يمكنه حذف النماذج
-      if (!profile?.role) {
-        console.error('❌ المستخدم ليس لديه دور محدد');
-        return { error: { message: 'المستخدم ليس لديه دور محدد' } };
+      // إذا لم يكن هناك دور محدد، نعتبر المستخدم عادي
+      const userRole = profile?.role || 'user';
+      
+      // Admin أو Moderator يمكنه حذف أي نموذج
+      if (userRole === 'admin' || userRole === 'moderator') {
+        const { error: deleteError } = await supabase
+          .from('voluntary_return_forms')
+          .delete()
+          .eq('id', id);
+
+        if (deleteError) {
+          console.error('❌ فشل حذف النموذج:', deleteError);
+          return { error: { message: 'فشل حذف النموذج', details: deleteError } };
+        }
+        
+        return { error: null };
       }
       
-      // التحقق من أن النموذج موجود وأن المستخدم يمكنه حذفه
-      const { data: existingForm, error: fetchError } = await supabase
+      // المستخدم العادي يمكنه حذف نماذجه فقط
+      const { data: formData, error: fetchError } = await supabase
         .from('voluntary_return_forms')
         .select('user_id')
         .eq('id', id)
         .single();
       
       if (fetchError) {
-        console.error('❌ خطأ في جلب النموذج:', fetchError);
-        return { error: fetchError };
+        console.error('❌ خطأ في جلب بيانات النموذج:', fetchError);
+        return { error: { message: 'النموذج غير موجود', details: fetchError } };
       }
       
-      // التحقق من أن المستخدم يمكنه حذف هذا النموذج
-      if (profile?.role !== 'admin' && existingForm?.user_id !== user.id) {
+      if (!formData?.user_id || formData?.user_id !== user.id) {
         console.error('❌ المستخدم لا يمكنه حذف هذا النموذج');
         return { error: { message: 'لا يمكنك حذف هذا النموذج' } };
       }
       
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('voluntary_return_forms')
         .delete()
         .eq('id', id);
 
-      if (error) {
-        console.error('❌ خطأ في حذف النموذج:', error);
-        return { error };
+      if (deleteError) {
+        console.error('❌ فشل حذف النموذج:', deleteError);
+        return { error: { message: 'فشل حذف النموذج', details: deleteError } };
       }
       
       return { error: null };
     } catch (error) {
-      console.error('💥 خطأ غير متوقع في حذف النموذج:', error);
       return { error: { message: 'خطأ غير متوقع في حذف النموذج', details: error } };
     }
   }
