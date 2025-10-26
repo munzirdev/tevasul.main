@@ -22,13 +22,22 @@ serve(async (req) => {
     headers: Object.fromEntries(req.headers.entries())
   });
   
-  // Check if authorization header is present but allow requests without it
+  // Check authorization header
   const authHeader = req.headers.get('authorization');
-  if (authHeader) {
-    console.log('Authorization header present:', authHeader.substring(0, 20) + '...');
-  } else {
-    console.log('No authorization header - allowing request');
+  const apikey = req.headers.get('apikey');
+  
+  if (!authHeader && !apikey) {
+    console.log('No authorization provided - rejecting request');
+    return new Response(
+      JSON.stringify({ error: 'Missing authorization header' }),
+      { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
+  
+  console.log('Authorization provided:', {
+    hasAuth: !!authHeader,
+    hasApikey: !!apikey
+  });
   
   // Basic rate limiting check (you can implement more sophisticated rate limiting)
   if (req.method !== 'POST') {
@@ -323,7 +332,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Webhook error:', error);
-    return new Response(
+  return new Response(
       JSON.stringify({ 
         error: 'Internal server error',
         details: error.message 

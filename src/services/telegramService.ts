@@ -321,7 +321,9 @@ class TelegramService {
       const response = await fetch(`${supabaseUrl}/functions/v1/telegram-notifications`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
         },
         body: JSON.stringify({
           sessionId: requestData.sessionId,
