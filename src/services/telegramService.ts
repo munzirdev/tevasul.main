@@ -318,7 +318,7 @@ class TelegramService {
       // لأن edge function الآن بدون JWT verification
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
-      const response = await fetch(`${supabaseUrl}/functions/v1/telegram-webhook`, {
+      const response = await fetch(`${supabaseUrl}/functions/v1/telegram-notifications`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
