@@ -315,7 +315,7 @@ class TelegramService {
       const response = await fetch(`${supabaseUrl}/functions/v1/telegram-webhook`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           sessionId: requestData.sessionId,

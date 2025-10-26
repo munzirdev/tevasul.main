@@ -1,10 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+// Allow both production and local development
 const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://tevasul.group',
+  'Access-Control-Allow-Origin': '*', // Allow all origins for development and webhooks
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
   'Access-Control-Max-Age': '86400',
 }
 
@@ -13,10 +14,16 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
-
-  // Rate limiting (simple implementation)
-  const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown'
-  const rateLimitKey = `rate_limit_${clientIP}`
+  
+  // Allow requests without authorization (for webhook calls)
+  // We'll validate based on the request content instead
+  
+  // Log the request for debugging
+  console.log('Webhook request received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  });
   
   // Basic rate limiting check (you can implement more sophisticated rate limiting)
   if (req.method !== 'POST') {
@@ -130,18 +137,14 @@ const messageData = {
               inline_keyboard: [
                 [
                   { 
-                    text: language === 'ar' ? 'عرض الطلب' : 'View Request', 
-                    callback_data: `view_request:${requestId || sessionId}` 
-                  },
-                  { 
-                    text: language === 'ar' ? 'التواصل مع العميل' : 'Contact User', 
-                    callback_data: `contact_user:${requestId || sessionId}` 
+                    text: language === 'ar' ? '💬 الرد على العميل' : '💬 Reply to Customer', 
+                    callback_data: `start_chat:${sessionId}` 
                   }
                 ],
                 [
                   { 
-                    text: language === 'ar' ? 'تم التعامل معه' : 'Mark Resolved', 
-                    callback_data: `mark_resolved:${requestId || sessionId}` 
+                    text: language === 'ar' ? '🌐 عرض في لوحة التحكم' : '🌐 View in Dashboard', 
+                    url: `https://tevasul.group/admin`
                   }
                 ]
               ]
@@ -303,8 +306,12 @@ const messageData = {
     )
 
   } catch (error) {
+    console.error('Webhook error:', error);
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message 
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
