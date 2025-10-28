@@ -499,21 +499,31 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   // Handle invoice form submission
   const handleInvoiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Invoice form submitted with data:', invoiceForm);
     setLoading(true);
     
     try {
       if (editingInvoice) {
+        console.log('Updating existing invoice:', editingInvoice.id);
         await InvoiceService.updateInvoice(editingInvoice.id, invoiceForm);
+        console.log('Invoice updated successfully');
       } else {
+        console.log('Creating new invoice');
         await InvoiceService.createInvoice(invoiceForm);
+        console.log('Invoice created successfully');
       }
       
+      console.log('Reloading invoices...');
       await loadInvoices();
+      console.log('Invoices reloaded');
+      
       setShowInvoiceForm(false);
       setEditingInvoice(null);
       resetInvoiceForm();
+      console.log('Invoice form closed and reset');
     } catch (error) {
       console.error('Error saving invoice:', error);
+      alert('حدث خطأ في حفظ الفاتورة: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -521,25 +531,31 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
   // Reset invoice form
   const resetInvoiceForm = () => {
-    setInvoiceForm({
-      client_name: '',
-      client_email: '',
-      client_phone: '',
-      client_address: '',
-      issue_date: InvoiceService.getCurrentDate(),
-      due_date: InvoiceService.getDefaultDueDate(),
-      tax_rate: 18,
-      notes_ar: '',
-      notes_en: '',
-      notes_tr: '',
-      items: [{
-        description_ar: '',
-        description_en: '',
-        description_tr: '',
-        quantity: 1,
-        unit_price: 0
-      }]
-    });
+    console.log('Resetting invoice form');
+    try {
+      setInvoiceForm({
+        client_name: '',
+        client_email: '',
+        client_phone: '',
+        client_address: '',
+        issue_date: InvoiceService.getCurrentDate(),
+        due_date: InvoiceService.getDefaultDueDate(),
+        tax_rate: 18,
+        notes_ar: '',
+        notes_en: '',
+        notes_tr: '',
+        items: [{
+          description_ar: '',
+          description_en: '',
+          description_tr: '',
+          quantity: 1,
+          unit_price: 0
+        }]
+      });
+      console.log('Invoice form reset successfully');
+    } catch (error) {
+      console.error('Error resetting invoice form:', error);
+    }
   };
 
   // Add invoice item
@@ -1715,15 +1731,36 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-4">
               <button
-                onClick={() => {
-                  resetInvoiceForm();
-                  setShowInvoiceForm(true);
-                  setEditingInvoice(null);
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Create invoice button clicked');
+                  try {
+                    resetInvoiceForm();
+                    setShowInvoiceForm(true);
+                    setEditingInvoice(null);
+                    console.log('Invoice form should be visible now');
+                  } catch (error) {
+                    console.error('Error opening invoice form:', error);
+                  }
                 }}
-                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                type="button"
               >
                 <Plus className="w-4 h-4 mr-2 inline" />
                 إنشاء فاتورة
+              </button>
+
+              {/* Test button for debugging */}
+              <button
+                onClick={() => {
+                  console.log('Test button clicked - showInvoiceForm:', showInvoiceForm);
+                  setShowInvoiceForm(!showInvoiceForm);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                type="button"
+              >
+                اختبار النافذة
               </button>
 
               <div className="flex items-center gap-2">
@@ -1889,7 +1926,17 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
           {/* Invoice Form Modal */}
           {showInvoiceForm && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" 
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setShowInvoiceForm(false);
+                  setEditingInvoice(null);
+                  resetInvoiceForm();
+                }
+              }}
+              style={{ zIndex: 9999 }}
+            >
               <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                   <div className="flex items-center justify-between mb-6">

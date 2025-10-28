@@ -20,6 +20,8 @@ export class InvoiceService {
 
   // Get all invoices
   static async getInvoices(): Promise<Invoice[]> {
+    console.log('Loading invoices...');
+    
     const { data, error } = await supabase
       .from('invoices')
       .select(`
@@ -28,7 +30,12 @@ export class InvoiceService {
       `)
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error loading invoices:', error);
+      throw error;
+    }
+    
+    console.log('Invoices loaded successfully:', data);
     return data || [];
   }
 
@@ -82,12 +89,17 @@ export class InvoiceService {
 
   // Create new invoice
   static async createInvoice(invoiceData: CreateInvoiceData): Promise<Invoice> {
+    console.log('Creating invoice with data:', invoiceData);
+    
     const invoiceNumber = this.generateInvoiceNumber();
+    console.log('Generated invoice number:', invoiceNumber);
     
     // Calculate totals
     const subtotal = invoiceData.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
     const taxAmount = subtotal * (invoiceData.tax_rate / 100);
     const totalAmount = subtotal + taxAmount;
+
+    console.log('Calculated totals:', { subtotal, taxAmount, totalAmount });
 
     // Create invoice
     const { data: invoice, error: invoiceError } = await supabase
@@ -112,7 +124,12 @@ export class InvoiceService {
       .select()
       .single();
 
-    if (invoiceError) throw invoiceError;
+    if (invoiceError) {
+      console.error('Error creating invoice:', invoiceError);
+      throw invoiceError;
+    }
+
+    console.log('Invoice created successfully:', invoice);
 
     // Create invoice items
     const itemsToInsert = invoiceData.items.map(item => ({
@@ -125,14 +142,23 @@ export class InvoiceService {
       total_price: item.quantity * item.unit_price
     }));
 
+    console.log('Creating invoice items:', itemsToInsert);
+
     const { error: itemsError } = await supabase
       .from('invoice_items')
       .insert(itemsToInsert);
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      console.error('Error creating invoice items:', itemsError);
+      throw itemsError;
+    }
+
+    console.log('Invoice items created successfully');
 
     // Return complete invoice with items
-    return await this.getInvoiceById(invoice.id) as Invoice;
+    const completeInvoice = await this.getInvoiceById(invoice.id);
+    console.log('Complete invoice:', completeInvoice);
+    return completeInvoice as Invoice;
   }
 
   // Update invoice
