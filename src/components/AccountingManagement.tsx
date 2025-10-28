@@ -603,6 +603,9 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       }
     }
   };
+
+  // Calculate dashboard statistics
+  const calculateDashboardStats = async () => {
     try {
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth() + 1;
