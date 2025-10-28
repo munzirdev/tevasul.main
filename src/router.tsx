@@ -108,6 +108,10 @@ export const router = createBrowserRouter([
         element: <Outlet />
       },
       {
+        path: 'admin/accounting',
+        element: <Outlet />
+      },
+      {
         path: 'auth/verify-email',
         element: <EmailVerification isDarkMode={false} />
       },

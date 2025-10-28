@@ -49,6 +49,7 @@ import {
   MessageCircle,
   RefreshCw,
   Bot,
+  Calculator,
 
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -61,6 +62,7 @@ import ModeratorManagement from './ModeratorManagement';
 import HealthInsuranceManagement from './HealthInsuranceManagement';
 import TinyMCEEditor from './TinyMCEEditor';
 import TelegramUsersManagement from './TelegramUsersManagement';
+import AccountingManagement from './AccountingManagement';
 
 import WebhookSettings from './WebhookSettings';
 import { formatDisplayDate } from '../lib/utils';
@@ -180,7 +182,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [showSkeleton, setShowSkeleton] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-users'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-users' | 'accounting'>('requests');
   const [voluntaryReturnView, setVoluntaryReturnView] = useState<'list' | 'create' | 'chart'>('list');
   const [healthInsuranceView, setHealthInsuranceView] = useState<'list' | 'create'>('list');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');
@@ -519,7 +521,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   }, [location.pathname, location.search, formParam, viewParam]);
 
   // Navigation functions for permalinks
-  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-users') => {
+  const navigateToTab = (tab: 'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-users' | 'accounting') => {
     setActiveTab(tab);
     // Stay on the same page, just change the active tab
     // No need to navigate to different URLs since everything is in one component
@@ -2210,6 +2212,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
                 {activeTab === 'moderators' && (profile?.role === 'admin' ? 'إدارة المشرفين' : 'الوصول مرفوض')}
                 {activeTab === 'chat-messages' && 'المحادثات'}
                 {activeTab === 'telegram-users' && 'مستخدمي التلغرام'}
+                {activeTab === 'accounting' && profile?.role === 'admin' && 'المحاسبة'}
                 {activeTab === 'health-insurance' && 'التأمين الصحي'}
                 {activeTab === 'webhooks' && 'الـ Webhooks'}
               </span>
@@ -2465,6 +2468,42 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
               <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
             )}
           </button>
+
+          {/* المحاسبة Card - Admin Only */}
+          {profile?.role === 'admin' && (
+            <button
+              onClick={() => navigateToTab('accounting')}
+              className={`group relative backdrop-blur-xl bg-white/10 dark:bg-white/5 rounded-2xl shadow-2xl border border-white/20 dark:border-white/10 transition-all duration-500 hover:shadow-3xl hover:scale-105 hover:bg-white/20 dark:hover:bg-white/10 ${
+                activeTab === 'accounting'
+                  ? 'bg-gradient-to-br from-blue-500/30 to-cyan-500/20 dark:from-blue-400/20 dark:to-cyan-400/10 border-blue-400/50 dark:border-blue-300/30 shadow-blue-500/25'
+                  : 'hover:border-blue-300/30 dark:hover:border-blue-400/20'
+              }`}
+            >
+              <div className="p-2 md:p-3">
+                <div className="flex flex-col items-center text-center space-y-2">
+                  <div className={`p-2 rounded-full backdrop-blur-sm transition-all duration-300 ${
+                    activeTab === 'accounting'
+                      ? 'bg-blue-500/20 dark:bg-blue-400/20 text-blue-600 dark:text-blue-400 shadow-lg shadow-blue-500/25'
+                      : 'bg-white/20 dark:bg-white/10 text-slate-600 dark:text-slate-400 group-hover:bg-blue-500/20 dark:group-hover:bg-blue-400/20 group-hover:text-blue-600 dark:group-hover:text-blue-400'
+                  }`}>
+                    <Calculator className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className={`text-xs font-semibold transition-colors duration-300 ${
+                      activeTab === 'accounting'
+                        ? 'text-blue-700 dark:text-blue-300'
+                        : 'text-slate-700 dark:text-slate-300 group-hover:text-blue-700 dark:group-hover:text-blue-300'
+                    }`}>
+                      المحاسبة
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              {activeTab === 'accounting' && (
+                <div className="absolute top-2 right-2 w-2 h-2 bg-blue-500 dark:bg-blue-400 rounded-full animate-pulse shadow-lg shadow-blue-500/50"></div>
+              )}
+            </button>
+          )}
 
           {/* التأمين الصحي Card */}
           <button
@@ -3061,6 +3100,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
         {activeTab === 'telegram-users' && (
           <div className="space-y-6">
             <TelegramUsersManagement isDarkMode={isDarkMode} />
+          </div>
+        )}
+
+        {/* Accounting Management Tab - Admin Only */}
+        {activeTab === 'accounting' && profile?.role === 'admin' && (
+          <div className="space-y-6">
+            <AccountingManagement isDarkMode={isDarkMode} />
           </div>
         )}
 

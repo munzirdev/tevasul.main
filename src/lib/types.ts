@@ -50,3 +50,68 @@ export interface Moderator {
   updated_at: string;
   is_active: boolean;
 }
+
+// Accounting System Types
+export interface AccountingCategory {
+  id: string;
+  name_ar: string;
+  name_en: string;
+  name_tr: string;
+  type: 'income' | 'expense';
+  description_ar?: string;
+  description_en?: string;
+  description_tr?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountingTransaction {
+  id: string;
+  category_id?: string;
+  category?: AccountingCategory;
+  type: 'income' | 'expense';
+  amount: number;
+  description_ar?: string;
+  description_en?: string;
+  description_tr?: string;
+  transaction_date: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DailyCashSummary {
+  id: string;
+  summary_date: string;
+  opening_balance: number;
+  total_income: number;
+  total_expense: number;
+  closing_balance: number;
+  notes_ar?: string;
+  notes_en?: string;
+  notes_tr?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAccountingTransactionData {
+  category_id?: string;
+  type: 'income' | 'expense';
+  amount: number;
+  description_ar?: string;
+  description_en?: string;
+  description_tr?: string;
+  transaction_date: string;
+}
+
+export interface CreateAccountingCategoryData {
+  name_ar: string;
+  name_en: string;
+  name_tr: string;
+  type: 'income' | 'expense';
+  description_ar?: string;
+  description_en?: string;
+  description_tr?: string;
+}
