@@ -1,4 +1,4 @@
--- Simple Invoice Tables Creation
+-- Ultra Simple Invoice Tables Creation
 -- Run this script in your Supabase SQL editor
 
 -- 1. Create invoices table
@@ -67,9 +67,5 @@ CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_invoices_issue_date ON invoices(issue_date);
 CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
 
--- 6. Test the tables
-DO $$
-BEGIN
-    RAISE NOTICE 'Invoice tables created successfully!';
-    RAISE NOTICE 'You can now use the invoice system.';
-END $$;
+-- 6. Success message
+SELECT 'Invoice tables created successfully! You can now use the invoice system.' as message;

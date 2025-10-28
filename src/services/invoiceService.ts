@@ -126,6 +126,12 @@ export class InvoiceService {
 
     if (invoiceError) {
       console.error('Error creating invoice:', invoiceError);
+      console.error('Error details:', {
+        code: invoiceError.code,
+        message: invoiceError.message,
+        details: invoiceError.details,
+        hint: invoiceError.hint
+      });
       throw invoiceError;
     }
 
@@ -150,6 +156,12 @@ export class InvoiceService {
 
     if (itemsError) {
       console.error('Error creating invoice items:', itemsError);
+      console.error('Items error details:', {
+        code: itemsError.code,
+        message: itemsError.message,
+        details: itemsError.details,
+        hint: itemsError.hint
+      });
       throw itemsError;
     }
 
@@ -234,19 +246,45 @@ export class InvoiceService {
 
   // Delete invoice
   static async deleteInvoice(id: string): Promise<void> {
-    // Delete items first
-    await supabase
-      .from('invoice_items')
-      .delete()
-      .eq('invoice_id', id);
+    console.log('InvoiceService: Deleting invoice with ID:', id);
+    
+    try {
+      // Delete items first
+      console.log('InvoiceService: Deleting invoice items...');
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .delete()
+        .eq('invoice_id', id);
 
-    // Delete invoice
-    const { error } = await supabase
-      .from('invoices')
-      .delete()
-      .eq('id', id);
+      if (itemsError) {
+        console.error('InvoiceService: Error deleting invoice items:', itemsError);
+        throw itemsError;
+      }
 
-    if (error) throw error;
+      console.log('InvoiceService: Invoice items deleted successfully');
+
+      // Delete invoice
+      console.log('InvoiceService: Deleting invoice...');
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', id);
+
+      if (invoiceError) {
+        console.error('InvoiceService: Error deleting invoice:', invoiceError);
+        throw invoiceError;
+      }
+
+      console.log('InvoiceService: Invoice deleted successfully');
+    } catch (error) {
+      console.error('InvoiceService: Complete error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
+      throw error;
+    }
   }
 
   // Get invoice statistics

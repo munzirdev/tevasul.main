@@ -122,16 +122,16 @@ CREATE TRIGGER trigger_update_invoice_totals
 CREATE OR REPLACE FUNCTION generate_invoice_number()
 RETURNS VARCHAR(50) AS $$
 DECLARE
-    invoice_number VARCHAR(50);
+    generated_number VARCHAR(50);
     counter INTEGER := 1;
 BEGIN
     LOOP
         -- Generate invoice number with current date and counter
-        invoice_number := 'INV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || LPAD(counter::TEXT, 3, '0');
+        generated_number := 'INV-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || LPAD(counter::TEXT, 3, '0');
         
         -- Check if this number already exists
-        IF NOT EXISTS (SELECT 1 FROM invoices WHERE invoice_number = invoice_number) THEN
-            RETURN invoice_number;
+        IF NOT EXISTS (SELECT 1 FROM invoices WHERE invoices.invoice_number = generated_number) THEN
+            RETURN generated_number;
         END IF;
         
         counter := counter + 1;

@@ -114,6 +114,7 @@ import {
   MessageCircle,
   Send,
   Inbox,
+  Printer,
   Outbox,
   Archive as ArchiveIcon,
   Trash,
@@ -610,14 +611,307 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
   // Delete invoice
   const deleteInvoice = async (invoiceId: string) => {
-    if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
+    console.log('Attempting to delete invoice:', invoiceId);
+    
+    if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟ هذا الإجراء لا يمكن التراجع عنه.')) {
       try {
+        console.log('User confirmed deletion, proceeding...');
         await InvoiceService.deleteInvoice(invoiceId);
+        console.log('Invoice deleted successfully, reloading invoices...');
         await loadInvoices();
+        alert('تم حذف الفاتورة بنجاح');
       } catch (error) {
         console.error('Error deleting invoice:', error);
+        console.error('Error details:', {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint
+        });
+        alert(`حدث خطأ في حذف الفاتورة: ${error.message || 'خطأ غير معروف'}`);
       }
+    } else {
+      console.log('User cancelled deletion');
     }
+  };
+
+  // Print invoice
+  const printInvoice = (invoice: Invoice) => {
+    console.log('Printing invoice:', invoice);
+    
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+      alert('لا يمكن فتح نافذة الطباعة. تأكد من السماح بالنوافذ المنبثقة.');
+      return;
+    }
+
+    // Generate HTML content for the invoice
+    const invoiceHTML = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>فاتورة ${invoice.invoice_number}</title>
+        <style>
+          body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: #333;
+            direction: rtl;
+          }
+          .invoice-container {
+            max-width: 800px;
+            margin: 0 auto;
+            border: 2px solid #333;
+            padding: 30px;
+            background: white;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+          }
+          .invoice-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 20px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            margin: -30px -30px 30px -30px;
+            padding: 30px;
+          }
+          .company-logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+          }
+          .invoice-title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+          }
+          .invoice-number {
+            font-size: 18px;
+            color: #666;
+          }
+          .invoice-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+          }
+          .company-info, .client-info {
+            flex: 1;
+            min-width: 300px;
+            margin-bottom: 20px;
+          }
+          .info-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+          }
+          .info-item {
+            margin-bottom: 5px;
+            font-size: 14px;
+          }
+          .invoice-items {
+            margin-bottom: 30px;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          .items-table th,
+          .items-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: right;
+          }
+          .items-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            color: #2c3e50;
+          }
+          .items-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+          }
+          .invoice-totals {
+            text-align: left;
+            margin-top: 20px;
+          }
+          .totals-table {
+            width: 300px;
+            margin-left: auto;
+            border-collapse: collapse;
+          }
+          .totals-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #ddd;
+          }
+          .totals-table .total-row {
+            font-weight: bold;
+            font-size: 16px;
+            background-color: #f8f9fa;
+            border-top: 2px solid #333;
+          }
+          .invoice-footer {
+            margin-top: 40px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            color: #666;
+            font-size: 12px;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+          .status-draft { background-color: #f8f9fa; color: #6c757d; }
+          .status-sent { background-color: #d1ecf1; color: #0c5460; }
+          .status-paid { background-color: #d4edda; color: #155724; }
+          .status-overdue { background-color: #f8d7da; color: #721c24; }
+          .status-cancelled { background-color: #f5c6cb; color: #721c24; }
+          @media print {
+            body { margin: 0; padding: 0; }
+            .invoice-container { border: none; padding: 0; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="invoice-container">
+          <div class="invoice-header">
+            <img src="/logo-fınal.png" alt="مجموعة تواصل" class="company-logo" />
+            <div class="invoice-title">فاتورة</div>
+            <div class="invoice-number">رقم الفاتورة: ${invoice.invoice_number}</div>
+            <div class="status-badge status-${invoice.status}">
+              ${invoice.status === 'paid' ? 'مدفوعة' :
+                invoice.status === 'sent' ? 'مرسلة' :
+                invoice.status === 'overdue' ? 'متأخرة' :
+                invoice.status === 'draft' ? 'مسودة' :
+                'ملغاة'}
+            </div>
+          </div>
+
+          <div class="invoice-info">
+            <div class="company-info">
+              <div class="info-title">معلومات الشركة</div>
+              <div class="info-item">اسم الشركة: مجموعة تواصل</div>
+              <div class="info-item">الاسم الإنجليزي: Tevasul Group</div>
+              <div class="info-item">العنوان: CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin</div>
+              <div class="info-item">الهاتف: +90 534 962 72 41</div>
+              <div class="info-item">البريد الإلكتروني: info@tevasul.group</div>
+              <div class="info-item">الموقع الإلكتروني: https://tevasul.group</div>
+            </div>
+
+            <div class="client-info">
+              <div class="info-title">معلومات العميل</div>
+              <div class="info-item">الاسم: ${invoice.client_name}</div>
+              ${invoice.client_email ? `<div class="info-item">البريد الإلكتروني: ${invoice.client_email}</div>` : ''}
+              ${invoice.client_phone ? `<div class="info-item">الهاتف: ${invoice.client_phone}</div>` : ''}
+              ${invoice.client_address ? `<div class="info-item">العنوان: ${invoice.client_address}</div>` : ''}
+            </div>
+          </div>
+
+          <div class="invoice-info">
+            <div class="company-info">
+              <div class="info-title">تفاصيل الفاتورة</div>
+              <div class="info-item">تاريخ الإصدار: ${InvoiceService.formatDate(invoice.issue_date)}</div>
+              <div class="info-item">تاريخ الاستحقاق: ${InvoiceService.formatDate(invoice.due_date)}</div>
+            </div>
+          </div>
+
+          <div class="invoice-items">
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>الوصف</th>
+                  <th>الكمية</th>
+                  <th>سعر الوحدة</th>
+                  <th>المجموع</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${invoice.items.map(item => `
+                  <tr>
+                    <td>${item.description_ar}</td>
+                    <td>${item.quantity}</td>
+                    <td>${InvoiceService.formatCurrency(item.unit_price)}</td>
+                    <td>${InvoiceService.formatCurrency(item.total_price)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="invoice-totals">
+            <table class="totals-table">
+              <tr>
+                <td>المجموع الفرعي:</td>
+                <td>${InvoiceService.formatCurrency(invoice.subtotal)}</td>
+              </tr>
+              <tr>
+                <td>الضريبة (${invoice.tax_rate}%):</td>
+                <td>${InvoiceService.formatCurrency(invoice.tax_amount)}</td>
+              </tr>
+              <tr class="total-row">
+                <td>المجموع الكلي:</td>
+                <td>${InvoiceService.formatCurrency(invoice.total_amount)}</td>
+              </tr>
+            </table>
+          </div>
+
+          ${invoice.notes_ar ? `
+            <div style="margin-top: 30px;">
+              <div class="info-title">ملاحظات</div>
+              <div style="padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
+                ${invoice.notes_ar}
+              </div>
+            </div>
+          ` : ''}
+
+          <div class="invoice-footer">
+            <p>شكراً لاختياركم خدماتنا</p>
+            <p>تم إنشاء هذه الفاتورة في: ${InvoiceService.formatDate(invoice.created_at)}</p>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
+              <p style="font-size: 11px; color: #888;">
+                مجموعة تواصل - Tevasul Group<br>
+                شريكك الموثوق لإنجاز جميع خدماتك في تركيا<br>
+                CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin<br>
+                هاتف: +90 534 962 72 41 | البريد الإلكتروني: info@tevasul.group<br>
+                الموقع الإلكتروني: https://tevasul.group
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <script>
+          // Auto print when page loads
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(invoiceHTML);
+    printWindow.document.close();
   };
 
   // Calculate dashboard statistics
@@ -1910,10 +2204,23 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                           )}
                           
                           <button
-                            onClick={() => deleteInvoice(invoice.id)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              deleteInvoice(invoice.id);
+                            }}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-900/20 rounded p-1 transition-colors"
+                            title="حذف الفاتورة"
                           >
                             <Trash2 className="w-4 h-4" />
+                          </button>
+                          
+                          <button
+                            onClick={() => printInvoice(invoice)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            title="طباعة الفاتورة"
+                          >
+                            <Printer className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -2162,6 +2469,18 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                       >
                         إلغاء
                       </button>
+                      
+                      {editingInvoice && (
+                        <button
+                          type="button"
+                          onClick={() => printInvoice(editingInvoice)}
+                          className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+                        >
+                          <Printer className="w-4 h-4 mr-2 inline" />
+                          طباعة الفاتورة
+                        </button>
+                      )}
+                      
                       <button
                         type="submit"
                         disabled={loading}
