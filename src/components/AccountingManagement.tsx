@@ -1087,7 +1087,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
         {activeTab === 'transactions' && <TransactionsTab />}
         {activeTab === 'categories' && <CategoriesTab />}
         {activeTab === 'reports' && <ReportsTab />}
-        {activeTab === 'budgets' && <BudgetTab />}
+        {activeTab === 'budgets' && <BudgetsTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
         {activeTab === 'settings' && <SettingsTab />}
       </div>
