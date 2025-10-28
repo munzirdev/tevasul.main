@@ -3,49 +3,9 @@ import {
   AccountingCategory, 
   AccountingTransaction, 
   DailyCashSummary, 
-  CreateAccountingTransactionData,
+  CreateAccountingTransactionData, 
   CreateAccountingCategoryData 
 } from '../lib/types';
-
-export interface FinancialReport {
-  period: string;
-  income: number;
-  expense: number;
-  profit: number;
-  growth: number;
-  transactionCount: number;
-}
-
-export interface BudgetItem {
-  id: string;
-  category_id: string;
-  category?: AccountingCategory;
-  amount: number;
-  period: 'monthly' | 'quarterly' | 'yearly';
-  start_date: string;
-  end_date: string;
-  spent: number;
-  remaining: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CashFlowProjection {
-  date: string;
-  projected_income: number;
-  projected_expense: number;
-  projected_balance: number;
-  confidence_level: number;
-}
-
-export interface CategoryAnalysis {
-  category: AccountingCategory;
-  total_amount: number;
-  transaction_count: number;
-  average_amount: number;
-  percentage: number;
-  trend: 'up' | 'down' | 'stable';
-}
 
 export class AccountingService {
   // Categories
@@ -325,6 +285,24 @@ export class AccountingService {
     return new Date().toISOString().split('T')[0];
   }
 
+  static async getTransactionsByMonth(year: number, month: number): Promise<AccountingTransaction[]> {
+    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+    const { data, error } = await supabase
+      .from('accounting_transactions')
+      .select(`
+        *,
+        category:accounting_categories(*)
+      `)
+      .gte('transaction_date', startDate)
+      .lte('transaction_date', endDate)
+      .order('transaction_date', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  }
+
   static getDateRange(period: 'today' | 'week' | 'month' | 'year'): { startDate: string; endDate: string } {
     const today = new Date();
     const startDate = new Date();
@@ -349,262 +327,6 @@ export class AccountingService {
     return {
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0]
-    };
-  }
-
-  // Advanced Analytics
-  static async getCategoryAnalysis(startDate: string, endDate: string): Promise<CategoryAnalysis[]> {
-    const { data: transactions, error } = await supabase
-      .from('accounting_transactions')
-      .select(`
-        *,
-        category:accounting_categories(*)
-      `)
-      .gte('transaction_date', startDate)
-      .lte('transaction_date', endDate);
-
-    if (error) throw error;
-
-    const categoryMap = new Map<string, CategoryAnalysis>();
-    const totalAmount = transactions?.reduce((sum, t) => sum + t.amount, 0) || 0;
-
-    transactions?.forEach(transaction => {
-      const categoryId = transaction.category_id || 'uncategorized';
-      const categoryName = transaction.category?.name_ar || 'غير محدد';
-      
-      if (!categoryMap.has(categoryId)) {
-        categoryMap.set(categoryId, {
-          category: transaction.category || {
-            id: categoryId,
-            name_ar: categoryName,
-            name_en: categoryName,
-            name_tr: categoryName,
-            type: transaction.type,
-            is_active: true,
-            created_at: '',
-            updated_at: ''
-          },
-          total_amount: 0,
-          transaction_count: 0,
-          average_amount: 0,
-          percentage: 0,
-          trend: 'stable'
-        });
-      }
-
-      const analysis = categoryMap.get(categoryId)!;
-      analysis.total_amount += transaction.amount;
-      analysis.transaction_count += 1;
-    });
-
-    // Calculate percentages and averages
-    categoryMap.forEach(analysis => {
-      analysis.percentage = totalAmount > 0 ? (analysis.total_amount / totalAmount) * 100 : 0;
-      analysis.average_amount = analysis.transaction_count > 0 ? analysis.total_amount / analysis.transaction_count : 0;
-    });
-
-    return Array.from(categoryMap.values()).sort((a, b) => b.total_amount - a.total_amount);
-  }
-
-  // Cash Flow Projections
-  static async getCashFlowProjection(days: number = 30): Promise<CashFlowProjection[]> {
-    const projections: CashFlowProjection[] = [];
-    const today = new Date();
-    
-    // Get historical data for trend analysis
-    const startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - 90); // Last 90 days
-    
-    const { data: historicalData, error } = await supabase
-      .from('accounting_transactions')
-      .select('*')
-      .gte('transaction_date', startDate.toISOString().split('T')[0])
-      .lte('transaction_date', today.toISOString().split('T')[0]);
-
-    if (error) throw error;
-
-    // Calculate average daily income and expense
-    const dailyIncome = historicalData?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) / 90 || 0;
-    const dailyExpense = historicalData?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) / 90 || 0;
-    
-    // Get current balance
-    const { data: latestSummary } = await supabase
-      .from('daily_cash_summary')
-      .select('closing_balance')
-      .order('summary_date', { ascending: false })
-      .limit(1)
-      .single();
-
-    let currentBalance = latestSummary?.closing_balance || 0;
-
-    // Generate projections
-    for (let i = 1; i <= days; i++) {
-      const projectionDate = new Date(today);
-      projectionDate.setDate(projectionDate.getDate() + i);
-      
-      // Add some randomness to projections (±20%)
-      const incomeVariation = 0.8 + Math.random() * 0.4;
-      const expenseVariation = 0.8 + Math.random() * 0.4;
-      
-      const projectedIncome = dailyIncome * incomeVariation;
-      const projectedExpense = dailyExpense * expenseVariation;
-      
-      currentBalance += projectedIncome - projectedExpense;
-      
-      projections.push({
-        date: projectionDate.toISOString().split('T')[0],
-        projected_income: projectedIncome,
-        projected_expense: projectedExpense,
-        projected_balance: currentBalance,
-        confidence_level: Math.max(0.3, 1 - (i / days)) // Decreasing confidence over time
-      });
-    }
-
-    return projections;
-  }
-
-  // Monthly Trends
-  static async getMonthlyTrends(months: number = 12): Promise<FinancialReport[]> {
-    const trends: FinancialReport[] = [];
-    const today = new Date();
-    
-    for (let i = months - 1; i >= 0; i--) {
-      const monthStart = new Date(today.getFullYear(), today.getMonth() - i, 1);
-      const monthEnd = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
-      
-      const { data: transactions, error } = await supabase
-        .from('accounting_transactions')
-        .select('*')
-        .gte('transaction_date', monthStart.toISOString().split('T')[0])
-        .lte('transaction_date', monthEnd.toISOString().split('T')[0]);
-
-      if (error) continue;
-
-      const income = transactions?.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) || 0;
-      const expense = transactions?.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0) || 0;
-      const profit = income - expense;
-      const transactionCount = transactions?.length || 0;
-      
-      trends.push({
-        period: monthStart.toLocaleDateString('ar-SA', { month: 'long', year: 'numeric' }),
-        income,
-        expense,
-        profit,
-        growth: 0,
-        transactionCount
-      });
-    }
-
-    // Calculate growth rates
-    for (let i = 1; i < trends.length; i++) {
-      const prevIncome = trends[i - 1].income;
-      const currentIncome = trends[i].income;
-      trends[i].growth = prevIncome > 0 ? ((currentIncome - prevIncome) / prevIncome) * 100 : 0;
-    }
-
-    return trends;
-  }
-
-  // Export Functions
-  static async exportTransactions(startDate: string, endDate: string, format: 'csv' | 'excel' = 'csv'): Promise<string> {
-    const { data: transactions, error } = await supabase
-      .from('accounting_transactions')
-      .select(`
-        *,
-        category:accounting_categories(*)
-      `)
-      .gte('transaction_date', startDate)
-      .lte('transaction_date', endDate)
-      .order('transaction_date', { ascending: false });
-
-    if (error) throw error;
-
-    if (format === 'csv') {
-      const headers = ['التاريخ', 'النوع', 'الفئة', 'المبلغ', 'الوصف'];
-      const rows = transactions?.map(t => [
-        t.transaction_date,
-        t.type === 'income' ? 'وارد' : 'صادر',
-        t.category?.name_ar || 'غير محدد',
-        t.amount,
-        t.description_ar || ''
-      ]) || [];
-
-      const csvContent = [headers, ...rows]
-        .map(row => row.map(field => `"${field}"`).join(','))
-        .join('\n');
-
-      return csvContent;
-    }
-
-    return JSON.stringify(transactions, null, 2);
-  }
-
-  // Dashboard Statistics
-  static async getDashboardStats(): Promise<{
-    totalIncome: number;
-    totalExpense: number;
-    netProfit: number;
-    monthlyIncome: number;
-    monthlyExpense: number;
-    monthlyProfit: number;
-    transactionCount: number;
-    averageTransaction: number;
-    topCategory: string;
-    cashFlow: number;
-  }> {
-    const today = new Date();
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-    const [allTransactions, monthlyTransactions, latestSummary] = await Promise.all([
-      supabase.from('accounting_transactions').select('*'),
-      supabase.from('accounting_transactions')
-        .select('*')
-        .gte('transaction_date', monthStart.toISOString().split('T')[0])
-        .lte('transaction_date', monthEnd.toISOString().split('T')[0]),
-      supabase.from('daily_cash_summary')
-        .select('closing_balance')
-        .order('summary_date', { ascending: false })
-        .limit(1)
-        .single()
-    ]);
-
-    const allData = allTransactions.data || [];
-    const monthlyData = monthlyTransactions.data || [];
-
-    const totalIncome = allData.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const totalExpense = allData.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    const netProfit = totalIncome - totalExpense;
-
-    const monthlyIncome = monthlyData.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const monthlyExpense = monthlyData.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    const monthlyProfit = monthlyIncome - monthlyExpense;
-
-    const transactionCount = allData.length;
-    const averageTransaction = transactionCount > 0 ? (totalIncome + totalExpense) / transactionCount : 0;
-
-    // Find top category
-    const categoryTotals = allData.reduce((acc, t) => {
-      const categoryName = t.category_id || 'uncategorized';
-      acc[categoryName] = (acc[categoryName] || 0) + t.amount;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const topCategory = Object.entries(categoryTotals).reduce((a, b) => 
-      categoryTotals[a[0]] > categoryTotals[b[0]] ? a : b
-    )?.[0] || 'غير محدد';
-
-    return {
-      totalIncome,
-      totalExpense,
-      netProfit,
-      monthlyIncome,
-      monthlyExpense,
-      monthlyProfit,
-      transactionCount,
-      averageTransaction,
-      topCategory,
-      cashFlow: latestSummary.data?.closing_balance || 0
     };
   }
 }
