@@ -350,12 +350,17 @@ import {
   ClinkingCocktailGlasses as ClinkingCocktailGlassesIcon2
 } from 'lucide-react';
 import { AccountingService } from '../services/accountingService';
+import { InvoiceService } from '../services/invoiceService';
 import { 
   AccountingCategory, 
   AccountingTransaction, 
   DailyCashSummary, 
   CreateAccountingTransactionData,
-  CreateAccountingCategoryData 
+  CreateAccountingCategoryData,
+  Invoice,
+  CreateInvoiceData,
+  CreateInvoiceItemData,
+  InvoiceTemplate
 } from '../lib/types';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -395,8 +400,45 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const [showBudgetForm, setShowBudgetForm] = useState(false);
   
   // Invoice states
-  const [invoices, setInvoices] = useState([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [invoiceStats, setInvoiceStats] = useState({
+    total: 0,
+    draft: 0,
+    sent: 0,
+    paid: 0,
+    overdue: 0,
+    cancelled: 0,
+    totalAmount: 0,
+    paidAmount: 0,
+    pendingAmount: 0
+  });
+  
+  // Invoice form states
+  const [invoiceForm, setInvoiceForm] = useState<CreateInvoiceData>({
+    client_name: '',
+    client_email: '',
+    client_phone: '',
+    client_address: '',
+    issue_date: InvoiceService.getCurrentDate(),
+    due_date: InvoiceService.getDefaultDueDate(),
+    tax_rate: 18, // Default Turkish VAT rate
+    notes_ar: '',
+    notes_en: '',
+    notes_tr: '',
+    items: [{
+      description_ar: '',
+      description_en: '',
+      description_tr: '',
+      quantity: 1,
+      unit_price: 0
+    }]
+  });
+  
+  // Invoice filters
+  const [invoiceFilterStatus, setInvoiceFilterStatus] = useState<'all' | Invoice['status']>('all');
+  const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   
   // Payment states
   const [payments, setPayments] = useState([]);
@@ -439,8 +481,128 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     description_tr: ''
   });
 
-  // Calculate dashboard statistics
-  const calculateDashboardStats = async () => {
+  // Load invoice data
+  const loadInvoices = async () => {
+    try {
+      const [invoicesData, statsData] = await Promise.all([
+        InvoiceService.getInvoices(),
+        InvoiceService.getInvoiceStats()
+      ]);
+      
+      setInvoices(invoicesData);
+      setInvoiceStats(statsData);
+    } catch (error) {
+      console.error('Error loading invoices:', error);
+    }
+  };
+
+  // Handle invoice form submission
+  const handleInvoiceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      if (editingInvoice) {
+        await InvoiceService.updateInvoice(editingInvoice.id, invoiceForm);
+      } else {
+        await InvoiceService.createInvoice(invoiceForm);
+      }
+      
+      await loadInvoices();
+      setShowInvoiceForm(false);
+      setEditingInvoice(null);
+      resetInvoiceForm();
+    } catch (error) {
+      console.error('Error saving invoice:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset invoice form
+  const resetInvoiceForm = () => {
+    setInvoiceForm({
+      client_name: '',
+      client_email: '',
+      client_phone: '',
+      client_address: '',
+      issue_date: InvoiceService.getCurrentDate(),
+      due_date: InvoiceService.getDefaultDueDate(),
+      tax_rate: 18,
+      notes_ar: '',
+      notes_en: '',
+      notes_tr: '',
+      items: [{
+        description_ar: '',
+        description_en: '',
+        description_tr: '',
+        quantity: 1,
+        unit_price: 0
+      }]
+    });
+  };
+
+  // Add invoice item
+  const addInvoiceItem = () => {
+    setInvoiceForm({
+      ...invoiceForm,
+      items: [...invoiceForm.items, {
+        description_ar: '',
+        description_en: '',
+        description_tr: '',
+        quantity: 1,
+        unit_price: 0
+      }]
+    });
+  };
+
+  // Remove invoice item
+  const removeInvoiceItem = (index: number) => {
+    if (invoiceForm.items.length > 1) {
+      setInvoiceForm({
+        ...invoiceForm,
+        items: invoiceForm.items.filter((_, i) => i !== index)
+      });
+    }
+  };
+
+  // Update invoice item
+  const updateInvoiceItem = (index: number, field: keyof CreateInvoiceItemData, value: any) => {
+    const updatedItems = [...invoiceForm.items];
+    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    setInvoiceForm({ ...invoiceForm, items: updatedItems });
+  };
+
+  // Calculate invoice totals
+  const calculateInvoiceTotals = () => {
+    const subtotal = invoiceForm.items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const taxAmount = subtotal * (invoiceForm.tax_rate / 100);
+    const totalAmount = subtotal + taxAmount;
+    
+    return { subtotal, taxAmount, totalAmount };
+  };
+
+  // Update invoice status
+  const updateInvoiceStatus = async (invoiceId: string, status: Invoice['status']) => {
+    try {
+      await InvoiceService.updateInvoiceStatus(invoiceId, status);
+      await loadInvoices();
+    } catch (error) {
+      console.error('Error updating invoice status:', error);
+    }
+  };
+
+  // Delete invoice
+  const deleteInvoice = async (invoiceId: string) => {
+    if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
+      try {
+        await InvoiceService.deleteInvoice(invoiceId);
+        await loadInvoices();
+      } catch (error) {
+        console.error('Error deleting invoice:', error);
+      }
+    }
+  };
     try {
       const currentDate = new Date();
       const currentMonth = currentDate.getMonth() + 1;
@@ -486,6 +648,9 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     loadData();
     if (activeTab === 'dashboard') {
       calculateDashboardStats();
+    }
+    if (activeTab === 'invoices') {
+      loadInvoices();
     }
   }, [selectedDate, filterType, filterCategory, activeTab]);
 
@@ -1500,22 +1665,466 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {/* Invoices Tab */}
       {activeTab === 'invoices' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold">إدارة الفواتير</h3>
+          {/* Invoice Statistics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">إجمالي الفواتير</p>
+                  <p className="text-2xl font-bold">{invoiceStats.total}</p>
+                </div>
+                <FileTextIcon className="w-6 h-6 text-blue-200" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm">مدفوعة</p>
+                  <p className="text-2xl font-bold">{invoiceStats.paid}</p>
+                </div>
+                <CheckCircle className="w-6 h-6 text-green-200" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm">متأخرة</p>
+                  <p className="text-2xl font-bold">{invoiceStats.overdue}</p>
+                </div>
+                <AlertCircle className="w-6 h-6 text-orange-200" />
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm">المبلغ المستحق</p>
+                  <p className="text-2xl font-bold">{invoiceStats.pendingAmount.toLocaleString()} ₺</p>
+                </div>
+                <DollarSign className="w-6 h-6 text-purple-200" />
+              </div>
+            </div>
+          </div>
+
+          {/* Invoice Controls */}
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <button
+                onClick={() => {
+                  resetInvoiceForm();
+                  setShowInvoiceForm(true);
+                  setEditingInvoice(null);
+                }}
+                className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <Plus className="w-4 h-4 mr-2 inline" />
+                إنشاء فاتورة
+              </button>
+
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="البحث في الفواتير..."
+                  value={invoiceSearchTerm}
+                  onChange={(e) => setInvoiceSearchTerm(e.target.value)}
+                  className="px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                />
+              </div>
+
+              <select
+                value={invoiceFilterStatus}
+                onChange={(e) => setInvoiceFilterStatus(e.target.value as any)}
+                className="px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+              >
+                <option value="all">جميع الحالات</option>
+                <option value="draft">مسودة</option>
+                <option value="sent">مرسلة</option>
+                <option value="paid">مدفوعة</option>
+                <option value="overdue">متأخرة</option>
+                <option value="cancelled">ملغاة</option>
+              </select>
+            </div>
+
             <button
-              onClick={() => setShowInvoiceForm(true)}
-              className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              onClick={loadInvoices}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              <Plus className="w-4 h-4 mr-2 inline" />
-              إنشاء فاتورة
+              <RefreshCw className="w-4 h-4 mr-2 inline" />
+              تحديث
             </button>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <p className="text-gray-500 text-center py-8">
-              نظام إدارة الفواتير قيد التطوير
-            </p>
+
+          {/* Invoices List */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 dark:bg-gray-700">
+                  <tr>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      رقم الفاتورة
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      العميل
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      التاريخ
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      المبلغ
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      الحالة
+                    </th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                      الإجراءات
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  {invoices
+                    .filter(invoice => {
+                      const matchesStatus = invoiceFilterStatus === 'all' || invoice.status === invoiceFilterStatus;
+                      const matchesSearch = invoice.client_name.toLowerCase().includes(invoiceSearchTerm.toLowerCase()) ||
+                                          invoice.invoice_number.toLowerCase().includes(invoiceSearchTerm.toLowerCase());
+                      return matchesStatus && matchesSearch;
+                    })
+                    .map((invoice) => (
+                    <tr key={invoice.id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {invoice.invoice_number}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {invoice.client_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                        {InvoiceService.formatDate(invoice.issue_date)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {InvoiceService.formatCurrency(invoice.total_amount)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          invoice.status === 'paid' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                          invoice.status === 'sent' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                          invoice.status === 'overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' :
+                          invoice.status === 'draft' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200' :
+                          'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+                        }`}>
+                          {invoice.status === 'paid' ? 'مدفوعة' :
+                           invoice.status === 'sent' ? 'مرسلة' :
+                           invoice.status === 'overdue' ? 'متأخرة' :
+                           invoice.status === 'draft' ? 'مسودة' :
+                           'ملغاة'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingInvoice(invoice);
+                              setInvoiceForm({
+                                client_name: invoice.client_name,
+                                client_email: invoice.client_email || '',
+                                client_phone: invoice.client_phone || '',
+                                client_address: invoice.client_address || '',
+                                issue_date: invoice.issue_date,
+                                due_date: invoice.due_date,
+                                tax_rate: invoice.tax_rate,
+                                notes_ar: invoice.notes_ar || '',
+                                notes_en: invoice.notes_en || '',
+                                notes_tr: invoice.notes_tr || '',
+                                items: invoice.items.map(item => ({
+                                  description_ar: item.description_ar,
+                                  description_en: item.description_en,
+                                  description_tr: item.description_tr,
+                                  quantity: item.quantity,
+                                  unit_price: item.unit_price
+                                }))
+                              });
+                              setShowInvoiceForm(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          
+                          {invoice.status === 'draft' && (
+                            <button
+                              onClick={() => updateInvoiceStatus(invoice.id, 'sent')}
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                            >
+                              <Send className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          {invoice.status === 'sent' && (
+                            <button
+                              onClick={() => updateInvoiceStatus(invoice.id, 'paid')}
+                              className="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
+                          )}
+                          
+                          <button
+                            onClick={() => deleteInvoice(invoice.id)}
+                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          {/* Invoice Form Modal */}
+          {showInvoiceForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xl font-bold">
+                      {editingInvoice ? 'تعديل الفاتورة' : 'إنشاء فاتورة جديدة'}
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setShowInvoiceForm(false);
+                        setEditingInvoice(null);
+                        resetInvoiceForm();
+                      }}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleInvoiceSubmit} className="space-y-6">
+                    {/* Client Information */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">اسم العميل *</label>
+                        <input
+                          type="text"
+                          value={invoiceForm.client_name}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, client_name: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">البريد الإلكتروني</label>
+                        <input
+                          type="email"
+                          value={invoiceForm.client_email}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, client_email: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">رقم الهاتف</label>
+                        <input
+                          type="tel"
+                          value={invoiceForm.client_phone}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, client_phone: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">العنوان</label>
+                        <input
+                          type="text"
+                          value={invoiceForm.client_address}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, client_address: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Invoice Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">تاريخ الإصدار *</label>
+                        <input
+                          type="date"
+                          value={invoiceForm.issue_date}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, issue_date: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">تاريخ الاستحقاق *</label>
+                        <input
+                          type="date"
+                          value={invoiceForm.due_date}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, due_date: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">معدل الضريبة (%)</label>
+                        <input
+                          type="number"
+                          value={invoiceForm.tax_rate}
+                          onChange={(e) => setInvoiceForm({ ...invoiceForm, tax_rate: parseFloat(e.target.value) || 0 })}
+                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                          min="0"
+                          max="100"
+                          step="0.01"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Invoice Items */}
+                    <div>
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold">عناصر الفاتورة</h4>
+                        <button
+                          type="button"
+                          onClick={addInvoiceItem}
+                          className="px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                        >
+                          <Plus className="w-4 h-4 mr-1 inline" />
+                          إضافة عنصر
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {invoiceForm.items.map((item, index) => (
+                          <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div className="md:col-span-2">
+                              <label className="block text-sm font-medium mb-1">الوصف (عربي) *</label>
+                              <input
+                                type="text"
+                                value={item.description_ar}
+                                onChange={(e) => updateInvoiceItem(index, 'description_ar', e.target.value)}
+                                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500"
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium mb-1">الكمية *</label>
+                              <input
+                                type="number"
+                                value={item.quantity}
+                                onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500"
+                                min="0"
+                                step="0.01"
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium mb-1">سعر الوحدة *</label>
+                              <input
+                                type="number"
+                                value={item.unit_price}
+                                onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-600 border-gray-300 dark:border-gray-500"
+                                min="0"
+                                step="0.01"
+                                required
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-sm font-medium mb-1">المجموع</label>
+                              <input
+                                type="text"
+                                value={InvoiceService.formatCurrency(item.quantity * item.unit_price)}
+                                className="w-full px-3 py-2 border rounded-md bg-gray-100 dark:bg-gray-500 border-gray-300 dark:border-gray-500"
+                                readOnly
+                              />
+                            </div>
+
+                            <div className="flex items-end">
+                              {invoiceForm.items.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeInvoiceItem(index)}
+                                  className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Invoice Totals */}
+                    <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                      <div className="flex justify-end">
+                        <div className="w-64 space-y-2">
+                          <div className="flex justify-between">
+                            <span>المجموع الفرعي:</span>
+                            <span>{InvoiceService.formatCurrency(calculateInvoiceTotals().subtotal)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>الضريبة ({invoiceForm.tax_rate}%):</span>
+                            <span>{InvoiceService.formatCurrency(calculateInvoiceTotals().taxAmount)}</span>
+                          </div>
+                          <div className="flex justify-between font-bold text-lg border-t pt-2">
+                            <span>المجموع الكلي:</span>
+                            <span>{InvoiceService.formatCurrency(calculateInvoiceTotals().totalAmount)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2">ملاحظات (عربي)</label>
+                      <textarea
+                        value={invoiceForm.notes_ar}
+                        onChange={(e) => setInvoiceForm({ ...invoiceForm, notes_ar: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                        rows={3}
+                      />
+                    </div>
+
+                    {/* Form Actions */}
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowInvoiceForm(false);
+                          setEditingInvoice(null);
+                          resetInvoiceForm();
+                        }}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+                      >
+                        {loading ? 'جاري الحفظ...' : (editingInvoice ? 'تحديث الفاتورة' : 'إنشاء الفاتورة')}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
