@@ -521,8 +521,477 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     </div>
   );
 
-  // Rest of the component remains the same but with enhanced UI...
-  // I'll continue with the other tabs in the next part
+  // Transactions Tab
+  const TransactionsTab = () => (
+    <div className="space-y-6">
+      {/* Filters */}
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              التاريخ
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className={`w-full px-3 py-2 rounded-lg border ${
+                isDarkMode 
+                  ? 'bg-white/10 border-white/20 text-white' 
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            />
+          </div>
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              النوع
+            </label>
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value as any)}
+              className={`w-full px-3 py-2 rounded-lg border ${
+                isDarkMode 
+                  ? 'bg-white/10 border-white/20 text-white' 
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="all">الكل</option>
+              <option value="income">واردات</option>
+              <option value="expense">صادرات</option>
+            </select>
+          </div>
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              الفئة
+            </label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className={`w-full px-3 py-2 rounded-lg border ${
+                isDarkMode 
+                  ? 'bg-white/10 border-white/20 text-white' 
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="all">الكل</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {getCategoryName(category)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={() => setShowTransactionForm(true)}
+              className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
+                isDarkMode 
+                  ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' 
+                  : 'bg-green-500/30 text-green-700 hover:bg-green-500/40'
+              }`}
+            >
+              <Plus className="w-4 h-4 inline mr-2" />
+              إضافة معاملة
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Transactions List */}
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          المعاملات المالية
+        </h3>
+        <div className="space-y-3">
+          {transactions.map((transaction) => (
+            <div key={transaction.id} className={`p-4 rounded-lg border ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10' 
+                : 'bg-white/10 border-white/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className={`p-2 rounded-full ${
+                    transaction.type === 'income' 
+                      ? (isDarkMode ? 'bg-green-500/20' : 'bg-green-500/30')
+                      : (isDarkMode ? 'bg-red-500/20' : 'bg-red-500/30')
+                  }`}>
+                    {transaction.type === 'income' ? (
+                      <ArrowUpRight className={`w-4 h-4 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
+                    ) : (
+                      <ArrowDownRight className={`w-4 h-4 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`} />
+                    )}
+                  </div>
+                  <div>
+                    <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                      {getCategoryName(transaction.category)}
+                    </p>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {getDescription(transaction) || 'لا يوجد وصف'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <div className="text-right">
+                    <p className={`font-semibold ${
+                      transaction.type === 'income' 
+                        ? (isDarkMode ? 'text-green-300' : 'text-green-600')
+                        : (isDarkMode ? 'text-red-300' : 'text-red-600')
+                    }`}>
+                      {transaction.type === 'income' ? '+' : '-'}{formatCurrency(transaction.amount)}
+                    </p>
+                    <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {new Date(transaction.transaction_date).toLocaleDateString('ar-SA')}
+                    </p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => handleEditTransaction(transaction)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isDarkMode 
+                          ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+                          : 'bg-blue-500/30 text-blue-700 hover:bg-blue-500/40'
+                      }`}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTransaction(transaction.id)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        isDarkMode 
+                          ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' 
+                          : 'bg-red-500/30 text-red-700 hover:bg-red-500/40'
+                      }`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          {transactions.length === 0 && (
+            <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              لا توجد معاملات مالية
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Categories Tab
+  const CategoriesTab = () => (
+    <div className="space-y-6">
+      {/* Add Category Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowCategoryForm(true)}
+          className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+            isDarkMode 
+              ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' 
+              : 'bg-green-500/30 text-green-700 hover:bg-green-500/40'
+          }`}
+        >
+          <Plus className="w-4 h-4 inline mr-2" />
+          إضافة فئة جديدة
+        </button>
+      </div>
+
+      {/* Income Categories */}
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          فئات الواردات
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {categories.filter(c => c.type === 'income').map((category) => (
+            <div key={category.id} className={`p-4 rounded-lg border ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10' 
+                : 'bg-white/10 border-white/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {getCategoryName(category)}
+                  </h4>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {language === 'ar' ? category.description_ar : 
+                     language === 'en' ? category.description_en : category.description_tr}
+                  </p>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEditCategory(category)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDarkMode 
+                        ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+                        : 'bg-blue-500/30 text-blue-700 hover:bg-blue-500/40'
+                    }`}
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDarkMode 
+                        ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' 
+                        : 'bg-red-500/30 text-red-700 hover:bg-red-500/40'
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Expense Categories */}
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          فئات الصادرات
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {categories.filter(c => c.type === 'expense').map((category) => (
+            <div key={category.id} className={`p-4 rounded-lg border ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10' 
+                : 'bg-white/10 border-white/20'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {getCategoryName(category)}
+                  </h4>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {language === 'ar' ? category.description_ar : 
+                     language === 'en' ? category.description_en : category.description_tr}
+                  </p>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => handleEditCategory(category)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDarkMode 
+                        ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+                        : 'bg-blue-500/30 text-blue-700 hover:bg-blue-500/40'
+                    }`}
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCategory(category.id)}
+                    className={`p-2 rounded-lg transition-colors ${
+                      isDarkMode 
+                        ? 'bg-red-500/20 text-red-300 hover:bg-red-500/30' 
+                        : 'bg-red-500/30 text-red-700 hover:bg-red-500/40'
+                    }`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Reports Tab
+  const ReportsTab = () => (
+    <div className="space-y-6">
+      {/* Report Filters */}
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          التقارير المالية
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              الفترة
+            </label>
+            <select
+              value={dateRange}
+              onChange={(e) => setDateRange(e.target.value as any)}
+              className={`w-full px-3 py-2 rounded-lg border ${
+                isDarkMode 
+                  ? 'bg-white/10 border-white/20 text-white' 
+                  : 'bg-white border-gray-300 text-gray-900'
+              }`}
+            >
+              <option value="today">اليوم</option>
+              <option value="week">هذا الأسبوع</option>
+              <option value="month">هذا الشهر</option>
+              <option value="quarter">هذا الربع</option>
+              <option value="year">هذا العام</option>
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={loadData}
+              className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
+                isDarkMode 
+                  ? 'bg-blue-500/20 text-blue-300 hover:bg-blue-500/30' 
+                  : 'bg-blue-500/30 text-blue-700 hover:bg-blue-500/40'
+              }`}
+            >
+              <RefreshCw className="w-4 h-4 inline mr-2" />
+              تحديث التقرير
+            </button>
+          </div>
+          <div className="flex items-end">
+            <button
+              onClick={async () => {
+                const csvData = await AccountingService.exportTransactions(
+                  new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                  new Date().toISOString().split('T')[0]
+                );
+                const blob = new Blob([csvData], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'accounting-report.csv';
+                a.click();
+              }}
+              className={`w-full px-4 py-2 rounded-lg font-medium transition-colors ${
+                isDarkMode 
+                  ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' 
+                  : 'bg-green-500/30 text-green-700 hover:bg-green-500/40'
+              }`}
+            >
+              <Download className="w-4 h-4 inline mr-2" />
+              تصدير CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Daily Summaries */}
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          الملخصات اليومية
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className={`border-b ${isDarkMode ? 'border-white/10' : 'border-gray-200'}`}>
+                <th className={`text-right py-3 px-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>التاريخ</th>
+                <th className={`text-right py-3 px-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>الرصيد الافتتاحي</th>
+                <th className={`text-right py-3 px-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>إجمالي الواردات</th>
+                <th className={`text-right py-3 px-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>إجمالي الصادرات</th>
+                <th className={`text-right py-3 px-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>الرصيد الختامي</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dailySummaries.map((summary) => (
+                <tr key={summary.id} className={`border-b ${isDarkMode ? 'border-white/5' : 'border-gray-100'}`}>
+                  <td className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {new Date(summary.summary_date).toLocaleDateString('ar-SA')}
+                  </td>
+                  <td className={`py-3 px-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {formatCurrency(summary.opening_balance)}
+                  </td>
+                  <td className={`py-3 px-4 text-green-600`}>
+                    {formatCurrency(summary.total_income)}
+                  </td>
+                  <td className={`py-3 px-4 text-red-600`}>
+                    {formatCurrency(summary.total_expense)}
+                  </td>
+                  <td className={`py-3 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                    {formatCurrency(summary.closing_balance)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Budgets Tab
+  const BudgetsTab = () => (
+    <div className="space-y-6">
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          إدارة الميزانيات
+        </h3>
+        <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <Target className="w-16 h-16 mx-auto mb-4 opacity-50" />
+          <p>قريباً - نظام إدارة الميزانيات</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Analytics Tab
+  const AnalyticsTab = () => (
+    <div className="space-y-6">
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          التحليلات المتقدمة
+        </h3>
+        <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <PieChart className="w-16 h-16 mx-auto mb-4 opacity-50" />
+          <p>قريباً - التحليلات والرسوم البيانية</p>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Settings Tab
+  const SettingsTab = () => (
+    <div className="space-y-6">
+      <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
+        isDarkMode 
+          ? 'bg-white/5 border-white/10' 
+          : 'bg-white/10 border-white/20'
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+          إعدادات النظام
+        </h3>
+        <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <Settings className="w-16 h-16 mx-auto mb-4 opacity-50" />
+          <p>قريباً - إعدادات النظام المحاسبي</p>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -615,8 +1084,334 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {/* Tab Content */}
       <div className="min-h-[600px]">
         {activeTab === 'dashboard' && <DashboardTab />}
-        {/* Other tabs will be implemented in the next part */}
+        {activeTab === 'transactions' && <TransactionsTab />}
+        {activeTab === 'categories' && <CategoriesTab />}
+        {activeTab === 'reports' && <ReportsTab />}
+        {activeTab === 'budgets' && <BudgetTab />}
+        {activeTab === 'analytics' && <AnalyticsTab />}
+        {activeTab === 'settings' && <SettingsTab />}
       </div>
+
+      {/* Transaction Form Modal */}
+      {showTransactionForm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-md rounded-2xl backdrop-blur-xl border ${
+            isDarkMode 
+              ? 'bg-white/10 border-white/20' 
+              : 'bg-white border-gray-200'
+          }`}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  {editingTransaction ? 'تعديل المعاملة' : 'إضافة معاملة جديدة'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowTransactionForm(false);
+                    setEditingTransaction(null);
+                    setTransactionForm({
+                      category_id: '',
+                      type: 'income',
+                      amount: 0,
+                      description_ar: '',
+                      description_en: '',
+                      description_tr: '',
+                      transaction_date: AccountingService.getCurrentDate()
+                    });
+                  }}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDarkMode 
+                      ? 'bg-white/10 text-white hover:bg-white/20' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleTransactionSubmit} className="space-y-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    النوع
+                  </label>
+                  <select
+                    value={transactionForm.type}
+                    onChange={(e) => setTransactionForm({...transactionForm, type: e.target.value as 'income' | 'expense'})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  >
+                    <option value="income">وارد</option>
+                    <option value="expense">صادر</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    الفئة
+                  </label>
+                  <select
+                    value={transactionForm.category_id}
+                    onChange={(e) => setTransactionForm({...transactionForm, category_id: e.target.value})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  >
+                    <option value="">اختر الفئة</option>
+                    {categories.filter(c => c.type === transactionForm.type).map(category => (
+                      <option key={category.id} value={category.id}>
+                        {getCategoryName(category)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    المبلغ
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.amount}
+                    onChange={(e) => setTransactionForm({...transactionForm, amount: parseFloat(e.target.value) || 0})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    التاريخ
+                  </label>
+                  <input
+                    type="date"
+                    value={transactionForm.transaction_date}
+                    onChange={(e) => setTransactionForm({...transactionForm, transaction_date: e.target.value})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    الوصف (عربي)
+                  </label>
+                  <textarea
+                    value={transactionForm.description_ar}
+                    onChange={(e) => setTransactionForm({...transactionForm, description_ar: e.target.value})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isDarkMode 
+                        ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' 
+                        : 'bg-green-500/30 text-green-700 hover:bg-green-500/40'
+                    } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {loading ? 'جاري الحفظ...' : (editingTransaction ? 'تحديث' : 'حفظ')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowTransactionForm(false);
+                      setEditingTransaction(null);
+                    }}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isDarkMode 
+                        ? 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30' 
+                        : 'bg-gray-500/30 text-gray-700 hover:bg-gray-500/40'
+                    }`}
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Category Form Modal */}
+      {showCategoryForm && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className={`w-full max-w-md rounded-2xl backdrop-blur-xl border ${
+            isDarkMode 
+              ? 'bg-white/10 border-white/20' 
+              : 'bg-white border-gray-200'
+          }`}>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  {editingCategory ? 'تعديل الفئة' : 'إضافة فئة جديدة'}
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowCategoryForm(false);
+                    setEditingCategory(null);
+                    setCategoryForm({
+                      name_ar: '',
+                      name_en: '',
+                      name_tr: '',
+                      type: 'income',
+                      description_ar: '',
+                      description_en: '',
+                      description_tr: ''
+                    });
+                  }}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDarkMode 
+                      ? 'bg-white/10 text-white hover:bg-white/20' 
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCategorySubmit} className="space-y-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    النوع
+                  </label>
+                  <select
+                    value={categoryForm.type}
+                    onChange={(e) => setCategoryForm({...categoryForm, type: e.target.value as 'income' | 'expense'})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  >
+                    <option value="income">وارد</option>
+                    <option value="expense">صادر</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    الاسم (عربي)
+                  </label>
+                  <input
+                    type="text"
+                    value={categoryForm.name_ar}
+                    onChange={(e) => setCategoryForm({...categoryForm, name_ar: e.target.value})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    الاسم (إنجليزي)
+                  </label>
+                  <input
+                    type="text"
+                    value={categoryForm.name_en}
+                    onChange={(e) => setCategoryForm({...categoryForm, name_en: e.target.value})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    الاسم (تركي)
+                  </label>
+                  <input
+                    type="text"
+                    value={categoryForm.name_tr}
+                    onChange={(e) => setCategoryForm({...categoryForm, name_tr: e.target.value})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    الوصف (عربي)
+                  </label>
+                  <textarea
+                    value={categoryForm.description_ar}
+                    onChange={(e) => setCategoryForm({...categoryForm, description_ar: e.target.value})}
+                    className={`w-full px-3 py-2 rounded-lg border ${
+                      isDarkMode 
+                        ? 'bg-white/10 border-white/20 text-white' 
+                        : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                    rows={3}
+                  />
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isDarkMode 
+                        ? 'bg-green-500/20 text-green-300 hover:bg-green-500/30' 
+                        : 'bg-green-500/30 text-green-700 hover:bg-green-500/40'
+                    } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    {loading ? 'جاري الحفظ...' : (editingCategory ? 'تحديث' : 'حفظ')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCategoryForm(false);
+                      setEditingCategory(null);
+                    }}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      isDarkMode 
+                        ? 'bg-gray-500/20 text-gray-300 hover:bg-gray-500/30' 
+                        : 'bg-gray-500/30 text-gray-700 hover:bg-gray-500/40'
+                    }`}
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
