@@ -105,11 +105,18 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const loadData = async () => {
     setLoading(true);
     try {
+      console.log('Loading accounting data...');
       const [transactionsData, categoriesData, summariesData] = await Promise.all([
         AccountingService.getTransactions(selectedDate, filterType, filterCategory),
         AccountingService.getCategories(),
         AccountingService.getDailySummaries(dateRange)
       ]);
+
+      console.log('Data loaded:', {
+        transactions: transactionsData.length,
+        categories: categoriesData.length,
+        summaries: summariesData.length
+      });
 
       setTransactions(transactionsData);
       setCategories(categoriesData);
@@ -119,6 +126,8 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       calculateDashboardStats(transactionsData, summariesData);
     } catch (error) {
       console.error('Error loading accounting data:', error);
+      // Show user-friendly error message
+      alert('خطأ في تحميل البيانات المحاسبية. يرجى التحقق من اتصال قاعدة البيانات.');
     } finally {
       setLoading(false);
     }
@@ -299,8 +308,23 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   // Dashboard Component
   const DashboardTab = () => (
     <div className="space-y-6">
-      {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {loading ? (
+        <div className={`p-8 rounded-2xl backdrop-blur-xl border text-center ${
+          isDarkMode 
+            ? 'bg-white/5 border-white/10' 
+            : 'bg-white/10 border-white/20'
+        }`}>
+          <div className="flex items-center justify-center space-x-3">
+            <RefreshCw className={`w-6 h-6 animate-spin ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+            <span className={`text-lg font-medium ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              جاري تحميل البيانات...
+            </span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Key Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Income */}
         <div className={`p-6 rounded-2xl backdrop-blur-xl border transition-all duration-300 hover:scale-105 ${
           isDarkMode 
@@ -518,6 +542,8 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
           ))}
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 
@@ -937,7 +963,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   );
 
   // Budgets Tab
-  const BudgetsTab = () => (
+  const BudgetTab = () => (
     <div className="space-y-6">
       <div className={`p-6 rounded-2xl backdrop-blur-xl border ${
         isDarkMode 
@@ -1087,7 +1113,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
         {activeTab === 'transactions' && <TransactionsTab />}
         {activeTab === 'categories' && <CategoriesTab />}
         {activeTab === 'reports' && <ReportsTab />}
-        {activeTab === 'budgets' && <BudgetsTab />}
+        {activeTab === 'budgets' && <BudgetTab />}
         {activeTab === 'analytics' && <AnalyticsTab />}
         {activeTab === 'settings' && <SettingsTab />}
       </div>
