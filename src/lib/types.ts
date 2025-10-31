@@ -185,3 +185,92 @@ export interface InvoiceTemplate {
   created_at: string;
   updated_at: string;
 }
+
+// Budget System Types
+export interface Budget {
+  id: string;
+  category_id?: string;
+  category?: AccountingCategory;
+  name_ar: string;
+  name_en: string;
+  name_tr: string;
+  type: 'income' | 'expense';
+  amount: number;
+  period_start: string;
+  period_end: string;
+  spent?: number;
+  remaining?: number;
+  percentage_used?: number;
+  description_ar?: string;
+  description_en?: string;
+  description_tr?: string;
+  is_active: boolean;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateBudgetData {
+  category_id?: string;
+  name_ar: string;
+  name_en: string;
+  name_tr: string;
+  type: 'income' | 'expense';
+  amount: number;
+  period_start: string;
+  period_end: string;
+  description_ar?: string;
+  description_en?: string;
+  description_tr?: string;
+}
+
+// Payment System Types
+export interface Payment {
+  id: string;
+  invoice_id?: string;
+  transaction_id?: string;
+  payment_method: 'cash' | 'bank_transfer' | 'credit_card' | 'check' | 'other';
+  amount: number;
+  payment_date: string;
+  reference_number?: string;
+  notes_ar?: string;
+  notes_en?: string;
+  notes_tr?: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreatePaymentData {
+  invoice_id?: string;
+  transaction_id?: string;
+  payment_method: 'cash' | 'bank_transfer' | 'credit_card' | 'check' | 'other';
+  amount: number;
+  payment_date: string;
+  reference_number?: string;
+  notes_ar?: string;
+  notes_en?: string;
+  notes_tr?: string;
+}
+
+// Accounting Settings Types
+export interface AccountingSettings {
+  id: string;
+  currency: string;
+  date_format: string;
+  fiscal_year_start: string;
+  default_tax_rate: number;
+  auto_backup: boolean;
+  notifications: boolean;
+  invoice_prefix: string;
+  invoice_number_format: string;
+  company_name_ar: string;
+  company_name_en: string;
+  company_address?: string;
+  company_phone: string;
+  company_email: string;
+  company_website: string;
+  updated_by?: string;
+  updated_at: string;
+}

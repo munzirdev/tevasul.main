@@ -20,7 +20,8 @@ const gateTranslations: { [key: string]: string } = {
   "istanbul havalimanı": "مطار اسطنبول",
   "çobanbey": "الراعي",
   "zeytindalı": "غصن الزيتون",
-  "karakamış": "جرابلس"
+  "karakamış": "جرابلس",
+  "akçakale": "تل أبيض الحدودي"
 };
 
 const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
@@ -582,6 +583,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
                 <option value="çobanbey" className="bg-slate-800 text-white dark:bg-jet-900">ÇOBANBEY / الراعي</option>
                 <option value="zeytindalı" className="bg-slate-800 text-white dark:bg-jet-900">ZEYTİNDALI / غصن الزيتون</option>
                 <option value="karakamış" className="bg-slate-800 text-white dark:bg-jet-900">KARAKAMIŞ / جرابلس</option>
+                <option value="akçakale" className="bg-slate-800 text-white dark:bg-jet-900">AKÇAKALE / تل أبيض الحدودي</option>
               </select>
             </div>
           </div>

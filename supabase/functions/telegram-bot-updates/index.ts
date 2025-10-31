@@ -1185,7 +1185,8 @@ function generateVoluntaryReturnHTML(collectedData: any, formId: string): string
     "istanbul havalimanı": "مطار اسطنبول",
     "çobanbey": "الراعي",
     "zeytindalı": "غصن الزيتون",
-    "karakamış": "جرابلس"
+    "karakamış": "جرابلس",
+    "akçakale": "تل أبيض الحدودي"
   }
 
   const arabicGate = gateTranslations[collectedData.borderPoint] || collectedData.borderPoint

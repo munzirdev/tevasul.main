@@ -4,7 +4,12 @@ import {
   AccountingTransaction, 
   DailyCashSummary, 
   CreateAccountingTransactionData, 
-  CreateAccountingCategoryData 
+  CreateAccountingCategoryData,
+  Budget,
+  CreateBudgetData,
+  Payment,
+  CreatePaymentData,
+  AccountingSettings
 } from '../lib/types';
 
 export class AccountingService {
@@ -328,5 +333,208 @@ export class AccountingService {
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0]
     };
+  }
+
+  // Budgets
+  static async getBudgets(activeOnly: boolean = false): Promise<Budget[]> {
+    let query = supabase
+      .from('accounting_budgets')
+      .select(`
+        *,
+        category:accounting_categories(*)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (activeOnly) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async getBudgetById(id: string): Promise<Budget | null> {
+    const { data, error } = await supabase
+      .from('accounting_budgets')
+      .select(`
+        *,
+        category:accounting_categories(*)
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  }
+
+  static async createBudget(budgetData: CreateBudgetData): Promise<Budget> {
+    const { data, error } = await supabase
+      .from('accounting_budgets')
+      .insert(budgetData)
+      .select(`
+        *,
+        category:accounting_categories(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async updateBudget(id: string, budgetData: Partial<CreateBudgetData>): Promise<Budget> {
+    const { data, error } = await supabase
+      .from('accounting_budgets')
+      .update({ ...budgetData, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select(`
+        *,
+        category:accounting_categories(*)
+      `)
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async deleteBudget(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('accounting_budgets')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  // Payments
+  static async getPayments(startDate?: string, endDate?: string, invoiceId?: string): Promise<Payment[]> {
+    let query = supabase
+      .from('accounting_payments')
+      .select('*')
+      .order('payment_date', { ascending: false });
+
+    if (startDate) {
+      query = query.gte('payment_date', startDate);
+    }
+    if (endDate) {
+      query = query.lte('payment_date', endDate);
+    }
+    if (invoiceId) {
+      query = query.eq('invoice_id', invoiceId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async getPaymentById(id: string): Promise<Payment | null> {
+    const { data, error } = await supabase
+      .from('accounting_payments')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error && error.code !== 'PGRST116') throw error;
+    return data;
+  }
+
+  static async createPayment(paymentData: CreatePaymentData): Promise<Payment> {
+    const { data, error } = await supabase
+      .from('accounting_payments')
+      .insert(paymentData)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async updatePayment(id: string, paymentData: Partial<CreatePaymentData>): Promise<Payment> {
+    const { data, error } = await supabase
+      .from('accounting_payments')
+      .update({ ...paymentData, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async deletePayment(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('accounting_payments')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  }
+
+  static async updatePaymentStatus(id: string, status: Payment['status']): Promise<Payment> {
+    const { data, error } = await supabase
+      .from('accounting_payments')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Settings
+  static async getSettings(): Promise<AccountingSettings | null> {
+    try {
+      const { data, error } = await supabase
+        .from('accounting_settings')
+        .select('*')
+        .limit(1)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116' || error.code === '42P01') {
+          // Table doesn't exist or no rows - return default settings
+          console.warn('Settings table not found, using default settings');
+          return null;
+        }
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error('Error getting settings:', error);
+      return null;
+    }
+  }
+
+  static async updateSettings(settingsData: Partial<AccountingSettings>): Promise<AccountingSettings> {
+    try {
+      // Try to get existing settings
+      const existing = await this.getSettings();
+      const settingsId = existing?.id || '00000000-0000-0000-0000-000000000001';
+
+      const { data, error } = await supabase
+        .from('accounting_settings')
+        .upsert({
+          id: settingsId,
+          ...settingsData,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (error) {
+        // If table doesn't exist, just log the error but don't throw
+        if (error.code === '42P01' || error.message?.includes('schema cache')) {
+          console.error('Settings table does not exist. Please run the migration: 20241221_create_accounting_settings.sql');
+          throw new Error('جدول الإعدادات غير موجود. يرجى تطبيق migration: 20241221_create_accounting_settings.sql');
+        }
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      console.error('Error updating settings:', error);
+      throw error;
+    }
   }
 }

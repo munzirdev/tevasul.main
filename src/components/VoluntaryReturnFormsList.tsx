@@ -290,7 +290,8 @@ const VoluntaryReturnFormsList: React.FC<VoluntaryReturnFormsListProps> = ({ isD
       "istanbul havalimanı": "مطار اسطنبول",
       "çobanbey": "الراعي",
       "zeytindalı": "غصن الزيتون",
-      "karakamış": "جرابلس"
+      "karakamış": "جرابلس",
+      "akçakale": "تل أبيض الحدودي"
     };
 
     const arabicGate = gateTranslations[form.sinir_kapisi] || form.sinir_kapisi;

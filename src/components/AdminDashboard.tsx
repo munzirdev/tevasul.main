@@ -30,6 +30,7 @@ import {
   Moon,
   Home,
   Shield,
+  Lock,
   Heart,
   Menu,
   ArrowRight,
@@ -183,6 +184,52 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [activeTab, setActiveTab] = useState<'requests' | 'support' | 'faqs' | 'ready-forms' | 'moderators' | 'health-insurance' | 'webhooks' | 'chat-messages' | 'telegram-users' | 'accounting'>('requests');
+  
+  // PIN states for accounting access
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [isAccountingUnlocked, setIsAccountingUnlocked] = useState(false);
+  
+  // PIN verification function
+  const verifyPin = (pin: string): boolean => {
+    // Default PIN for accounting access - you can change this
+    const correctPin = '1234';
+    return pin === correctPin;
+  };
+
+  // Handle PIN submission
+  const handlePinSubmit = () => {
+    if (verifyPin(pinValue)) {
+      setIsAccountingUnlocked(true);
+      setShowPinModal(false);
+      setPinValue('');
+      setPinError('');
+    } else {
+      setPinError('PIN غير صحيح. يرجى المحاولة مرة أخرى.');
+      setPinValue('');
+    }
+  };
+
+  // Handle accounting tab click
+  const handleAccountingTabClick = () => {
+    if (profile?.role === 'admin') {
+      if (isAccountingUnlocked) {
+        setActiveTab('accounting');
+      } else {
+        setShowPinModal(true);
+      }
+    }
+  };
+
+  // Reset accounting access when switching tabs
+  const handleTabChange = (tab: typeof activeTab) => {
+    if (tab !== 'accounting') {
+      setIsAccountingUnlocked(false);
+    }
+    setActiveTab(tab);
+  };
+
   const [voluntaryReturnView, setVoluntaryReturnView] = useState<'list' | 'create' | 'chart'>('list');
   const [healthInsuranceView, setHealthInsuranceView] = useState<'list' | 'create'>('list');
   const [requestFilter, setRequestFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed'>('all');

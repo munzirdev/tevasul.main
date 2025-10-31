@@ -164,7 +164,8 @@ const VoluntaryReturnFormEditor: React.FC<VoluntaryReturnFormEditorProps> = ({
       "istanbul havalimanı": "مطار اسطنبول",
       "çobanbey": "الراعي",
       "zeytindalı": "غصن الزيتون",
-      "karakamış": "جرابلس"
+      "karakamış": "جرابلس",
+      "akçakale": "تل أبيض الحدودي"
     };
 
     const arabicGate = gateTranslations[sinirKapisi] || sinirKapisi;
@@ -444,6 +445,7 @@ const VoluntaryReturnFormEditor: React.FC<VoluntaryReturnFormEditorProps> = ({
                   <option value="çobanbey">ÇOBANBEY / الراعي</option>
                   <option value="zeytindalı">ZEYTİNDALI / غصن الزيتون</option>
                   <option value="karakamış">KARAKAMIŞ / جرابلس</option>
+                  <option value="akçakale">AKÇAKALE / تل أبيض الحدودي</option>
                 </select>
               </div>
             </div>

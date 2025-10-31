@@ -23,7 +23,8 @@ serve(async (req) => {
       "istanbul havalimanı": "مطار اسطنبول",
       "çobanbey": "الراعي",
       "zeytindalı": "غصن الزيتون",
-      "karakamış": "جرابلس"
+      "karakamış": "جرابلس",
+      "akçakale": "تل أبيض الحدودي"
     }
 
     const arabicGate = gateTranslations[formData.borderPoint] || formData.borderPoint

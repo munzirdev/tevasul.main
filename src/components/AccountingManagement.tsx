@@ -53,9 +53,7 @@ import {
   DollarSign as DollarIcon,
   Euro,
   PoundSterling,
-  Yen,
   IndianRupee,
-  TurkishLira,
   AlertTriangle,
   Info,
   HelpCircle,
@@ -86,13 +84,11 @@ import {
   Battery,
   BatteryLow,
   BatteryMedium,
-  BatteryHigh,
   BatteryFull,
   Power,
   PowerOff,
   Play,
   Pause,
-  Stop,
   SkipBack,
   SkipForward,
   RotateCcw,
@@ -115,7 +111,6 @@ import {
   Send,
   Inbox,
   Printer,
-  Outbox,
   Archive as ArchiveIcon,
   Trash,
   Trash2 as TrashIcon,
@@ -126,18 +121,14 @@ import {
   FileImage,
   FileVideo,
   FileAudio,
-  FilePdf,
   FileSpreadsheet,
   FileCode,
-  FileZip,
   FileCheck,
   FileX,
   FilePlus,
   FileMinus,
   FileEdit,
   FileSearch,
-  FileDownload,
-  FileUpload,
   Clipboard,
   ClipboardCheck,
   ClipboardCopy,
@@ -361,7 +352,12 @@ import {
   Invoice,
   CreateInvoiceData,
   CreateInvoiceItemData,
-  InvoiceTemplate
+  InvoiceTemplate,
+  Budget,
+  CreateBudgetData,
+  Payment,
+  CreatePaymentData,
+  AccountingSettings
 } from '../lib/types';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -373,6 +369,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const { t, language } = useLanguage();
   const [activeTab, setActiveTab] = useState<'dashboard' | 'transactions' | 'categories' | 'summary' | 'reports' | 'budgets' | 'invoices' | 'payments' | 'analysis' | 'settings'>('dashboard');
   const [transactions, setTransactions] = useState<AccountingTransaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<AccountingTransaction[]>([]); // All transactions for analysis
   const [categories, setCategories] = useState<AccountingCategory[]>([]);
   const [dailySummaries, setDailySummaries] = useState<DailyCashSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -397,8 +394,21 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   });
   
   // Budget states
-  const [budgets, setBudgets] = useState([]);
+  const [budgets, setBudgets] = useState<Budget[]>([]);
   const [showBudgetForm, setShowBudgetForm] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
+  const [budgetForm, setBudgetForm] = useState<CreateBudgetData>({
+    name_ar: '',
+    name_en: '',
+    name_tr: '',
+    type: 'expense',
+    amount: 0,
+    period_start: AccountingService.getCurrentDate(),
+    period_end: AccountingService.getCurrentDate(),
+    description_ar: '',
+    description_en: '',
+    description_tr: ''
+  });
   
   // Invoice states
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -424,7 +434,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     client_address: '',
     issue_date: InvoiceService.getCurrentDate(),
     due_date: InvoiceService.getDefaultDueDate(),
-    tax_rate: 18, // Default Turkish VAT rate
+    tax_rate: 20, // Default tax rate - will be updated from settings when loaded
     notes_ar: '',
     notes_en: '',
     notes_tr: '',
@@ -442,8 +452,18 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
   
   // Payment states
-  const [payments, setPayments] = useState([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+  const [paymentForm, setPaymentForm] = useState<CreatePaymentData>({
+    payment_method: 'cash',
+    amount: 0,
+    payment_date: AccountingService.getCurrentDate(),
+    reference_number: '',
+    notes_ar: '',
+    notes_en: '',
+    notes_tr: ''
+  });
   
   // Analysis states
   const [analysisData, setAnalysisData] = useState({
@@ -454,12 +474,21 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   });
   
   // Settings states
-  const [settings, setSettings] = useState({
-    currency: 'USD',
-    dateFormat: 'DD/MM/YYYY',
-    fiscalYearStart: '01-01',
-    autoBackup: true,
-    notifications: true
+  const [settings, setSettings] = useState<Partial<AccountingSettings>>({
+    currency: 'TRY',
+    date_format: 'DD/MM/YYYY',
+    fiscal_year_start: '01-01',
+    default_tax_rate: 20,
+    auto_backup: true,
+    notifications: true,
+    invoice_prefix: 'INV',
+    invoice_number_format: 'YYYYMMDD-###',
+    company_name_ar: 'مجموعة تواصل',
+    company_name_en: 'Tevasul Group',
+    company_address: 'CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin',
+    company_phone: '+90 534 962 72 41',
+    company_email: 'info@tevasul.group',
+    company_website: 'tevasul.group'
   });
 
   // Form states
@@ -541,7 +570,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
         client_address: '',
         issue_date: InvoiceService.getCurrentDate(),
         due_date: InvoiceService.getDefaultDueDate(),
-        tax_rate: 18,
+        tax_rate: (settings.default_tax_rate || 20),
         notes_ar: '',
         notes_en: '',
         notes_tr: '',
@@ -647,6 +676,15 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       return;
     }
 
+    // Format dates
+    const formatDate = (dateString: string) => {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    };
+
     // Generate HTML content for the invoice
     const invoiceHTML = `
       <!DOCTYPE html>
@@ -655,254 +693,572 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>فاتورة ${invoice.invoice_number}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
         <style>
-          body {
-            font-family: 'Arial', sans-serif;
+          * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          
+          @page {
+            size: A4;
+            margin: 15mm;
+          }
+          
+          body {
+            font-family: 'Cairo', 'Roboto', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #1a1a1a;
             background: white;
-            color: #333;
             direction: rtl;
+            padding: 0;
+            margin: 0;
           }
-          .invoice-container {
-            max-width: 800px;
+          
+          .invoice-wrapper {
+            width: 100%;
+            max-width: 210mm;
             margin: 0 auto;
-            border: 2px solid #333;
-            padding: 30px;
             background: white;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 10mm;
+            page-break-after: avoid;
           }
-          .invoice-header {
-            text-align: center;
-            margin-bottom: 30px;
-            border-bottom: 2px solid #333;
-            padding-bottom: 20px;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            margin: -30px -30px 30px -30px;
-            padding: 30px;
-          }
-          .company-logo {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-          }
-          .invoice-title {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #2c3e50;
-          }
-          .invoice-number {
-            font-size: 18px;
-            color: #666;
-          }
-          .invoice-info {
+          
+          /* Header Section */
+          .header-section {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #2563eb;
           }
-          .company-info, .client-info {
+          
+          .logo-section {
+            flex: 0 0 25%;
+            text-align: center;
+          }
+          
+          .logo-section img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            margin-bottom: 8px;
+          }
+          
+          .header-title {
             flex: 1;
-            min-width: 300px;
-            margin-bottom: 20px;
+            text-align: center;
+            padding: 0 20px;
           }
-          .info-title {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 10px;
-            color: #2c3e50;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 5px;
-          }
-          .info-item {
+          
+          .invoice-title-ar {
+            font-family: 'Cairo', Arial, sans-serif;
+            font-size: 32pt;
+            font-weight: 700;
+            color: #1e40af;
             margin-bottom: 5px;
-            font-size: 14px;
+            letter-spacing: -1px;
           }
-          .invoice-items {
-            margin-bottom: 30px;
+          
+          .invoice-title-tr {
+            font-family: 'Roboto', Arial, sans-serif;
+            font-size: 24pt;
+            font-weight: 500;
+            color: #3b82f6;
+            margin-bottom: 8px;
           }
+          
+          .invoice-number-section {
+            text-align: left;
+            flex: 0 0 25%;
+          }
+          
+          .invoice-number-label {
+            font-size: 9pt;
+            color: #64748b;
+            margin-bottom: 3px;
+          }
+          
+          .invoice-number-value {
+            font-size: 14pt;
+            font-weight: 600;
+            color: #1e293b;
+            font-family: 'Roboto Mono', monospace;
+          }
+          
+          /* Company and Client Info */
+          .info-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+          }
+          
+          .info-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 12px;
+          }
+          
+          .info-box-title {
+            font-size: 12pt;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #3b82f6;
+            display: flex;
+            justify-content: space-between;
+          }
+          
+          .info-box-title-ar {
+            font-family: 'Cairo', Arial, sans-serif;
+          }
+          
+          .info-box-title-tr {
+            font-family: 'Roboto', Arial, sans-serif;
+            font-size: 10pt;
+            color: #64748b;
+            font-weight: 400;
+          }
+          
+          .info-item {
+            font-size: 10pt;
+            margin-bottom: 4px;
+            color: #334155;
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+          }
+          
+          .info-item-label {
+            font-weight: 500;
+            color: #475569;
+            min-width: 80px;
+          }
+          
+          .info-item-value {
+            text-align: left;
+            flex: 1;
+          }
+          
+          .info-item-value-phone,
+          .info-item-value-email {
+            direction: ltr;
+            text-align: left;
+            font-family: 'Roboto', Arial, sans-serif;
+          }
+          
+          /* Invoice Details Row */
+          .invoice-details-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+            background: #f1f5f9;
+            padding: 10px;
+            border-radius: 6px;
+          }
+          
+          .detail-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10pt;
+          }
+          
+          .detail-label {
+            font-weight: 600;
+            color: #475569;
+          }
+          
+          /* Items Table */
+          .items-section {
+            margin-bottom: 15px;
+          }
+          
           .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            border: 1px solid #cbd5e1;
+            margin-top: 5px;
           }
-          .items-table th,
-          .items-table td {
-            border: 1px solid #ddd;
-            padding: 12px;
+          
+          .items-table thead {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: white;
+          }
+          
+          .items-table th {
+            padding: 10px 8px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 10pt;
+            border: 1px solid rgba(255,255,255,0.2);
+          }
+          
+          .items-table th:first-child {
             text-align: right;
           }
-          .items-table th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-            color: #2c3e50;
+          
+          .items-table td {
+            padding: 9px 8px;
+            border: 1px solid #e2e8f0;
+            font-size: 10pt;
+            text-align: center;
           }
-          .items-table tr:nth-child(even) {
-            background-color: #f8f9fa;
+          
+          .items-table td:first-child {
+            text-align: right;
+            font-weight: 500;
           }
-          .invoice-totals {
-            text-align: left;
-            margin-top: 20px;
+          
+          .items-table tbody tr:nth-child(even) {
+            background: #f8fafc;
           }
+          
+          .items-table tbody tr:hover {
+            background: #f1f5f9;
+          }
+          
+          /* Totals Section */
+          .totals-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 15px;
+          }
+          
           .totals-table {
-            width: 300px;
-            margin-left: auto;
+            width: 280px;
             border-collapse: collapse;
           }
+          
+          .totals-table tr {
+            border-bottom: 1px solid #e2e8f0;
+          }
+          
           .totals-table td {
             padding: 8px 12px;
-            border-bottom: 1px solid #ddd;
+            font-size: 10pt;
           }
-          .totals-table .total-row {
-            font-weight: bold;
-            font-size: 16px;
-            background-color: #f8f9fa;
-            border-top: 2px solid #333;
+          
+          .totals-table td:first-child {
+            text-align: right;
+            font-weight: 500;
+            color: #475569;
           }
-          .invoice-footer {
-            margin-top: 40px;
+          
+          .totals-table td:last-child {
+            text-align: left;
+            font-weight: 600;
+            color: #1e293b;
+            font-family: 'Roboto Mono', monospace;
+          }
+          
+          .total-row {
+            background: #f1f5f9;
+            border-top: 2px solid #1e40af;
+            font-weight: 700;
+            font-size: 12pt;
+          }
+          
+          .total-row td {
+            font-size: 12pt;
+            color: #1e40af;
+            padding: 10px 12px;
+          }
+          
+          /* Notes Section */
+          .notes-section {
+            background: #fef3c7;
+            border: 1px solid #fcd34d;
+            border-right: 4px solid #f59e0b;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 15px;
+          }
+          
+          .notes-title {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 6px;
+            font-size: 11pt;
+          }
+          
+          .notes-content {
+            font-size: 10pt;
+            color: #78350f;
+            line-height: 1.6;
+          }
+          
+          /* Footer */
+          .footer-section {
+            margin-top: 20px;
+            padding-top: 12px;
+            border-top: 2px solid #e2e8f0;
             text-align: center;
-            border-top: 1px solid #ddd;
-            padding-top: 20px;
-            color: #666;
-            font-size: 12px;
+            font-size: 9pt;
+            color: #64748b;
           }
+          
+          .footer-line {
+            margin: 3px 0;
+          }
+          
+          .footer-company-name {
+            font-weight: 600;
+            color: #1e40af;
+            font-size: 10pt;
+            margin-bottom: 5px;
+          }
+          
           .status-badge {
             display: inline-block;
             padding: 4px 12px;
             border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            margin-bottom: 10px;
+            font-size: 9pt;
+            font-weight: 600;
+            margin-top: 5px;
           }
-          .status-draft { background-color: #f8f9fa; color: #6c757d; }
-          .status-sent { background-color: #d1ecf1; color: #0c5460; }
-          .status-paid { background-color: #d4edda; color: #155724; }
-          .status-overdue { background-color: #f8d7da; color: #721c24; }
-          .status-cancelled { background-color: #f5c6cb; color: #721c24; }
+          
+          .status-paid { background: #d1fae5; color: #065f46; }
+          .status-sent { background: #dbeafe; color: #1e40af; }
+          .status-overdue { background: #fee2e2; color: #991b1b; }
+          .status-draft { background: #f3f4f6; color: #374151; }
+          .status-cancelled { background: #fce7f3; color: #9f1239; }
+          
+          /* Bilingual Text */
+          .bilingual {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 10px;
+          }
+          
+          .ar-text {
+            font-family: 'Cairo', Arial, sans-serif;
+            direction: rtl;
+            text-align: right;
+          }
+          
+          .tr-text {
+            font-family: 'Roboto', Arial, sans-serif;
+            direction: ltr;
+            text-align: left;
+            font-size: 9pt;
+            color: #64748b;
+          }
+          
           @media print {
-            body { margin: 0; padding: 0; }
-            .invoice-container { border: none; padding: 0; }
-            .no-print { display: none; }
+            body {
+              margin: 0;
+              padding: 0;
+            }
+            
+            .invoice-wrapper {
+              padding: 0;
+              margin: 0;
+              max-width: 100%;
+            }
+            
+            @page {
+              margin: 15mm;
+            }
+            
+            .items-table {
+              page-break-inside: avoid;
+            }
+            
+            .info-section,
+            .invoice-details-row,
+            .totals-section {
+              page-break-inside: avoid;
+            }
           }
         </style>
       </head>
       <body>
-        <div class="invoice-container">
-          <div class="invoice-header">
-            <img src="/logo-fınal.png" alt="مجموعة تواصل" class="company-logo" />
-            <div class="invoice-title">فاتورة</div>
-            <div class="invoice-number">رقم الفاتورة: ${invoice.invoice_number}</div>
-            <div class="status-badge status-${invoice.status}">
-              ${invoice.status === 'paid' ? 'مدفوعة' :
-                invoice.status === 'sent' ? 'مرسلة' :
-                invoice.status === 'overdue' ? 'متأخرة' :
-                invoice.status === 'draft' ? 'مسودة' :
-                'ملغاة'}
+        <div class="invoice-wrapper">
+          <!-- Header -->
+          <div class="header-section">
+            <div class="logo-section">
+              <img src="/logo-fınal.png" alt="Tevasul Group" onerror="this.style.display='none'">
+            </div>
+            
+            <div class="header-title">
+              <div class="invoice-title-ar">فاتورة</div>
+              <div class="invoice-title-tr">FATURA</div>
+              <div class="status-badge status-${invoice.status}">
+                ${invoice.status === 'paid' ? 'مدفوعة / Ödendi' :
+                  invoice.status === 'sent' ? 'مرسلة / Gönderildi' :
+                  invoice.status === 'overdue' ? 'متأخرة / Gecikmiş' :
+                  invoice.status === 'draft' ? 'مسودة / Taslak' :
+                  'ملغاة / İptal'}
+              </div>
+            </div>
+            
+            <div class="invoice-number-section">
+              <div class="invoice-number-label">رقم الفاتورة / Fatura No:</div>
+              <div class="invoice-number-value">${invoice.invoice_number}</div>
             </div>
           </div>
 
-          <div class="invoice-info">
-            <div class="company-info">
-              <div class="info-title">معلومات الشركة</div>
-              <div class="info-item">اسم الشركة: مجموعة تواصل</div>
-              <div class="info-item">الاسم الإنجليزي: Tevasul Group</div>
-              <div class="info-item">العنوان: CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin</div>
-              <div class="info-item">الهاتف: +90 534 962 72 41</div>
-              <div class="info-item">البريد الإلكتروني: info@tevasul.group</div>
-              <div class="info-item">الموقع الإلكتروني: https://tevasul.group</div>
+          <!-- Company and Client Info -->
+          <div class="info-section">
+            <div class="info-box">
+              <div class="info-box-title">
+                <span class="info-box-title-ar">معلومات الشركة</span>
+                <span class="info-box-title-tr">Şirket Bilgileri</span>
+              </div>
+              <div class="info-item">
+                <span class="info-item-label">اسم الشركة:</span>
+                <span class="info-item-value ar-text">مجموعة تواصل</span>
+              </div>
+              <div class="info-item">
+                <span class="info-item-label">Company:</span>
+                <span class="info-item-value">Tevasul Group</span>
+              </div>
+              <div class="info-item">
+                <span class="info-item-label">العنوان:</span>
+                <span class="info-item-value ar-text">CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin</span>
+              </div>
+              <div class="info-item">
+                <span class="info-item-label">الهاتف:</span>
+                <span class="info-item-value info-item-value-phone">+90 534 962 72 41</span>
+              </div>
+              <div class="info-item">
+                <span class="info-item-label">البريد:</span>
+                <span class="info-item-value info-item-value-email">info@tevasul.group</span>
+              </div>
+              <div class="info-item">
+                <span class="info-item-label">الموقع:</span>
+                <span class="info-item-value info-item-value-email">tevasul.group</span>
+              </div>
             </div>
 
-            <div class="client-info">
-              <div class="info-title">معلومات العميل</div>
-              <div class="info-item">الاسم: ${invoice.client_name}</div>
-              ${invoice.client_email ? `<div class="info-item">البريد الإلكتروني: ${invoice.client_email}</div>` : ''}
-              ${invoice.client_phone ? `<div class="info-item">الهاتف: ${invoice.client_phone}</div>` : ''}
-              ${invoice.client_address ? `<div class="info-item">العنوان: ${invoice.client_address}</div>` : ''}
+            <div class="info-box">
+              <div class="info-box-title">
+                <span class="info-box-title-ar">معلومات العميل</span>
+                <span class="info-box-title-tr">Müşteri Bilgileri</span>
+              </div>
+              <div class="info-item">
+                <span class="info-item-label">الاسم / Ad:</span>
+                <span class="info-item-value ar-text">${invoice.client_name}</span>
+              </div>
+              ${invoice.client_email ? `
+              <div class="info-item">
+                <span class="info-item-label">البريد / E-posta:</span>
+                <span class="info-item-value info-item-value-email">${invoice.client_email}</span>
+              </div>
+              ` : ''}
+              ${invoice.client_phone ? `
+              <div class="info-item">
+                <span class="info-item-label">الهاتف / Telefon:</span>
+                <span class="info-item-value info-item-value-phone">${invoice.client_phone}</span>
+              </div>
+              ` : ''}
+              ${invoice.client_address ? `
+              <div class="info-item">
+                <span class="info-item-label">العنوان / Adres:</span>
+                <span class="info-item-value ar-text">${invoice.client_address}</span>
+              </div>
+              ` : ''}
             </div>
           </div>
 
-          <div class="invoice-info">
-            <div class="company-info">
-              <div class="info-title">تفاصيل الفاتورة</div>
-              <div class="info-item">تاريخ الإصدار: ${InvoiceService.formatDate(invoice.issue_date)}</div>
-              <div class="info-item">تاريخ الاستحقاق: ${InvoiceService.formatDate(invoice.due_date)}</div>
+          <!-- Invoice Details -->
+          <div class="invoice-details-row">
+            <div class="detail-item">
+              <span class="detail-label ar-text">تاريخ الإصدار:</span>
+              <span>${formatDate(invoice.issue_date)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label ar-text">تاريخ الاستحقاق:</span>
+              <span>${formatDate(invoice.due_date)}</span>
             </div>
           </div>
 
-          <div class="invoice-items">
+          <!-- Items Table -->
+          <div class="items-section">
             <table class="items-table">
               <thead>
                 <tr>
-                  <th>الوصف</th>
-                  <th>الكمية</th>
-                  <th>سعر الوحدة</th>
-                  <th>المجموع</th>
+                  <th class="ar-text">الوصف / Açıklama</th>
+                  <th>الكمية / Miktar</th>
+                  <th>سعر الوحدة / Birim Fiyat</th>
+                  <th>المجموع / Toplam</th>
                 </tr>
               </thead>
               <tbody>
                 ${invoice.items.map(item => `
                   <tr>
-                    <td>${item.description_ar}</td>
+                    <td class="ar-text">
+                      <div>${item.description_ar || ''}</div>
+                      ${item.description_tr ? `<div style="font-size: 9pt; color: #64748b; margin-top: 3px;">${item.description_tr}</div>` : ''}
+                    </td>
                     <td>${item.quantity}</td>
                     <td>${InvoiceService.formatCurrency(item.unit_price)}</td>
-                    <td>${InvoiceService.formatCurrency(item.total_price)}</td>
+                    <td><strong>${InvoiceService.formatCurrency(item.total_price)}</strong></td>
                   </tr>
                 `).join('')}
               </tbody>
             </table>
           </div>
 
-          <div class="invoice-totals">
+          <!-- Totals -->
+          <div class="totals-section">
             <table class="totals-table">
               <tr>
-                <td>المجموع الفرعي:</td>
+                <td class="ar-text">المجموع الفرعي / Ara Toplam:</td>
                 <td>${InvoiceService.formatCurrency(invoice.subtotal)}</td>
               </tr>
               <tr>
-                <td>الضريبة (${invoice.tax_rate}%):</td>
+                <td class="ar-text">الضريبة (${invoice.tax_rate}%) / Vergi:</td>
                 <td>${InvoiceService.formatCurrency(invoice.tax_amount)}</td>
               </tr>
               <tr class="total-row">
-                <td>المجموع الكلي:</td>
+                <td class="ar-text">المجموع الكلي / Genel Toplam:</td>
                 <td>${InvoiceService.formatCurrency(invoice.total_amount)}</td>
               </tr>
             </table>
           </div>
 
-          ${invoice.notes_ar ? `
-            <div style="margin-top: 30px;">
-              <div class="info-title">ملاحظات</div>
-              <div style="padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
-                ${invoice.notes_ar}
-              </div>
+          <!-- Notes -->
+          ${invoice.notes_ar || invoice.notes_tr ? `
+          <div class="notes-section">
+            <div class="notes-title ar-text">ملاحظات / Notlar</div>
+            <div class="notes-content">
+              ${invoice.notes_ar ? `<div class="ar-text" style="margin-bottom: 5px;">${invoice.notes_ar}</div>` : ''}
+              ${invoice.notes_tr ? `<div style="font-family: 'Roboto', Arial; direction: ltr;">${invoice.notes_tr}</div>` : ''}
             </div>
+          </div>
           ` : ''}
 
-          <div class="invoice-footer">
-            <p>شكراً لاختياركم خدماتنا</p>
-            <p>تم إنشاء هذه الفاتورة في: ${InvoiceService.formatDate(invoice.created_at)}</p>
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ddd;">
-              <p style="font-size: 11px; color: #888;">
-                مجموعة تواصل - Tevasul Group<br>
-                شريكك الموثوق لإنجاز جميع خدماتك في تركيا<br>
-                CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin<br>
-                هاتف: +90 534 962 72 41 | البريد الإلكتروني: info@tevasul.group<br>
-                الموقع الإلكتروني: https://tevasul.group
-              </p>
+          <!-- Footer -->
+          <div class="footer-section">
+            <div class="footer-company-name">Tevasul Group - مجموعة تواصل</div>
+            <div class="footer-line ar-text">شريكك الموثوق لإنجاز جميع خدماتك في تركيا</div>
+            <div class="footer-line">Türkiye'deki tüm hizmetleriniz için güvenilir ortağınız</div>
+            <div class="footer-line" style="margin-top: 8px; font-size: 8pt; direction: ltr; text-align: center; font-family: 'Roboto', Arial, sans-serif;">
+              CamiŞerif Mah. 5210 Sk. No:11A Akdeniz / Mersin | 
+              Tel: +90 534 962 72 41 | 
+              Email: info@tevasul.group | 
+              Web: tevasul.group
+            </div>
+            <div class="footer-line" style="font-size: 8pt; color: #94a3b8; margin-top: 5px;">
+              ${formatDate(invoice.created_at)} / ${formatDate(invoice.created_at)}
             </div>
           </div>
         </div>
 
         <script>
-          // Auto print when page loads
           window.onload = function() {
             setTimeout(function() {
               window.print();
-            }, 500);
+            }, 300);
           };
         </script>
       </body>
@@ -957,13 +1313,237 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     }
   };
 
+  // Load budgets
+  const loadBudgets = async () => {
+    try {
+      const budgetsData = await AccountingService.getBudgets(true);
+      setBudgets(budgetsData);
+    } catch (error) {
+      console.error('Error loading budgets:', error);
+    }
+  };
+
+  // Load payments
+  const loadPayments = async () => {
+    try {
+      const paymentsData = await AccountingService.getPayments();
+      setPayments(paymentsData);
+    } catch (error) {
+      console.error('Error loading payments:', error);
+    }
+  };
+
+  // Load settings
+  const loadSettings = async () => {
+    try {
+      const settingsData = await AccountingService.getSettings();
+      if (settingsData) {
+        setSettings(settingsData);
+        // Update invoice form tax rate if form is not being edited
+        if (!editingInvoice && invoiceForm.tax_rate === 20) {
+          setInvoiceForm(prev => ({
+            ...prev,
+            tax_rate: settingsData.default_tax_rate || 20
+          }));
+        }
+      } else {
+        // Keep default settings if table doesn't exist
+        console.warn('Settings table not found, using default settings');
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  // Handle budget form submission
+  const handleBudgetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      if (editingBudget) {
+        await AccountingService.updateBudget(editingBudget.id, budgetForm);
+      } else {
+        await AccountingService.createBudget(budgetForm);
+      }
+      
+      await loadBudgets();
+      setShowBudgetForm(false);
+      setEditingBudget(null);
+      resetBudgetForm();
+    } catch (error) {
+      console.error('Error saving budget:', error);
+      alert('حدث خطأ في حفظ الميزانية: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset budget form
+  const resetBudgetForm = () => {
+    setBudgetForm({
+      name_ar: '',
+      name_en: '',
+      name_tr: '',
+      type: 'expense',
+      amount: 0,
+      period_start: AccountingService.getCurrentDate(),
+      period_end: AccountingService.getCurrentDate(),
+      description_ar: '',
+      description_en: '',
+      description_tr: ''
+    });
+  };
+
+  // Handle edit budget
+  const handleEditBudget = (budget: Budget) => {
+    setEditingBudget(budget);
+    setBudgetForm({
+      name_ar: budget.name_ar,
+      name_en: budget.name_en,
+      name_tr: budget.name_tr,
+      type: budget.type,
+      amount: budget.amount,
+      period_start: budget.period_start,
+      period_end: budget.period_end,
+      category_id: budget.category_id,
+      description_ar: budget.description_ar || '',
+      description_en: budget.description_en || '',
+      description_tr: budget.description_tr || ''
+    });
+    setShowBudgetForm(true);
+  };
+
+  // Handle delete budget
+  const handleDeleteBudget = async (id: string) => {
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذه الميزانية؟' : 'Are you sure you want to delete this budget?')) {
+      try {
+        await AccountingService.deleteBudget(id);
+        await loadBudgets();
+      } catch (error) {
+        console.error('Error deleting budget:', error);
+      }
+    }
+  };
+
+  // Handle payment form submission
+  const handlePaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      if (editingPayment) {
+        await AccountingService.updatePayment(editingPayment.id, paymentForm);
+      } else {
+        await AccountingService.createPayment(paymentForm);
+      }
+      
+      await loadPayments();
+      setShowPaymentForm(false);
+      setEditingPayment(null);
+      resetPaymentForm();
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      alert('حدث خطأ في حفظ المدفوعة: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Reset payment form
+  const resetPaymentForm = () => {
+    setPaymentForm({
+      payment_method: 'cash',
+      amount: 0,
+      payment_date: AccountingService.getCurrentDate(),
+      reference_number: '',
+      notes_ar: '',
+      notes_en: '',
+      notes_tr: ''
+    });
+  };
+
+  // Handle edit payment
+  const handleEditPayment = (payment: Payment) => {
+    setEditingPayment(payment);
+    setPaymentForm({
+      invoice_id: payment.invoice_id,
+      transaction_id: payment.transaction_id,
+      payment_method: payment.payment_method,
+      amount: payment.amount,
+      payment_date: payment.payment_date,
+      reference_number: payment.reference_number || '',
+      notes_ar: payment.notes_ar || '',
+      notes_en: payment.notes_en || '',
+      notes_tr: payment.notes_tr || ''
+    });
+    setShowPaymentForm(true);
+  };
+
+  // Handle delete payment
+  const handleDeletePayment = async (id: string) => {
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذه المدفوعة؟' : 'Are you sure you want to delete this payment?')) {
+      try {
+        await AccountingService.deletePayment(id);
+        await loadPayments();
+      } catch (error) {
+        console.error('Error deleting payment:', error);
+      }
+    }
+  };
+
+  // Handle save settings
+  const handleSaveSettings = async () => {
+    setLoading(true);
+    
+    try {
+      const savedSettings = await AccountingService.updateSettings(settings);
+      if (savedSettings) {
+        setSettings(savedSettings);
+      }
+      alert(language === 'ar' ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully');
+    } catch (error: any) {
+      console.error('Error saving settings:', error);
+      const errorMessage = error.message || (language === 'ar' ? 'خطأ غير معروف' : 'Unknown error');
+      if (errorMessage.includes('جدول الإعدادات غير موجود') || errorMessage.includes('schema cache')) {
+        alert(language === 'ar' 
+          ? 'جدول الإعدادات غير موجود. يرجى تطبيق migration: 20241221_create_accounting_settings.sql في Supabase'
+          : 'Settings table does not exist. Please apply migration: 20241221_create_accounting_settings.sql in Supabase');
+      } else {
+        alert(language === 'ar' ? `حدث خطأ في حفظ الإعدادات: ${errorMessage}` : `Error saving settings: ${errorMessage}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load all transactions for analysis
+  const loadAllTransactions = async () => {
+    try {
+      const allTransactionsData = await AccountingService.getTransactions();
+      setAllTransactions(allTransactionsData);
+    } catch (error) {
+      console.error('Error loading all transactions:', error);
+    }
+  };
+
   useEffect(() => {
     loadData();
+    loadSettings();
     if (activeTab === 'dashboard') {
       calculateDashboardStats();
     }
     if (activeTab === 'invoices') {
       loadInvoices();
+    }
+    if (activeTab === 'budgets') {
+      loadBudgets();
+    }
+    if (activeTab === 'payments') {
+      loadPayments();
+    }
+    if (activeTab === 'analysis' || activeTab === 'reports') {
+      loadAllTransactions();
     }
   }, [selectedDate, filterType, filterCategory, activeTab]);
 
@@ -1957,21 +2537,291 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {activeTab === 'budgets' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold">إدارة الميزانيات</h3>
+            <h3 className="text-xl font-bold">
+              {language === 'ar' ? 'إدارة الميزانيات' : 'Budget Management'}
+            </h3>
             <button
-              onClick={() => setShowBudgetForm(true)}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              onClick={() => {
+                setEditingBudget(null);
+                resetBudgetForm();
+                setShowBudgetForm(true);
+              }}
+              className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              <Plus className="w-4 h-4 mr-2 inline" />
-              إضافة ميزانية
+              <Plus className="w-4 h-4 mr-2" />
+              {language === 'ar' ? 'إضافة ميزانية' : 'Add Budget'}
             </button>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <p className="text-gray-500 text-center py-8">
-              نظام إدارة الميزانيات قيد التطوير
-            </p>
+
+          {/* Budgets List */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {budgets.map((budget) => {
+              const percentageUsed = budget.percentage_used || 0;
+              const isOverBudget = percentageUsed > 100;
+              const isWarning = percentageUsed > 80;
+              
+              return (
+                <div key={budget.id} className={`rounded-lg border ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'} shadow-lg`}>
+                  <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-lg">
+                        {language === 'ar' ? budget.name_ar : language === 'tr' ? budget.name_tr : budget.name_en}
+                      </h4>
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        budget.type === 'income' 
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                      }`}>
+                        {budget.type === 'income' 
+                          ? (language === 'ar' ? 'وارد' : 'Income')
+                          : (language === 'ar' ? 'صادر' : 'Expense')
+                        }
+                      </span>
+                    </div>
+                    {budget.description_ar && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        {language === 'ar' ? budget.description_ar : language === 'tr' ? budget.description_tr : budget.description_en}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="p-4 space-y-3">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {language === 'ar' ? 'الميزانية:' : 'Budget:'}
+                      </span>
+                      <span className="font-semibold">
+                        {AccountingService.formatCurrency(budget.amount)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {language === 'ar' ? 'المُنفق:' : 'Spent:'}
+                      </span>
+                      <span className="font-semibold">
+                        {AccountingService.formatCurrency(budget.spent || 0)}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">
+                        {language === 'ar' ? 'المتبقي:' : 'Remaining:'}
+                      </span>
+                      <span className={`font-semibold ${(budget.remaining || 0) < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        {AccountingService.formatCurrency(budget.remaining || 0)}
+                      </span>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-gray-600 dark:text-gray-400">
+                          {language === 'ar' ? 'نسبة الاستخدام:' : 'Usage:'}
+                        </span>
+                        <span className={`font-semibold ${isOverBudget ? 'text-red-600' : isWarning ? 'text-orange-600' : 'text-green-600'}`}>
+                          {percentageUsed.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className={`w-full h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        <div 
+                          className={`h-full transition-all duration-300 ${
+                            isOverBudget ? 'bg-red-500' : isWarning ? 'bg-orange-500' : 'bg-green-500'
+                          }`}
+                          style={{ width: `${Math.min(percentageUsed, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
+                      <span>
+                        {AccountingService.formatDate(budget.period_start)} - {AccountingService.formatDate(budget.period_end)}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex space-x-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={() => handleEditBudget(budget)}
+                        className="flex-1 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
+                      >
+                        <Edit className="w-4 h-4 mr-1 inline" />
+                        {language === 'ar' ? 'تعديل' : 'Edit'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteBudget(budget.id)}
+                        className="flex-1 px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1 inline" />
+                        {language === 'ar' ? 'حذف' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            
+            {budgets.length === 0 && (
+              <div className="col-span-2 text-center py-12 text-gray-500">
+                {language === 'ar' ? 'لا توجد ميزانيات' : 'No budgets found'}
+              </div>
+            )}
           </div>
+
+          {/* Budget Form Modal */}
+          {showBudgetForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className={`w-full max-w-2xl rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-xl`}>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold">
+                      {editingBudget 
+                        ? (language === 'ar' ? 'تعديل الميزانية' : 'Edit Budget')
+                        : (language === 'ar' ? 'إضافة ميزانية جديدة' : 'Add New Budget')
+                      }
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setShowBudgetForm(false);
+                        setEditingBudget(null);
+                        resetBudgetForm();
+                      }}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleBudgetSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'الاسم (عربي) *' : 'Name (Arabic) *'}
+                        </label>
+                        <input
+                          type="text"
+                          value={budgetForm.name_ar}
+                          onChange={(e) => setBudgetForm({ ...budgetForm, name_ar: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'النوع *' : 'Type *'}
+                        </label>
+                        <select
+                          value={budgetForm.type}
+                          onChange={(e) => setBudgetForm({ ...budgetForm, type: e.target.value as 'income' | 'expense' })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        >
+                          <option value="income">{language === 'ar' ? 'وارد' : 'Income'}</option>
+                          <option value="expense">{language === 'ar' ? 'صادر' : 'Expense'}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'المبلغ *' : 'Amount *'}
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={budgetForm.amount}
+                          onChange={(e) => setBudgetForm({ ...budgetForm, amount: parseFloat(e.target.value) || 0 })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'الفئة' : 'Category'}
+                        </label>
+                        <select
+                          value={budgetForm.category_id || ''}
+                          onChange={(e) => setBudgetForm({ ...budgetForm, category_id: e.target.value || undefined })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                        >
+                          <option value="">{language === 'ar' ? 'اختر الفئة' : 'Select Category'}</option>
+                          {categories.filter(c => c.type === budgetForm.type).map(category => (
+                            <option key={category.id} value={category.id}>
+                              {language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'تاريخ البداية *' : 'Start Date *'}
+                        </label>
+                        <input
+                          type="date"
+                          value={budgetForm.period_start}
+                          onChange={(e) => setBudgetForm({ ...budgetForm, period_start: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'تاريخ النهاية *' : 'End Date *'}
+                        </label>
+                        <input
+                          type="date"
+                          value={budgetForm.period_end}
+                          onChange={(e) => setBudgetForm({ ...budgetForm, period_end: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {language === 'ar' ? 'الوصف (عربي)' : 'Description (Arabic)'}
+                      </label>
+                      <textarea
+                        value={budgetForm.description_ar}
+                        onChange={(e) => setBudgetForm({ ...budgetForm, description_ar: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowBudgetForm(false);
+                          setEditingBudget(null);
+                          resetBudgetForm();
+                        }}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                      >
+                        {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors disabled:opacity-50"
+                      >
+                        {loading 
+                          ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                          : (editingBudget ? (language === 'ar' ? 'تحديث الميزانية' : 'Update Budget') : (language === 'ar' ? 'إنشاء الميزانية' : 'Create Budget'))
+                        }
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -2501,59 +3351,454 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {activeTab === 'payments' && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-bold">تتبع المدفوعات</h3>
+            <h3 className="text-xl font-bold">
+              {language === 'ar' ? 'تتبع المدفوعات' : 'Payment Tracking'}
+            </h3>
             <button
-              onClick={() => setShowPaymentForm(true)}
-              className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
+              onClick={() => {
+                setEditingPayment(null);
+                resetPaymentForm();
+                setShowPaymentForm(true);
+              }}
+              className="flex items-center px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors"
             >
-              <Plus className="w-4 h-4 mr-2 inline" />
-              إضافة دفعة
+              <Plus className="w-4 h-4 mr-2" />
+              {language === 'ar' ? 'إضافة دفعة' : 'Add Payment'}
             </button>
           </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <p className="text-gray-500 text-center py-8">
-              نظام تتبع المدفوعات قيد التطوير
-            </p>
+
+          {/* Payments List */}
+          <div className={`rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {language === 'ar' ? 'المبلغ' : 'Amount'}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {language === 'ar' ? 'طريقة الدفع' : 'Payment Method'}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {language === 'ar' ? 'التاريخ' : 'Date'}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {language === 'ar' ? 'الحالة' : 'Status'}
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      {language === 'ar' ? 'الإجراءات' : 'Actions'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                        {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+                      </td>
+                    </tr>
+                  ) : payments.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                        {language === 'ar' ? 'لا توجد مدفوعات' : 'No payments found'}
+                      </td>
+                    </tr>
+                  ) : (
+                    payments.map((payment) => (
+                      <tr key={payment.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                          {AccountingService.formatCurrency(payment.amount)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {language === 'ar' 
+                            ? payment.payment_method === 'cash' ? 'نقدي' :
+                              payment.payment_method === 'bank_transfer' ? 'تحويل بنكي' :
+                              payment.payment_method === 'credit_card' ? 'بطاقة ائتمانية' :
+                              payment.payment_method === 'check' ? 'شيك' : 'أخرى'
+                            : payment.payment_method === 'cash' ? 'Cash' :
+                              payment.payment_method === 'bank_transfer' ? 'Bank Transfer' :
+                              payment.payment_method === 'credit_card' ? 'Credit Card' :
+                              payment.payment_method === 'check' ? 'Check' : 'Other'
+                          }
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                          {AccountingService.formatDate(payment.payment_date)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            payment.status === 'completed' 
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                              : payment.status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                              : payment.status === 'failed'
+                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                          }`}>
+                            {payment.status === 'completed' 
+                              ? (language === 'ar' ? 'مكتمل' : 'Completed')
+                              : payment.status === 'pending'
+                              ? (language === 'ar' ? 'قيد الانتظار' : 'Pending')
+                              : payment.status === 'failed'
+                              ? (language === 'ar' ? 'فشل' : 'Failed')
+                              : (language === 'ar' ? 'مسترد' : 'Refunded')
+                            }
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => handleEditPayment(payment)}
+                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePayment(payment.id)}
+                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
+
+          {/* Payment Form Modal */}
+          {showPaymentForm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className={`w-full max-w-2xl rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} shadow-xl`}>
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold">
+                      {editingPayment 
+                        ? (language === 'ar' ? 'تعديل المدفوعة' : 'Edit Payment')
+                        : (language === 'ar' ? 'إضافة دفعة جديدة' : 'Add New Payment')
+                      }
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setShowPaymentForm(false);
+                        setEditingPayment(null);
+                        resetPaymentForm();
+                      }}
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handlePaymentSubmit} className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'المبلغ *' : 'Amount *'}
+                        </label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={paymentForm.amount}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, amount: parseFloat(e.target.value) || 0 })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'طريقة الدفع *' : 'Payment Method *'}
+                        </label>
+                        <select
+                          value={paymentForm.payment_method}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, payment_method: e.target.value as any })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        >
+                          <option value="cash">{language === 'ar' ? 'نقدي' : 'Cash'}</option>
+                          <option value="bank_transfer">{language === 'ar' ? 'تحويل بنكي' : 'Bank Transfer'}</option>
+                          <option value="credit_card">{language === 'ar' ? 'بطاقة ائتمانية' : 'Credit Card'}</option>
+                          <option value="check">{language === 'ar' ? 'شيك' : 'Check'}</option>
+                          <option value="other">{language === 'ar' ? 'أخرى' : 'Other'}</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'تاريخ الدفع *' : 'Payment Date *'}
+                        </label>
+                        <input
+                          type="date"
+                          value={paymentForm.payment_date}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'رقم المرجع' : 'Reference Number'}
+                        </label>
+                        <input
+                          type="text"
+                          value={paymentForm.reference_number}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2">
+                        {language === 'ar' ? 'ملاحظات (عربي)' : 'Notes (Arabic)'}
+                      </label>
+                      <textarea
+                        value={paymentForm.notes_ar}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, notes_ar: e.target.value })}
+                        className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowPaymentForm(false);
+                          setEditingPayment(null);
+                          resetPaymentForm();
+                        }}
+                        className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                      >
+                        {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={loading}
+                        className="px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors disabled:opacity-50"
+                      >
+                        {loading 
+                          ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                          : (editingPayment ? (language === 'ar' ? 'تحديث المدفوعة' : 'Update Payment') : (language === 'ar' ? 'إنشاء المدفوعة' : 'Create Payment'))
+                        }
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Financial Analysis Tab */}
       {activeTab === 'analysis' && (
         <div className="space-y-6">
-          <h3 className="text-xl font-bold">التحليل المالي</h3>
+          <h3 className="text-xl font-bold">
+            {language === 'ar' ? 'التحليل المالي' : 'Financial Analysis'}
+          </h3>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Monthly Trends */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-              <h4 className="text-lg font-semibold mb-4">الاتجاهات الشهرية</h4>
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-gray-500">الرسوم البيانية قيد التطوير</p>
+            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <LineChart className="w-5 h-5 mr-2" />
+                {language === 'ar' ? 'الاتجاهات الشهرية' : 'Monthly Trends'}
+              </h4>
+              <div className="space-y-3">
+                {(() => {
+                  const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+                  const currentMonth = new Date().getMonth();
+                  const last6Months = Array.from({ length: 6 }, (_, i) => {
+                    const month = currentMonth - i;
+                    const monthIndex = month < 0 ? month + 12 : month;
+                    return months[monthIndex];
+                  }).reverse();
+                  
+                  return last6Months.map((month, idx) => {
+                    const monthTransactions = allTransactions.filter(t => {
+                      const transactionDate = new Date(t.transaction_date);
+                      const transactionYear = transactionDate.getFullYear();
+                      const currentYear = new Date().getFullYear();
+                      return transactionDate.getMonth() === (currentMonth - 5 + idx + 12) % 12 && transactionYear === currentYear;
+                    });
+                    const income = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+                    const expense = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+                    const maxAmount = Math.max(income, expense, 1000);
+                    
+                    return (
+                      <div key={idx} className="space-y-1">
+                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                          <span>{month}</span>
+                          <span>{AccountingService.formatCurrency(income - expense)}</span>
+                        </div>
+                        <div className="flex gap-2 h-6">
+                          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden relative">
+                            <div 
+                              className="h-full bg-green-500 transition-all"
+                              style={{ width: `${(income / maxAmount) * 100}%` }}
+                            />
+                          </div>
+                          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden relative">
+                            <div 
+                              className="h-full bg-red-500 transition-all"
+                              style={{ width: `${(expense / maxAmount) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
 
             {/* Category Breakdown */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-              <h4 className="text-lg font-semibold mb-4">توزيع الفئات</h4>
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-gray-500">الرسوم البيانية قيد التطوير</p>
+            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <PieChart className="w-5 h-5 mr-2" />
+                {language === 'ar' ? 'توزيع الفئات' : 'Category Breakdown'}
+              </h4>
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {categories.map(category => {
+                  const categoryTransactions = allTransactions.filter(t => t.category_id === category.id);
+                  const totalAmount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+                  const allTransactionsTotal = allTransactions.reduce((sum, t) => sum + t.amount, 0);
+                  const percentage = allTransactionsTotal > 0 ? (totalAmount / allTransactionsTotal) * 100 : 0;
+                  
+                  if (totalAmount === 0) return null;
+                  
+                  return (
+                    <div key={category.id} className="space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-700 dark:text-gray-300">
+                          {language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en}
+                        </span>
+                        <span className={`font-semibold ${category.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                          {AccountingService.formatCurrency(totalAmount)}
+                        </span>
+                      </div>
+                      <div className={`w-full h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        <div 
+                          className={`h-full transition-all ${category.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {categories.filter(c => {
+                  const categoryTransactions = allTransactions.filter(t => t.category_id === c.id);
+                  return categoryTransactions.reduce((sum, t) => sum + t.amount, 0) > 0;
+                }).length === 0 && (
+                  <div className="text-center text-gray-500 py-8">
+                    {language === 'ar' ? 'لا توجد بيانات' : 'No data available'}
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Profit Margins */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-              <h4 className="text-lg font-semibold mb-4">هوامش الربح</h4>
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-gray-500">الرسوم البيانية قيد التطوير</p>
+            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <Target className="w-5 h-5 mr-2" />
+                {language === 'ar' ? 'هوامش الربح' : 'Profit Margins'}
+              </h4>
+              <div className="space-y-4">
+                {(() => {
+                  const totalIncome = allTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+                  const totalExpense = allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+                  const netProfit = totalIncome - totalExpense;
+                  const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
+                  
+                  return (
+                    <>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {language === 'ar' ? 'إجمالي الواردات:' : 'Total Income:'}
+                          </span>
+                          <span className="font-semibold text-green-600">
+                            {AccountingService.formatCurrency(totalIncome)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {language === 'ar' ? 'إجمالي الصادرات:' : 'Total Expense:'}
+                          </span>
+                          <span className="font-semibold text-red-600">
+                            {AccountingService.formatCurrency(totalExpense)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between border-t pt-2">
+                          <span className="text-sm font-semibold">
+                            {language === 'ar' ? 'صافي الربح:' : 'Net Profit:'}
+                          </span>
+                          <span className={`font-bold text-lg ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {AccountingService.formatCurrency(netProfit)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {language === 'ar' ? 'هامش الربح:' : 'Profit Margin:'}
+                          </span>
+                          <span className={`font-semibold ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {profitMargin.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
 
             {/* Cash Flow */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-              <h4 className="text-lg font-semibold mb-4">تدفق النقدية</h4>
-              <div className="h-64 flex items-center justify-center">
-                <p className="text-gray-500">الرسوم البيانية قيد التطوير</p>
+            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <Activity className="w-5 h-5 mr-2" />
+                {language === 'ar' ? 'تدفق النقدية' : 'Cash Flow'}
+              </h4>
+              <div className="space-y-3">
+                {dailySummaries.slice(0, 7).map(summary => {
+                  const netFlow = summary.total_income - summary.total_expense;
+                  const maxFlow = Math.max(Math.abs(netFlow), Math.abs(summary.total_income), Math.abs(summary.total_expense), 1000);
+                  
+                  return (
+                    <div key={summary.id} className="space-y-1">
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
+                        <span>{AccountingService.formatDate(summary.summary_date)}</span>
+                        <span className={`font-semibold ${netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {AccountingService.formatCurrency(netFlow)}
+                        </span>
+                      </div>
+                      <div className={`w-full h-4 rounded overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        <div className="flex h-full">
+                          <div 
+                            className="bg-green-500 transition-all"
+                            style={{ width: `${(summary.total_income / maxFlow) * 100}%` }}
+                          />
+                          <div 
+                            className="bg-red-500 transition-all"
+                            style={{ width: `${(summary.total_expense / maxFlow) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {dailySummaries.length === 0 && (
+                  <div className="text-center text-gray-500 py-8">
+                    {language === 'ar' ? 'لا توجد بيانات' : 'No data available'}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2563,83 +3808,261 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {/* Settings Tab */}
       {activeTab === 'settings' && (
         <div className="space-y-6">
-          <h3 className="text-xl font-bold">إعدادات النظام</h3>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <div className="space-y-6">
-              {/* Currency Settings */}
-              <div>
-                <label className="block text-sm font-medium mb-2">العملة الافتراضية</label>
-                <select
-                  value={settings.currency}
-                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                >
-                  <option value="USD">دولار أمريكي (USD)</option>
-                  <option value="EUR">يورو (EUR)</option>
-                  <option value="GBP">جنيه إسترليني (GBP)</option>
-                  <option value="TRY">ليرة تركية (TRY)</option>
-                  <option value="SAR">ريال سعودي (SAR)</option>
-                </select>
-              </div>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold">
+              {language === 'ar' ? 'إعدادات النظام' : 'System Settings'}
+            </h3>
+            <button
+              onClick={handleSaveSettings}
+              disabled={loading}
+              className="flex items-center px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              {loading 
+                ? (language === 'ar' ? 'جاري الحفظ...' : 'Saving...')
+                : (language === 'ar' ? 'حفظ الإعدادات' : 'Save Settings')
+              }
+            </button>
+          </div>
 
-              {/* Date Format */}
-              <div>
-                <label className="block text-sm font-medium mb-2">تنسيق التاريخ</label>
-                <select
-                  value={settings.dateFormat}
-                  onChange={(e) => setSettings({ ...settings, dateFormat: e.target.value })}
-                  className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                >
-                  <option value="DD/MM/YYYY">يوم/شهر/سنة</option>
-                  <option value="MM/DD/YYYY">شهر/يوم/سنة</option>
-                  <option value="YYYY-MM-DD">سنة-شهر-يوم</option>
-                </select>
-              </div>
-
-              {/* Fiscal Year */}
-              <div>
-                <label className="block text-sm font-medium mb-2">بداية السنة المالية</label>
-                <input
-                  type="date"
-                  value={`2024-${settings.fiscalYearStart}`}
-                  onChange={(e) => setSettings({ ...settings, fiscalYearStart: e.target.value.substring(5) })}
-                  className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                />
-              </div>
-
-              {/* Notifications */}
-              <div className="flex items-center justify-between">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* General Settings */}
+            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <Settings className="w-5 h-5 mr-2" />
+                {language === 'ar' ? 'الإعدادات العامة' : 'General Settings'}
+              </h4>
+              <div className="space-y-4">
+                {/* Currency Settings */}
                 <div>
-                  <label className="block text-sm font-medium">الإشعارات</label>
-                  <p className="text-sm text-gray-500">تلقي إشعارات حول المعاملات المهمة</p>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'العملة الافتراضية' : 'Default Currency'}
+                  </label>
+                  <select
+                    value={settings.currency || 'TRY'}
+                    onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  >
+                    <option value="USD">{language === 'ar' ? 'دولار أمريكي (USD)' : 'US Dollar (USD)'}</option>
+                    <option value="EUR">{language === 'ar' ? 'يورو (EUR)' : 'Euro (EUR)'}</option>
+                    <option value="GBP">{language === 'ar' ? 'جنيه إسترليني (GBP)' : 'British Pound (GBP)'}</option>
+                    <option value="TRY">{language === 'ar' ? 'ليرة تركية (TRY)' : 'Turkish Lira (TRY)'}</option>
+                    <option value="SAR">{language === 'ar' ? 'ريال سعودي (SAR)' : 'Saudi Riyal (SAR)'}</option>
+                  </select>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={settings.notifications}
-                  onChange={(e) => setSettings({ ...settings, notifications: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-              </div>
 
-              {/* Auto Backup */}
-              <div className="flex items-center justify-between">
+                {/* Date Format */}
                 <div>
-                  <label className="block text-sm font-medium">النسخ الاحتياطي التلقائي</label>
-                  <p className="text-sm text-gray-500">إنشاء نسخ احتياطية تلقائية للبيانات</p>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'تنسيق التاريخ' : 'Date Format'}
+                  </label>
+                  <select
+                    value={settings.date_format || 'DD/MM/YYYY'}
+                    onChange={(e) => setSettings({ ...settings, date_format: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  >
+                    <option value="DD/MM/YYYY">{language === 'ar' ? 'يوم/شهر/سنة' : 'Day/Month/Year'}</option>
+                    <option value="MM/DD/YYYY">{language === 'ar' ? 'شهر/يوم/سنة' : 'Month/Day/Year'}</option>
+                    <option value="YYYY-MM-DD">{language === 'ar' ? 'سنة-شهر-يوم' : 'Year-Month-Day'}</option>
+                  </select>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={settings.autoBackup}
-                  onChange={(e) => setSettings({ ...settings, autoBackup: e.target.checked })}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-              </div>
 
-              <div className="flex justify-end">
-                <button className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                  حفظ الإعدادات
-                </button>
+                {/* Fiscal Year */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'بداية السنة المالية' : 'Fiscal Year Start'}
+                  </label>
+                  <input
+                    type="date"
+                    value={`2024-${settings.fiscal_year_start || '01-01'}`}
+                    onChange={(e) => setSettings({ ...settings, fiscal_year_start: e.target.value.substring(5) })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  />
+                </div>
+
+                {/* Default Tax Rate */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'الضريبة الافتراضية (%)' : 'Default Tax Rate (%)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="100"
+                    value={settings.default_tax_rate || 20}
+                    onChange={(e) => setSettings({ ...settings, default_tax_rate: parseFloat(e.target.value) || 20 })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Invoice Settings */}
+            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <FileTextIcon className="w-5 h-5 mr-2" />
+                {language === 'ar' ? 'إعدادات الفواتير' : 'Invoice Settings'}
+              </h4>
+              <div className="space-y-4">
+                {/* Invoice Prefix */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'بادئة رقم الفاتورة' : 'Invoice Number Prefix'}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.invoice_prefix || 'INV'}
+                    onChange={(e) => setSettings({ ...settings, invoice_prefix: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    placeholder="INV"
+                  />
+                </div>
+
+                {/* Invoice Number Format */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'تنسيق رقم الفاتورة' : 'Invoice Number Format'}
+                  </label>
+                  <select
+                    value={settings.invoice_number_format || 'YYYYMMDD-###'}
+                    onChange={(e) => setSettings({ ...settings, invoice_number_format: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  >
+                    <option value="YYYYMMDD-###">{language === 'ar' ? 'تاريخ-رقم (20241221-001)' : 'Date-Number (20241221-001)'}</option>
+                    <option value="YYYY-###">{language === 'ar' ? 'سنة-رقم (2024-001)' : 'Year-Number (2024-001)'}</option>
+                    <option value="###">{language === 'ar' ? 'رقم تسلسلي (001)' : 'Sequential (001)'}</option>
+                  </select>
+                </div>
+
+                {/* Notifications */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <label className="block text-sm font-medium">
+                      {language === 'ar' ? 'الإشعارات' : 'Notifications'}
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {language === 'ar' ? 'تلقي إشعارات حول المعاملات المهمة' : 'Receive notifications about important transactions'}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.notifications || false}
+                    onChange={(e) => setSettings({ ...settings, notifications: e.target.checked })}
+                    className="w-5 h-5 text-blue-600 rounded cursor-pointer"
+                  />
+                </div>
+
+                {/* Auto Backup */}
+                <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <div>
+                    <label className="block text-sm font-medium">
+                      {language === 'ar' ? 'النسخ الاحتياطي التلقائي' : 'Auto Backup'}
+                    </label>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      {language === 'ar' ? 'إنشاء نسخ احتياطية تلقائية للبيانات' : 'Automatically backup data'}
+                    </p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={settings.auto_backup || false}
+                    onChange={(e) => setSettings({ ...settings, auto_backup: e.target.checked })}
+                    className="w-5 h-5 text-blue-600 rounded cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Company Information */}
+            <div className={`lg:col-span-2 rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+              <h4 className="text-lg font-semibold mb-4 flex items-center">
+                <Building className="w-5 h-5 mr-2" />
+                {language === 'ar' ? 'معلومات الشركة' : 'Company Information'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Company Name Arabic */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'اسم الشركة (عربي)' : 'Company Name (Arabic)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.company_name_ar || ''}
+                    onChange={(e) => setSettings({ ...settings, company_name_ar: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    dir="rtl"
+                  />
+                </div>
+
+                {/* Company Name English */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'اسم الشركة (إنجليزي)' : 'Company Name (English)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.company_name_en || ''}
+                    onChange={(e) => setSettings({ ...settings, company_name_en: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                  />
+                </div>
+
+                {/* Company Address */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'عنوان الشركة' : 'Company Address'}
+                  </label>
+                  <textarea
+                    value={settings.company_address || ''}
+                    onChange={(e) => setSettings({ ...settings, company_address: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    rows={2}
+                    dir="ltr"
+                  />
+                </div>
+
+                {/* Company Phone */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'هاتف الشركة' : 'Company Phone'}
+                  </label>
+                  <input
+                    type="tel"
+                    value={settings.company_phone || ''}
+                    onChange={(e) => setSettings({ ...settings, company_phone: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    dir="ltr"
+                  />
+                </div>
+
+                {/* Company Email */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+                  </label>
+                  <input
+                    type="email"
+                    value={settings.company_email || ''}
+                    onChange={(e) => setSettings({ ...settings, company_email: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    dir="ltr"
+                  />
+                </div>
+
+                {/* Company Website */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-2">
+                    {language === 'ar' ? 'الموقع الإلكتروني' : 'Website'}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.company_website || ''}
+                    onChange={(e) => setSettings({ ...settings, company_website: e.target.value })}
+                    className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                    dir="ltr"
+                    placeholder="tevasul.group"
+                  />
+                </div>
               </div>
             </div>
           </div>
