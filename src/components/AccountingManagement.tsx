@@ -2338,6 +2338,23 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                       </span>
                       <span className="font-medium">{AccountingService.formatCurrency(summary.total_expense)}</span>
                     </div>
+                    <div className="flex justify-between text-sm pt-1 border-t border-gray-300 dark:border-gray-600">
+                      <span className={`font-semibold ${
+                        (summary.total_income - summary.total_expense) >= 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {language === 'ar' ? 'صافي اليوم:' : 'Net Daily:'}
+                      </span>
+                      <span className={`font-semibold ${
+                        (summary.total_income - summary.total_expense) >= 0
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {(summary.total_income - summary.total_expense) >= 0 ? '+' : ''}
+                        {AccountingService.formatCurrency(summary.total_income - summary.total_expense)}
+                      </span>
+                    </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">
                         {language === 'ar' ? 'رصيد افتتاحي:' : 'Opening:'}
