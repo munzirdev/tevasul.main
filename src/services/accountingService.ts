@@ -149,6 +149,7 @@ export class AccountingService {
 
   // Daily Summaries
   static async getDailySummaries(startDate?: string, endDate?: string): Promise<DailyCashSummary[]> {
+    // First, try to get existing summaries
     let query = supabase
       .from('daily_cash_summary')
       .select('*')
@@ -163,7 +164,117 @@ export class AccountingService {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    
+    // If no summaries found, calculate from transactions
+    if (!data || data.length === 0) {
+      return this.calculateSummariesFromTransactions(startDate, endDate);
+    }
+    
+    // Get dates that need to be refreshed (last 30 days with transactions)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
+    
+    // Get all transaction dates in the last 30 days
+    const { data: recentTransactions, error: recentError } = await supabase
+      .from('accounting_transactions')
+      .select('transaction_date')
+      .gte('transaction_date', cutoffDate)
+      .order('transaction_date', { ascending: true });
+
+    if (!recentError && recentTransactions) {
+      const uniqueDates = Array.from(
+        new Set(recentTransactions.map(t => t.transaction_date))
+      ).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+      // Refresh summaries for recent dates in chronological order
+      // This ensures correct balance calculation (each day's opening balance from previous day's closing balance)
+      for (const date of uniqueDates) {
+        const { error: refreshError } = await supabase.rpc('update_daily_cash_summary', {
+          target_date: date
+        });
+        if (refreshError) {
+          console.warn(`Error refreshing daily summary for ${date}:`, refreshError);
+        }
+      }
+
+      // Refetch summaries after refresh
+      const { data: refreshedData, error: refreshedError } = await query;
+      if (!refreshedError && refreshedData) {
+        return refreshedData;
+      }
+    }
+    
+    return data;
+  }
+
+  // Calculate summaries directly from transactions
+  private static async calculateSummariesFromTransactions(startDate?: string, endDate?: string): Promise<DailyCashSummary[]> {
+    let transactionsQuery = supabase
+      .from('accounting_transactions')
+      .select('transaction_date, type, amount')
+      .order('transaction_date', { ascending: false });
+
+    if (startDate) {
+      transactionsQuery = transactionsQuery.gte('transaction_date', startDate);
+    }
+    if (endDate) {
+      transactionsQuery = transactionsQuery.lte('transaction_date', endDate);
+    }
+
+    const { data: transactions, error } = await transactionsQuery;
+    if (error) throw error;
+
+    if (!transactions || transactions.length === 0) {
+      return [];
+    }
+
+    // Group transactions by date
+    const transactionsByDate = new Map<string, { income: number; expense: number }>();
+    
+    transactions.forEach(t => {
+      const date = t.transaction_date;
+      if (!transactionsByDate.has(date)) {
+        transactionsByDate.set(date, { income: 0, expense: 0 });
+      }
+      
+      const summary = transactionsByDate.get(date)!;
+      if (t.type === 'income') {
+        summary.income += t.amount;
+      } else {
+        summary.expense += t.amount;
+      }
+    });
+
+    // Convert to DailyCashSummary format, sorted by date ascending to calculate balances correctly
+    const summaries: DailyCashSummary[] = [];
+    let openingBalance = 0;
+    
+    const sortedDates = Array.from(transactionsByDate.keys()).sort((a, b) => 
+      new Date(a).getTime() - new Date(b).getTime()
+    );
+
+    for (const date of sortedDates) {
+      const { income, expense } = transactionsByDate.get(date)!;
+      const closingBalance = openingBalance + income - expense;
+
+      summaries.push({
+        id: date, // Use date as temporary ID
+        summary_date: date,
+        opening_balance: openingBalance,
+        total_income: income,
+        total_expense: expense,
+        closing_balance: closingBalance,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+
+      // Next day's opening balance is this day's closing balance
+      openingBalance = closingBalance;
+    }
+
+    // Reverse to return in descending order (newest first)
+    return summaries.reverse();
   }
 
   static async getDailySummary(date: string): Promise<DailyCashSummary | null> {
@@ -190,6 +301,34 @@ export class AccountingService {
 
     if (error) throw error;
     return data;
+  }
+
+  // Refresh daily summaries for all dates with transactions
+  static async refreshDailySummaries(): Promise<void> {
+    const { data: transactionDates, error: datesError } = await supabase
+      .from('accounting_transactions')
+      .select('transaction_date')
+      .order('transaction_date', { ascending: true });
+
+    if (datesError) throw datesError;
+
+    // Get unique dates, sorted ascending (oldest first) to ensure correct balance calculation
+    const uniqueDates = Array.from(
+      new Set((transactionDates || []).map(t => t.transaction_date))
+    ).sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+    // Call update_daily_cash_summary function for each date in chronological order
+    // This ensures that each day's opening balance is correctly calculated from the previous day's closing balance
+    for (const date of uniqueDates) {
+      const { error } = await supabase.rpc('update_daily_cash_summary', {
+        target_date: date
+      });
+
+      if (error) {
+        console.error(`Error updating daily summary for ${date}:`, error);
+        // Continue with other dates even if one fails
+      }
+    }
   }
 
   // Statistics and Reports
@@ -337,21 +476,69 @@ export class AccountingService {
 
   // Budgets
   static async getBudgets(activeOnly: boolean = false): Promise<Budget[]> {
-    let query = supabase
-      .from('accounting_budgets')
-      .select(`
-        *,
-        category:accounting_categories(*)
-      `)
-      .order('created_at', { ascending: false });
+    try {
+      let query = supabase
+        .from('accounting_budgets')
+        .select(`
+          *,
+          category:accounting_categories(*)
+        `)
+        .order('created_at', { ascending: false });
 
-    if (activeOnly) {
-      query = query.eq('is_active', true);
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
+
+      const { data, error } = await query;
+      
+      // إذا كان الجدول غير موجود أو خطأ في RLS، نعيد مصفوفة فارغة
+      if (error) {
+        // معالجة جميع أنواع الأخطاء المحتملة
+        const errorMessage = error.message?.toLowerCase() || '';
+        const errorCode = error.code || '';
+        
+        if (
+          errorCode === '42P01' || // relation does not exist
+          errorCode === 'PGRST116' || // no rows returned (but table exists)
+          errorCode === '42501' || // insufficient privilege
+          errorMessage.includes('does not exist') ||
+          errorMessage.includes('permission denied') ||
+          errorMessage.includes('row-level security') ||
+          error?.status === 404 ||
+          error?.statusCode === 404
+        ) {
+          console.warn('Budgets table access issue (may not exist or RLS blocking):', {
+            code: errorCode,
+            message: error.message,
+            status: error.status
+          });
+          return [];
+        }
+        // إذا كان خطأ آخر، نرمي الخطأ
+        throw error;
+      }
+      
+      return data || [];
+    } catch (error: any) {
+      // إذا كان هناك خطأ عام، نعيد مصفوفة فارغة بدلاً من إيقاف التطبيق
+      console.error('Error fetching budgets:', error);
+      
+      // معالجة جميع أنواع الأخطاء
+      if (
+        error?.code === '42P01' ||
+        error?.code === 'PGRST116' ||
+        error?.code === '42501' ||
+        error?.status === 404 ||
+        error?.statusCode === 404 ||
+        error?.message?.toLowerCase()?.includes('does not exist') ||
+        error?.message?.toLowerCase()?.includes('permission denied')
+      ) {
+        return [];
+      }
+      
+      // للأخطاء الأخرى غير المتوقعة، نرمي الخطأ
+      throw error;
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
   }
 
   static async getBudgetById(id: string): Promise<Budget | null> {
@@ -369,41 +556,88 @@ export class AccountingService {
   }
 
   static async createBudget(budgetData: CreateBudgetData): Promise<Budget> {
-    const { data, error } = await supabase
-      .from('accounting_budgets')
-      .insert(budgetData)
-      .select(`
-        *,
-        category:accounting_categories(*)
-      `)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('accounting_budgets')
+        .insert(budgetData)
+        .select(`
+          *,
+          category:accounting_categories(*)
+        `)
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        // إذا كان الجدول غير موجود، نرمي خطأ واضح
+        if (error.code === '42P01' || error.code === 'PGRST116' || 
+            error.message?.toLowerCase().includes('does not exist') ||
+            error.message?.toLowerCase().includes('schema cache')) {
+          throw new Error('جدول الميزانيات غير موجود. يرجى التأكد من تطبيق migrations في قاعدة البيانات.');
+        }
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error('فشل إنشاء الميزانية: لم يتم إرجاع بيانات');
+      }
+      
+      return data;
+    } catch (error: any) {
+      console.error('Error creating budget:', error);
+      throw error;
+    }
   }
 
   static async updateBudget(id: string, budgetData: Partial<CreateBudgetData>): Promise<Budget> {
-    const { data, error } = await supabase
-      .from('accounting_budgets')
-      .update({ ...budgetData, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select(`
-        *,
-        category:accounting_categories(*)
-      `)
-      .single();
+    try {
+      const { data, error } = await supabase
+        .from('accounting_budgets')
+        .update({ ...budgetData, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select(`
+          *,
+          category:accounting_categories(*)
+        `)
+        .single();
 
-    if (error) throw error;
-    return data;
+      if (error) {
+        if (error.code === '42P01' || error.code === 'PGRST116' || 
+            error.message?.toLowerCase().includes('does not exist') ||
+            error.message?.toLowerCase().includes('schema cache')) {
+          throw new Error('جدول الميزانيات غير موجود. يرجى التأكد من تطبيق migrations في قاعدة البيانات.');
+        }
+        throw error;
+      }
+
+      if (!data) {
+        throw new Error('فشل تحديث الميزانية: لم يتم إرجاع بيانات');
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('Error updating budget:', error);
+      throw error;
+    }
   }
 
   static async deleteBudget(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('accounting_budgets')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
-      .eq('id', id);
+    try {
+      const { error } = await supabase
+        .from('accounting_budgets')
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq('id', id);
 
-    if (error) throw error;
+      if (error) {
+        if (error.code === '42P01' || error.code === 'PGRST116' || 
+            error.message?.toLowerCase().includes('does not exist') ||
+            error.message?.toLowerCase().includes('schema cache')) {
+          throw new Error('جدول الميزانيات غير موجود. يرجى التأكد من تطبيق migrations في قاعدة البيانات.');
+        }
+        throw error;
+      }
+    } catch (error: any) {
+      console.error('Error deleting budget:', error);
+      throw error;
+    }
   }
 
   // Payments

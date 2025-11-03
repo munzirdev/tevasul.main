@@ -343,6 +343,7 @@ import {
 } from 'lucide-react';
 import { AccountingService } from '../services/accountingService';
 import { InvoiceService } from '../services/invoiceService';
+import { telegramService } from '../services/telegramService';
 import { 
   AccountingCategory, 
   AccountingTransaction, 
@@ -380,6 +381,11 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const [selectedDate, setSelectedDate] = useState(AccountingService.getCurrentDate());
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
   const [filterCategory, setFilterCategory] = useState<string>('all');
+  
+  // Reports month navigation
+  const currentDate = new Date();
+  const [selectedReportMonth, setSelectedReportMonth] = useState(currentDate.getMonth() + 1);
+  const [selectedReportYear, setSelectedReportYear] = useState(currentDate.getFullYear());
   
   // Dashboard states
   const [dashboardStats, setDashboardStats] = useState({
@@ -1318,8 +1324,11 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     try {
       const budgetsData = await AccountingService.getBudgets(true);
       setBudgets(budgetsData);
-    } catch (error) {
-      console.error('Error loading budgets:', error);
+    } catch (error: any) {
+      // الدالة getBudgets تتعامل مع الأخطاء وترجع مصفوفة فارغة
+      // لكن إذا كان هناك خطأ آخر، نستخدم مصفوفة فارغة
+      console.warn('Error loading budgets (will use empty array):', error);
+      setBudgets([]);
     }
   };
 
@@ -1371,9 +1380,14 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       setShowBudgetForm(false);
       setEditingBudget(null);
       resetBudgetForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving budget:', error);
-      alert('حدث خطأ في حفظ الميزانية: ' + error.message);
+      const errorMessage = error?.message || error?.error?.message || 'خطأ غير معروف';
+      alert(
+        language === 'ar' 
+          ? `حدث خطأ في حفظ الميزانية: ${errorMessage}`
+          : `Error saving budget: ${errorMessage}`
+      );
     } finally {
       setLoading(false);
     }
@@ -1580,7 +1594,82 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       if (editingTransaction) {
         await AccountingService.updateTransaction(editingTransaction.id, transactionForm);
       } else {
-        await AccountingService.createTransaction(transactionForm);
+        const newTransaction = await AccountingService.createTransaction(transactionForm);
+        
+        // إرسال تفاصيل الصندوق إلى التلغرام بعد إضافة معاملة جديدة
+        try {
+          // انتظار قصير لضمان تحديث الملخصات اليومية في قاعدة البيانات
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // الحصول على البيانات المحدثة من قاعدة البيانات
+          const updatedTransactions = await AccountingService.getTransactions();
+          
+          // حساب الواردات والصادرات اليوم
+          const todayTransactions = updatedTransactions.filter(t => t.transaction_date === transactionForm.transaction_date);
+          const dailyIncome = todayTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+          const dailyExpense = todayTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+          
+          // حساب الرصيد الحالي من جميع المعاملات حتى تاريخ المعاملة الحالية
+          const transactionsUpToDate = updatedTransactions.filter(t => 
+            t.transaction_date <= transactionForm.transaction_date
+          );
+          const currentBalance = transactionsUpToDate
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0) -
+            transactionsUpToDate
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+          
+          // حساب الواردات والصادرات الشهرية
+          const currentDate = new Date();
+          const currentMonth = currentDate.getMonth() + 1;
+          const currentYear = currentDate.getFullYear();
+          const monthlyTransactions = updatedTransactions.filter(t => {
+            const transactionDate = new Date(t.transaction_date);
+            return transactionDate.getMonth() + 1 === currentMonth && 
+                   transactionDate.getFullYear() === currentYear;
+          });
+          const monthlyIncome = monthlyTransactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + t.amount, 0);
+          const monthlyExpense = monthlyTransactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + t.amount, 0);
+          
+          // الحصول على اسم الفئة
+          const category = categories.find(c => c.id === transactionForm.category_id);
+          const categoryName = category 
+            ? (language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en)
+            : (language === 'ar' ? 'غير محدد' : 'Not specified');
+          
+          // الحصول على الوصف
+          const description = language === 'ar' 
+            ? (transactionForm.description_ar || 'لا يوجد وصف')
+            : language === 'tr'
+            ? (transactionForm.description_tr || 'Açıklama yok')
+            : (transactionForm.description_en || 'No description');
+          
+          // إرسال التفاصيل إلى التلغرام
+          await telegramService.sendCashBoxDetails({
+            transactionType: transactionForm.type,
+            amount: transactionForm.amount,
+            description: description,
+            categoryName: categoryName,
+            transactionDate: AccountingService.formatDate(transactionForm.transaction_date),
+            currentBalance: currentBalance,
+            dailyIncome: dailyIncome,
+            dailyExpense: dailyExpense,
+            monthlyIncome: monthlyIncome,
+            monthlyExpense: monthlyExpense
+          });
+        } catch (telegramError) {
+          console.error('Error sending cash box details to Telegram:', telegramError);
+          // لا نوقف العملية إذا فشل إرسال الرسالة إلى التلغرام
+        }
       }
       
       setShowTransactionForm(false);
@@ -1685,6 +1774,39 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
   const getNetIncome = () => {
     return getTotalIncome() - getTotalExpense();
+  };
+
+  // Monthly summary calculations (using selected report month/year)
+  const getMonthlyIncome = (month?: number, year?: number) => {
+    const targetMonth = month || selectedReportMonth;
+    const targetYear = year || selectedReportYear;
+    
+    return allTransactions
+      .filter(t => {
+        const transactionDate = new Date(t.transaction_date);
+        return transactionDate.getMonth() + 1 === targetMonth && 
+               transactionDate.getFullYear() === targetYear &&
+               t.type === 'income';
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  const getMonthlyExpense = (month?: number, year?: number) => {
+    const targetMonth = month || selectedReportMonth;
+    const targetYear = year || selectedReportYear;
+    
+    return allTransactions
+      .filter(t => {
+        const transactionDate = new Date(t.transaction_date);
+        return transactionDate.getMonth() + 1 === targetMonth && 
+               transactionDate.getFullYear() === targetYear &&
+               t.type === 'expense';
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+  };
+
+  const getMonthlyNetIncome = (month?: number, year?: number) => {
+    return getMonthlyIncome(month, year) - getMonthlyExpense(month, year);
   };
 
   const getCategoryName = (categoryId?: string) => {
@@ -2161,9 +2283,31 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {activeTab === 'summary' && (
         <div>
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-4">
-              {language === 'ar' ? 'الملخص اليومي' : 'Daily Summary'}
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                {language === 'ar' ? 'الملخص اليومي' : 'Daily Summary'}
+              </h3>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoading(true);
+                    await AccountingService.refreshDailySummaries();
+                    await loadData();
+                    alert(language === 'ar' ? 'تم تحديث الملخصات اليومية بنجاح' : 'Daily summaries refreshed successfully');
+                  } catch (error) {
+                    console.error('Error refreshing daily summaries:', error);
+                    alert(language === 'ar' ? 'حدث خطأ في تحديث الملخصات اليومية' : 'Error refreshing daily summaries');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                {language === 'ar' ? 'تحديث الملخصات' : 'Refresh Summaries'}
+              </button>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {dailySummaries.slice(0, 7).map(summary => (
@@ -2212,9 +2356,122 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {activeTab === 'reports' && (
         <div>
           <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-4">
-              {language === 'ar' ? 'التقارير والإحصائيات' : 'Reports & Statistics'}
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                {language === 'ar' ? 'التقارير والإحصائيات' : 'Reports & Statistics'}
+              </h3>
+              
+              {/* Month Navigation */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    let newMonth = selectedReportMonth - 1;
+                    let newYear = selectedReportYear;
+                    if (newMonth < 1) {
+                      newMonth = 12;
+                      newYear -= 1;
+                    }
+                    setSelectedReportMonth(newMonth);
+                    setSelectedReportYear(newYear);
+                  }}
+                  className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'} transition-colors`}
+                  title={language === 'ar' ? 'الشهر السابق' : 'Previous Month'}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedReportMonth}
+                    onChange={(e) => setSelectedReportMonth(parseInt(e.target.value))}
+                    className={`px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                  >
+                    {language === 'ar' ? (
+                      <>
+                        <option value={1}>يناير</option>
+                        <option value={2}>فبراير</option>
+                        <option value={3}>مارس</option>
+                        <option value={4}>أبريل</option>
+                        <option value={5}>مايو</option>
+                        <option value={6}>يونيو</option>
+                        <option value={7}>يوليو</option>
+                        <option value={8}>أغسطس</option>
+                        <option value={9}>سبتمبر</option>
+                        <option value={10}>أكتوبر</option>
+                        <option value={11}>نوفمبر</option>
+                        <option value={12}>ديسمبر</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value={1}>January</option>
+                        <option value={2}>February</option>
+                        <option value={3}>March</option>
+                        <option value={4}>April</option>
+                        <option value={5}>May</option>
+                        <option value={6}>June</option>
+                        <option value={7}>July</option>
+                        <option value={8}>August</option>
+                        <option value={9}>September</option>
+                        <option value={10}>October</option>
+                        <option value={11}>November</option>
+                        <option value={12}>December</option>
+                      </>
+                    )}
+                  </select>
+                  
+                  <select
+                    value={selectedReportYear}
+                    onChange={(e) => setSelectedReportYear(parseInt(e.target.value))}
+                    className={`px-3 py-2 rounded-lg border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                  >
+                    {Array.from({ length: 5 }, (_, i) => {
+                      const year = currentDate.getFullYear() - i;
+                      return (
+                        <option key={year} value={year}>{year}</option>
+                      );
+                    })}
+                  </select>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    let newMonth = selectedReportMonth + 1;
+                    let newYear = selectedReportYear;
+                    if (newMonth > 12) {
+                      newMonth = 1;
+                      newYear += 1;
+                    }
+                    // Don't allow future months
+                    if (newYear > currentDate.getFullYear() || 
+                        (newYear === currentDate.getFullYear() && newMonth > currentDate.getMonth() + 1)) {
+                      return;
+                    }
+                    setSelectedReportMonth(newMonth);
+                    setSelectedReportYear(newYear);
+                  }}
+                  disabled={selectedReportYear >= currentDate.getFullYear() && selectedReportMonth >= currentDate.getMonth() + 1}
+                  className={`p-2 rounded-lg transition-colors ${
+                    selectedReportYear >= currentDate.getFullYear() && selectedReportMonth >= currentDate.getMonth() + 1
+                      ? 'opacity-50 cursor-not-allowed'
+                      : isDarkMode ? 'bg-gray-800 hover:bg-gray-700' : 'bg-gray-100 hover:bg-gray-200'
+                  }`}
+                  title={language === 'ar' ? 'الشهر التالي' : 'Next Month'}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+                
+                <button
+                  onClick={() => {
+                    setSelectedReportMonth(currentDate.getMonth() + 1);
+                    setSelectedReportYear(currentDate.getFullYear());
+                  }}
+                  className={`px-3 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white transition-colors`}
+                  title={language === 'ar' ? 'الشهر الحالي' : 'Current Month'}
+                >
+                  {language === 'ar' ? 'الحالي' : 'Today'}
+                </button>
+              </div>
+            </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Monthly Summary */}
@@ -2222,24 +2479,37 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 <h4 className="font-semibold mb-4 flex items-center">
                   <BarChart3 className="w-5 h-5 mr-2" />
                   {language === 'ar' ? 'ملخص شهري' : 'Monthly Summary'}
+                  <span className="text-sm font-normal text-gray-500 dark:text-gray-400 mr-2">
+                    {' - '}
+                    {language === 'ar' ? (
+                      <>
+                        {['', 'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'][selectedReportMonth]}
+                        {' ' + selectedReportYear}
+                      </>
+                    ) : (
+                      <>
+                        {new Date(selectedReportYear, selectedReportMonth - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+                      </>
+                    )}
+                  </span>
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span>{language === 'ar' ? 'إجمالي الواردات:' : 'Total Income:'}</span>
                     <span className="font-semibold text-green-600 dark:text-green-400">
-                      {AccountingService.formatCurrency(getTotalIncome())}
+                      {AccountingService.formatCurrency(getMonthlyIncome())}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>{language === 'ar' ? 'إجمالي الصادرات:' : 'Total Expense:'}</span>
                     <span className="font-semibold text-red-600 dark:text-red-400">
-                      {AccountingService.formatCurrency(getTotalExpense())}
+                      {AccountingService.formatCurrency(getMonthlyExpense())}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>{language === 'ar' ? 'صافي الدخل:' : 'Net Income:'}</span>
-                    <span className={`font-semibold ${getNetIncome() >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                      {AccountingService.formatCurrency(getNetIncome())}
+                    <span className={`font-semibold ${getMonthlyNetIncome() >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {AccountingService.formatCurrency(getMonthlyNetIncome())}
                     </span>
                   </div>
                 </div>
@@ -2249,11 +2519,16 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
               <div className={`p-6 rounded-lg border ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-white'}`}>
                 <h4 className="font-semibold mb-4 flex items-center">
                   <PieChart className="w-5 h-5 mr-2" />
-                  {language === 'ar' ? 'توزيع الفئات' : 'Category Breakdown'}
+                  {language === 'ar' ? 'توزيع الفئات (شهري)' : 'Category Breakdown (Monthly)'}
                 </h4>
                 <div className="space-y-2">
                   {categories.map(category => {
-                    const categoryTransactions = transactions.filter(t => t.category_id === category.id);
+                    const categoryTransactions = allTransactions.filter(t => {
+                      const transactionDate = new Date(t.transaction_date);
+                      return t.category_id === category.id &&
+                             transactionDate.getMonth() + 1 === selectedReportMonth &&
+                             transactionDate.getFullYear() === selectedReportYear;
+                    });
                     const totalAmount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
                     
                     if (totalAmount === 0) return null;

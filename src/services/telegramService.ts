@@ -907,6 +907,75 @@ ${dateStr}`;
   async reloadConfig() {
     await this.loadConfig();
   }
+
+  // إرسال تفاصيل الصندوق عند إضافة معاملة جديدة
+  async sendCashBoxDetails(cashBoxData: {
+    transactionType: 'income' | 'expense';
+    amount: number;
+    description: string;
+    categoryName: string;
+    transactionDate: string;
+    currentBalance: number;
+    dailyIncome: number;
+    dailyExpense: number;
+    monthlyIncome: number;
+    monthlyExpense: number;
+  }): Promise<boolean> {
+    try {
+      const emoji = cashBoxData.transactionType === 'income' ? '💰' : '💸';
+      const typeText = cashBoxData.transactionType === 'income' ? 'وارد' : 'صادر';
+      const typeTextEn = cashBoxData.transactionType === 'income' ? 'Income' : 'Expense';
+      
+      const message = `
+${emoji} <b>${typeText} جديد في الصندوق</b>
+
+📋 <b>تفاصيل المعاملة:</b>
+• النوع: ${typeText}
+• المبلغ: <b>${cashBoxData.amount.toLocaleString()} ₺</b>
+• الفئة: ${cashBoxData.categoryName}
+• الوصف: ${cashBoxData.description || 'لا يوجد وصف'}
+• التاريخ: ${cashBoxData.transactionDate}
+
+💵 <b>تفاصيل الصندوق:</b>
+• الرصيد الحالي: <b>${cashBoxData.currentBalance.toLocaleString()} ₺</b>
+• الواردات اليوم: ${cashBoxData.dailyIncome.toLocaleString()} ₺
+• الصادرات اليوم: ${cashBoxData.dailyExpense.toLocaleString()} ₺
+• صافي اليوم: <b>${(cashBoxData.dailyIncome - cashBoxData.dailyExpense).toLocaleString()} ₺</b>
+
+📊 <b>إجماليات الشهر:</b>
+• الواردات الشهرية: ${cashBoxData.monthlyIncome.toLocaleString()} ₺
+• الصادرات الشهرية: ${cashBoxData.monthlyExpense.toLocaleString()} ₺
+• صافي الشهر: <b>${(cashBoxData.monthlyIncome - cashBoxData.monthlyExpense).toLocaleString()} ₺</b>
+
+🕐 ${new Date().toLocaleString('ar-SA', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric', 
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
+      `.trim();
+
+      return await this.sendRequestNotification({
+        type: 'general',
+        title: `${emoji} ${typeText} جديد في الصندوق`,
+        description: message,
+        priority: 'medium',
+        status: 'completed',
+        createdAt: new Date().toISOString(),
+        additionalData: {
+          transactionType: cashBoxData.transactionType,
+          amount: cashBoxData.amount,
+          currentBalance: cashBoxData.currentBalance,
+          dailyIncome: cashBoxData.dailyIncome,
+          dailyExpense: cashBoxData.dailyExpense
+        }
+      });
+    } catch (error) {
+      console.error('Error sending cash box details to Telegram:', error);
+      return false;
+    }
+  }
 }
 
 export const telegramService = new TelegramService();
