@@ -249,6 +249,7 @@ export interface CreatePaymentData {
   amount: number;
   payment_date: string;
   reference_number?: string;
+  status?: 'pending' | 'completed' | 'failed' | 'refunded';
   notes_ar?: string;
   notes_en?: string;
   notes_tr?: string;

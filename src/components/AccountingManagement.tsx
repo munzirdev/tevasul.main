@@ -396,7 +396,8 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     monthlyExpense: 0,
     pendingInvoices: 0,
     overduePayments: 0,
-    budgetUtilization: 0
+    budgetUtilization: 0,
+    cashBalance: 0
   });
   
   // Budget states
@@ -466,6 +467,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     amount: 0,
     payment_date: AccountingService.getCurrentDate(),
     reference_number: '',
+    status: 'pending',
     notes_ar: '',
     notes_en: '',
     notes_tr: ''
@@ -1304,15 +1306,23 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
         .filter(t => t.type === 'expense')
         .reduce((sum, t) => sum + t.amount, 0);
       
+      // Get total payments
+      const allPayments = await AccountingService.getPayments();
+      const totalPayments = allPayments.reduce((sum, p) => sum + p.amount, 0);
+      
+      const netProfit = totalIncome - totalExpense;
+      const cashBalance = netProfit - totalPayments;
+      
       setDashboardStats({
         totalIncome,
         totalExpense,
-        netProfit: totalIncome - totalExpense,
+        netProfit,
         monthlyIncome,
         monthlyExpense,
         pendingInvoices: 0, // Will be implemented with invoice system
         overduePayments: 0, // Will be implemented with payment tracking
-        budgetUtilization: 0 // Will be implemented with budget system
+        budgetUtilization: 0, // Will be implemented with budget system
+        cashBalance
       });
     } catch (error) {
       console.error('Error calculating dashboard stats:', error);
@@ -1471,6 +1481,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       amount: 0,
       payment_date: AccountingService.getCurrentDate(),
       reference_number: '',
+      status: 'pending',
       notes_ar: '',
       notes_en: '',
       notes_tr: ''
@@ -1487,6 +1498,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       amount: payment.amount,
       payment_date: payment.payment_date,
       reference_number: payment.reference_number || '',
+      status: payment.status || 'pending',
       notes_ar: payment.notes_ar || '',
       notes_en: payment.notes_en || '',
       notes_tr: payment.notes_tr || ''
@@ -1915,6 +1927,28 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                   <p className="text-3xl font-bold">{((dashboardStats.monthlyIncome - dashboardStats.monthlyExpense) / Math.max(dashboardStats.monthlyIncome, 1) * 100).toFixed(1)}%</p>
                 </div>
                 <Activity className="w-8 h-8 text-purple-200" />
+              </div>
+            </div>
+          </div>
+
+          {/* Cash Box Status */}
+          <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
+            <div className={`bg-gradient-to-br ${dashboardStats.cashBalance >= 0 ? 'from-emerald-500 to-emerald-600' : 'from-rose-500 to-rose-600'} rounded-xl p-6 text-white shadow-lg`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`${dashboardStats.cashBalance >= 0 ? 'text-emerald-100' : 'text-rose-100'} text-sm font-medium`}>
+                    {language === 'ar' ? 'حالة الصندوق' : 'Cash Box Status'}
+                  </p>
+                  <p className="text-3xl font-bold">{dashboardStats.cashBalance.toLocaleString()} ₺</p>
+                  <p className={`${dashboardStats.cashBalance >= 0 ? 'text-emerald-200' : 'text-rose-200'} text-xs mt-2`}>
+                    {language === 'ar' ? 'صافي الربح - مجموع المدفوعات' : 'Net Profit - Total Payments'}
+                  </p>
+                </div>
+                {dashboardStats.cashBalance >= 0 ? (
+                  <Wallet className="w-8 h-8 text-emerald-200" />
+                ) : (
+                  <AlertCircle className="w-8 h-8 text-rose-200" />
+                )}
               </div>
             </div>
           </div>
@@ -3717,24 +3751,36 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                           {AccountingService.formatDate(payment.payment_date)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            payment.status === 'completed' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : payment.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
-                              : payment.status === 'failed'
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                              : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                          }`}>
-                            {payment.status === 'completed' 
-                              ? (language === 'ar' ? 'مكتمل' : 'Completed')
-                              : payment.status === 'pending'
-                              ? (language === 'ar' ? 'قيد الانتظار' : 'Pending')
-                              : payment.status === 'failed'
-                              ? (language === 'ar' ? 'فشل' : 'Failed')
-                              : (language === 'ar' ? 'مسترد' : 'Refunded')
-                            }
-                          </span>
+                          <select
+                            value={payment.status}
+                            onChange={async (e) => {
+                              try {
+                                setLoading(true);
+                                await AccountingService.updatePaymentStatus(payment.id, e.target.value as Payment['status']);
+                                await loadPayments();
+                              } catch (error) {
+                                console.error('Error updating payment status:', error);
+                                alert('حدث خطأ في تحديث الحالة: ' + (error as Error).message);
+                              } finally {
+                                setLoading(false);
+                              }
+                            }}
+                            className={`text-xs font-semibold rounded-full px-3 py-1 border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 transition-all ${
+                              payment.status === 'completed' 
+                                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 hover:bg-green-200 dark:hover:bg-green-800 focus:ring-green-500'
+                                : payment.status === 'pending'
+                                ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 hover:bg-yellow-200 dark:hover:bg-yellow-800 focus:ring-yellow-500'
+                                : payment.status === 'failed'
+                                ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-800 focus:ring-red-500'
+                                : 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-800 focus:ring-gray-500'
+                            } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            disabled={loading}
+                          >
+                            <option value="pending">{language === 'ar' ? 'قيد الانتظار' : 'Pending'}</option>
+                            <option value="completed">{language === 'ar' ? 'مكتمل' : 'Completed'}</option>
+                            <option value="failed">{language === 'ar' ? 'فشل' : 'Failed'}</option>
+                            <option value="refunded">{language === 'ar' ? 'مسترد' : 'Refunded'}</option>
+                          </select>
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
@@ -3842,6 +3888,23 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                           onChange={(e) => setPaymentForm({ ...paymentForm, reference_number: e.target.value })}
                           className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
                         />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'الحالة *' : 'Status *'}
+                        </label>
+                        <select
+                          value={paymentForm.status || 'pending'}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, status: e.target.value as any })}
+                          className={`w-full px-3 py-2 border rounded-md ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}
+                          required
+                        >
+                          <option value="pending">{language === 'ar' ? 'قيد الانتظار' : 'Pending'}</option>
+                          <option value="completed">{language === 'ar' ? 'مكتمل' : 'Completed'}</option>
+                          <option value="failed">{language === 'ar' ? 'فشل' : 'Failed'}</option>
+                          <option value="refunded">{language === 'ar' ? 'مسترد' : 'Refunded'}</option>
+                        </select>
                       </div>
                     </div>
 
