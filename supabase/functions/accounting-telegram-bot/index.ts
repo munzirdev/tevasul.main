@@ -187,22 +187,67 @@ async function handleLogin(chatId: string, messageText: string, supabase: any, c
   const botToken = config?.bot_token || ACCOUNTING_BOT_TOKEN
   const messageTextLower = messageText.toLowerCase().trim()
   
-  // Check if message contains login command or credentials
+  // Check if message contains login command
   if (messageTextLower === '/start' || messageTextLower.startsWith('/start ') || 
-      messageTextLower === '/login' || messageTextLower.startsWith('/login ')) {
+      messageTextLower === '/login' || messageTextLower.startsWith('/login ') ||
+      messageTextLower === '/cancel' || messageTextLower.startsWith('/cancel ')) {
+    
+    // Reset login state if cancel
+    if (messageTextLower === '/cancel' || messageTextLower.startsWith('/cancel ')) {
+      try {
+        await supabase
+          .from('telegram_login_state')
+          .delete()
+          .eq('telegram_chat_id', chatId)
+      } catch (error) {
+        console.warn('⚠️ Could not clear login state:', error)
+      }
+      
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        '✅ تم إلغاء عملية تسجيل الدخول.\n\n' +
+        'أرسل /login للبدء مرة أخرى.'
+      )
+      return new Response(
+        JSON.stringify({ success: true, action: 'login_cancelled' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // Start login process - request email
     try {
+      // Clear any existing login state
+      await supabase
+        .from('telegram_login_state')
+        .delete()
+        .eq('telegram_chat_id', chatId)
+      
+      // Create new login state
+      try {
+        await supabase
+          .from('telegram_login_state')
+          .insert({
+            telegram_chat_id: chatId,
+            login_state: 'waiting_email',
+            created_at: new Date().toISOString()
+          })
+      } catch (error: any) {
+        // If table doesn't exist, continue without it (we'll use fallback)
+        if (error.code !== '42P01' && !error.message?.includes('does not exist')) {
+          console.warn('⚠️ Could not create login state:', error)
+        }
+      }
+      
       await sendTelegramMessage(
         botToken,
         chatId,
         'مرحباً بك في بوت المحاسبة! 👋\n\n' +
-        'يرجى إدخال بيانات تسجيل الدخول:\n' +
-        '📧 البريد الإلكتروني\n' +
-        '🔑 كلمة المرور\n\n' +
-        'أرسل البيانات بالتنسيق التالي:\n' +
-        '<code>email:your@email.com\npassword:yourpassword</code>',
+        '🔐 <b>تسجيل الدخول</b>\n\n' +
+        '📧 يرجى إرسال بريدك الإلكتروني:',
         { parse_mode: 'HTML' }
       )
-      console.log(`✅ Sent login prompt to chat ${chatId}`)
+      console.log(`✅ Sent email request to chat ${chatId}`)
     } catch (error) {
       console.error('❌ Error sending login prompt:', error)
     }
@@ -212,26 +257,164 @@ async function handleLogin(chatId: string, messageText: string, supabase: any, c
     )
   }
 
-  // Try to parse credentials from message
+  // Check if user is in login flow
+  let loginState: any = null
+  try {
+    const { data: stateData } = await supabase
+      .from('telegram_login_state')
+      .select('*')
+      .eq('telegram_chat_id', chatId)
+      .maybeSingle()
+    
+    if (stateData) {
+      loginState = stateData
+    }
+  } catch (error: any) {
+    // If table doesn't exist, continue without state tracking
+    if (error.code !== '42P01' && !error.message?.includes('does not exist')) {
+      console.warn('⚠️ Could not check login state:', error)
+    }
+  }
+
+  // Handle email input
+  if (loginState?.login_state === 'waiting_email') {
+    const email = messageText.trim()
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        '❌ البريد الإلكتروني غير صحيح!\n\n' +
+        '📧 يرجى إرسال بريد إلكتروني صحيح:\n\n' +
+        'مثال: user@example.com\n\n' +
+        'أو أرسل /cancel للإلغاء'
+      )
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid email format' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // Update login state to waiting for password
+    try {
+      await supabase
+        .from('telegram_login_state')
+        .update({
+          login_state: 'waiting_password',
+          temp_email: email.toLowerCase().trim()
+        })
+        .eq('telegram_chat_id', chatId)
+    } catch (error: any) {
+      // If table doesn't exist, continue without state tracking
+      if (error.code !== '42P01' && !error.message?.includes('does not exist')) {
+        console.warn('⚠️ Could not update login state:', error)
+      }
+      // Store email in memory as fallback
+      loginState = { login_state: 'waiting_password', temp_email: email.toLowerCase().trim() }
+    }
+    
+    await sendTelegramMessage(
+      botToken,
+      chatId,
+      '✅ تم حفظ البريد الإلكتروني!\n\n' +
+      '🔑 يرجى إرسال كلمة المرور:\n\n' +
+      'أو أرسل /cancel للإلغاء'
+    )
+    return new Response(
+      JSON.stringify({ success: true, action: 'email_received' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
+  }
+
+  // Handle password input
+  if (loginState?.login_state === 'waiting_password') {
+    const email = loginState.temp_email
+    const password = messageText.trim()
+    
+    if (!email || !password) {
+      await sendTelegramMessage(
+        botToken,
+        chatId,
+        '❌ حدث خطأ! يرجى إعادة عملية تسجيل الدخول.\n\n' +
+        'أرسل /login للبدء مرة أخرى.'
+      )
+      return new Response(
+        JSON.stringify({ success: false, error: 'Missing credentials' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+    
+    // Clear login state
+    try {
+      await supabase
+        .from('telegram_login_state')
+        .delete()
+        .eq('telegram_chat_id', chatId)
+    } catch (error) {
+      console.warn('⚠️ Could not clear login state:', error)
+    }
+    
+    // Now proceed with authentication
+    return await authenticateUser(chatId, email, password, supabase, config)
+  }
+
+  // Try to parse credentials from message (old format - for backward compatibility)
   const emailMatch = messageText.match(/email[:\s]+([^\s\n]+)/i)
   const passwordMatch = messageText.match(/password[:\s]+([^\s\n]+)/i)
 
   if (emailMatch && passwordMatch) {
     const email = emailMatch[1].trim()
     const password = passwordMatch[1].trim()
+    
+    return await authenticateUser(chatId, email, password, supabase, config)
+  }
 
+  // If message doesn't match login format, prompt for login
+  await sendTelegramMessage(
+    config.bot_token || ACCOUNTING_BOT_TOKEN,
+    chatId,
+    '⚠️ يجب تسجيل الدخول أولاً!\n\n' +
+    'أرسل /login لبدء تسجيل الدخول',
+    {
+      reply_markup: {
+        keyboard: [
+          [
+            { text: '/login' },
+            { text: '/help' }
+          ]
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: false
+      }
+    }
+  )
+  return new Response(
+    JSON.stringify({ success: false, action: 'not_authenticated' }),
+    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  )
+}
+
+// Extract authentication logic to separate function
+async function authenticateUser(chatId: string, email: string, password: string, supabase: any, config: any) {
+  try {
     console.log(`🔐 Attempting login for: ${email}`)
 
     // Verify credentials with Supabase Auth
     // First, search for user in profiles table
+    let profile: any = null
+    let authData: { user: any; session: any } | null = null
+    
     try {
       // Search for user in profiles table
-      const { data: profile, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('id, email, full_name, role')
         .eq('email', email.toLowerCase().trim())
         .maybeSingle()
       
+      profile = profileData
       let userData: any = null
       
       if (profile && !profileError) {
@@ -267,8 +450,6 @@ async function handleLogin(chatId: string, messageText: string, supabase: any, c
       // We need to use anon key for signInWithPassword
       const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
       const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-      
-      let authData: { user: any; session: any } | null = null
       
       // If anon key is not available, we'll verify the user exists and check role
       // Note: This is a simplified approach - in production, you should set SUPABASE_ANON_KEY
@@ -316,10 +497,21 @@ async function handleLogin(chatId: string, messageText: string, supabase: any, c
           session: authResult
         }
       }
+    } catch (authVerifyError) {
+      console.error('❌ Error verifying credentials:', authVerifyError)
+      await sendTelegramMessage(
+        config.bot_token || ACCOUNTING_BOT_TOKEN,
+        chatId,
+        '❌ حدث خطأ أثناء التحقق من البيانات. يرجى المحاولة مرة أخرى.'
+      )
+      return new Response(
+        JSON.stringify({ success: false, error: 'Authentication verification failed' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
-
-      // Check if user is admin (we already have profile from earlier search)
-      if (!profile || profile.role !== 'admin') {
+    // Check if user is admin (we already have profile from earlier search)
+    if (!profile || profile.role !== 'admin') {
         console.error('❌ User is not admin:', profile?.role)
         await sendTelegramMessage(
           config.bot_token || ACCOUNTING_BOT_TOKEN,
@@ -394,14 +586,15 @@ async function handleLogin(chatId: string, messageText: string, supabase: any, c
                 { text: '📋 المعاملات' }
               ],
               [
-                { text: '📈 الملخص الشهري' },
-                { text: '📊 التقرير الشهري' }
+                { text: '💰 وضع الصندوق' },
+                { text: '📈 الملخص الشهري' }
               ],
               [
-                { text: '📊 الإحصائيات' },
-                { text: 'ℹ️ المساعدة' }
+                { text: '📊 التقرير الشهري' },
+                { text: '📊 الإحصائيات' }
               ],
               [
+                { text: 'ℹ️ المساعدة' },
                 { text: '🚪 تسجيل الخروج' }
               ]
             ],
@@ -428,32 +621,6 @@ async function handleLogin(chatId: string, messageText: string, supabase: any, c
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
-  }
-
-  // If message doesn't match login format, prompt for login
-  await sendTelegramMessage(
-    config.bot_token || ACCOUNTING_BOT_TOKEN,
-    chatId,
-    '⚠️ يجب تسجيل الدخول أولاً!\n\n' +
-    'أرسل /login لبدء تسجيل الدخول',
-    {
-      reply_markup: {
-        keyboard: [
-          [
-            { text: '/login' },
-            { text: '/help' }
-          ]
-        ],
-        resize_keyboard: true,
-        one_time_keyboard: false
-      }
-    }
-  )
-
-  return new Response(
-    JSON.stringify({ success: false, action: 'not_authenticated' }),
-    { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  )
 }
 
 // Handle authenticated commands
@@ -496,6 +663,12 @@ async function handleAuthenticatedCommand(chatId: string, messageText: string, a
       JSON.stringify({ success: true, action: 'command_processed' }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
+  } else if (buttonText === '💰 وضع الصندوق') {
+    await handleCashBoxStatus(chatId, authSession, supabase, config)
+    return new Response(
+      JSON.stringify({ success: true, action: 'command_processed' }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   } else if (buttonText === 'ℹ️ المساعدة') {
     await sendTelegramMessage(
       config.bot_token || ACCOUNTING_BOT_TOKEN,
@@ -507,6 +680,7 @@ async function handleAuthenticatedCommand(chatId: string, messageText: string, a
       '/status - حالة النظام\n' +
       '/today - ملخص اليوم\n' +
       '/transactions - آخر المعاملات\n' +
+      '/cashbox - وضع الصندوق\n' +
       '/summary [الشهر] [السنة] - ملخص شهري\n' +
       '/report [الشهر] [السنة] - تقرير شهري مفصل\n' +
       '/stats - إحصائيات عامة\n' +
@@ -589,14 +763,15 @@ async function handleAuthenticatedCommand(chatId: string, messageText: string, a
                 { text: '📋 المعاملات' }
               ],
               [
-                { text: '📈 الملخص الشهري' },
-                { text: '📊 التقرير الشهري' }
+                { text: '💰 وضع الصندوق' },
+                { text: '📈 الملخص الشهري' }
               ],
               [
-                { text: '📊 الإحصائيات' },
-                { text: 'ℹ️ المساعدة' }
+                { text: '📊 التقرير الشهري' },
+                { text: '📊 الإحصائيات' }
               ],
               [
+                { text: 'ℹ️ المساعدة' },
                 { text: '🚪 تسجيل الخروج' }
               ]
             ],
@@ -614,7 +789,7 @@ async function handleAuthenticatedCommand(chatId: string, messageText: string, a
         '✅ <b>حالة النظام</b>\n\n' +
         '🟢 البوت يعمل بشكل طبيعي\n' +
         `👤 المستخدم: ${authSession.email}\n` +
-        `🕐 تم تسجيل الدخول: ${new Date(authSession.authenticated_at).toLocaleString('ar-EG')}`,
+        `🕐 تم تسجيل الدخول: ${formatDateTime(authSession.authenticated_at)}`,
         { parse_mode: 'HTML' }
       )
       break
@@ -625,6 +800,10 @@ async function handleAuthenticatedCommand(chatId: string, messageText: string, a
 
     case '/transactions':
       await handleTransactions(chatId, authSession, supabase, config)
+      break
+
+    case '/cashbox':
+      await handleCashBoxStatus(chatId, authSession, supabase, config)
       break
 
     case '/summary':
@@ -677,14 +856,15 @@ async function handleAuthenticatedCommand(chatId: string, messageText: string, a
                 { text: '📋 المعاملات' }
               ],
               [
-                { text: '📈 الملخص الشهري' },
-                { text: '📊 التقرير الشهري' }
+                { text: '💰 وضع الصندوق' },
+                { text: '📈 الملخص الشهري' }
               ],
               [
-                { text: '📊 الإحصائيات' },
-                { text: 'ℹ️ المساعدة' }
+                { text: '📊 التقرير الشهري' },
+                { text: '📊 الإحصائيات' }
               ],
               [
+                { text: 'ℹ️ المساعدة' },
                 { text: '🚪 تسجيل الخروج' }
               ]
             ],
@@ -774,7 +954,7 @@ async function handleTodaySummary(chatId: string, authSession: any, supabase: an
     const closingBalance = (summary?.closing_balance || openingBalance) + netProfit
 
     let message = `📊 <b>ملخص اليوم</b>\n\n`
-    message += `📅 التاريخ: ${new Date(today).toLocaleDateString('ar-EG')}\n\n`
+    message += `📅 التاريخ: ${formatDate(today)}\n\n`
     
     if (summary) {
       message += `💰 الرصيد الافتتاحي: ${formatCurrency(openingBalance)}\n`
@@ -876,7 +1056,7 @@ async function handleTransactions(chatId: string, authSession: any, supabase: an
     transactions.forEach((t: any, index: number) => {
       const icon = t.type === 'income' ? '📈' : '📉'
       const category = t.category?.name_ar || 'غير محدد'
-      const date = new Date(t.transaction_date).toLocaleDateString('ar-EG')
+      const date = formatDate(t.transaction_date)
       message += `${index + 1}. ${icon} ${formatCurrency(t.amount)}\n`
       message += `   📁 ${category}\n`
       message += `   📅 ${date}\n`
@@ -964,7 +1144,7 @@ async function handleMonthlySummary(chatId: string, month: number, year: number,
     }
 
     const netProfit = totalIncome - totalExpense
-    const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
     let message = `📊 <b>ملخص شهري</b>\n\n`
     message += `📅 ${monthNames[month - 1]} ${year}\n\n`
@@ -1066,7 +1246,7 @@ async function handleMonthlyReport(chatId: string, month: number, year: number, 
     }
 
     const netProfit = totalIncome - totalExpense
-    const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
     let message = `📊 <b>تقرير شهري مفصل</b>\n\n`
     message += `📅 ${monthNames[month - 1]} ${year}\n\n`
@@ -1245,6 +1425,161 @@ async function handleStats(chatId: string, authSession: any, supabase: any, conf
   }
 }
 
+// Handle cash box status
+async function handleCashBoxStatus(chatId: string, authSession: any, supabase: any, config: any) {
+  try {
+    // Get all transactions
+    const { data: allTransactions, error: transError } = await supabase
+      .from('accounting_transactions')
+      .select('type, amount')
+    
+    if (transError) {
+      console.error('❌ Error getting transactions:', transError)
+      await sendTelegramMessage(
+        config.bot_token || ACCOUNTING_BOT_TOKEN,
+        chatId,
+        '❌ حدث خطأ في جلب البيانات'
+      )
+      return
+    }
+    
+    // Calculate total income and expense
+    let totalIncome = 0
+    let totalExpense = 0
+    if (allTransactions && allTransactions.length > 0) {
+      allTransactions.forEach((t: any) => {
+        if (t.type === 'income') {
+          totalIncome += parseFloat(t.amount)
+        } else {
+          totalExpense += parseFloat(t.amount)
+        }
+      })
+    }
+    
+    const netProfit = totalIncome - totalExpense
+    
+    // Get total payments
+    let totalPayments = 0
+    try {
+      const { data: allPayments, error: paymentsError } = await supabase
+        .from('accounting_payments')
+        .select('amount')
+      
+      if (!paymentsError && allPayments) {
+        totalPayments = allPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0)
+      }
+    } catch (paymentsErr) {
+      console.warn('⚠️ Could not fetch payments:', paymentsErr)
+    }
+    
+    const cashBalance = netProfit - totalPayments
+    
+    // Get today's transactions
+    const today = new Date().toISOString().split('T')[0]
+    const { data: todayTransactions } = await supabase
+      .from('accounting_transactions')
+      .select('type, amount')
+      .eq('transaction_date', today)
+    
+    let todayIncome = 0
+    let todayExpense = 0
+    if (todayTransactions) {
+      todayTransactions.forEach((t: any) => {
+        if (t.type === 'income') {
+          todayIncome += parseFloat(t.amount)
+        } else {
+          todayExpense += parseFloat(t.amount)
+        }
+      })
+    }
+    
+    // Get monthly transactions
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth() + 1
+    const currentYear = currentDate.getFullYear()
+    const startOfMonth = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`
+    const endOfMonth = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
+    
+    const { data: monthlyTransactions } = await supabase
+      .from('accounting_transactions')
+      .select('type, amount')
+      .gte('transaction_date', startOfMonth)
+      .lte('transaction_date', endOfMonth)
+    
+    let monthlyIncome = 0
+    let monthlyExpense = 0
+    if (monthlyTransactions) {
+      monthlyTransactions.forEach((t: any) => {
+        if (t.type === 'income') {
+          monthlyIncome += parseFloat(t.amount)
+        } else {
+          monthlyExpense += parseFloat(t.amount)
+        }
+      })
+    }
+    
+    const monthlyNetProfit = monthlyIncome - monthlyExpense
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+    
+    let message = `💰 <b>وضع الصندوق</b>\n\n`
+    message += `📊 <b>الإجمالي:</b>\n`
+    message += `• صافي الربح: <b>${formatCurrency(netProfit)}</b>\n`
+    message += `• مجموع المدفوعات: <b>${formatCurrency(totalPayments)}</b>\n`
+    message += `• الرصيد النقدي: <b>${formatCurrency(cashBalance)}</b>\n\n`
+    message += `📈 <b>هذا الشهر (${monthNames[currentMonth - 1]} ${currentYear}):</b>\n`
+    message += `• الواردات: ${formatCurrency(monthlyIncome)}\n`
+    message += `• الصادرات: ${formatCurrency(monthlyExpense)}\n`
+    message += `• صافي الربح: <b>${formatCurrency(monthlyNetProfit)}</b>\n\n`
+    message += `📅 <b>اليوم:</b>\n`
+    message += `• الواردات: ${formatCurrency(todayIncome)}\n`
+    message += `• الصادرات: ${formatCurrency(todayExpense)}\n`
+    message += `• صافي اليوم: <b>${formatCurrency(todayIncome - todayExpense)}</b>\n\n`
+    message += `📋 <b>إحصائيات:</b>\n`
+    message += `• إجمالي المعاملات: ${allTransactions?.length || 0}\n`
+    message += `• إجمالي الواردات: ${formatCurrency(totalIncome)}\n`
+    message += `• إجمالي الصادرات: ${formatCurrency(totalExpense)}\n\n`
+    message += `🕐 ${formatDateTime(new Date())}`
+    
+    await sendTelegramMessage(
+      config.bot_token || ACCOUNTING_BOT_TOKEN,
+      chatId,
+      message,
+      {
+        parse_mode: 'HTML',
+        reply_markup: {
+          keyboard: [
+            [
+              { text: '📊 ملخص اليوم' },
+              { text: '📋 المعاملات' }
+            ],
+            [
+              { text: '💰 وضع الصندوق' },
+              { text: '📈 الملخص الشهري' }
+            ],
+            [
+              { text: '📊 التقرير الشهري' },
+              { text: '📊 الإحصائيات' }
+            ],
+            [
+              { text: 'ℹ️ المساعدة' },
+              { text: '🚪 تسجيل الخروج' }
+            ]
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: false
+        }
+      }
+    )
+  } catch (error) {
+    console.error('❌ Error in handleCashBoxStatus:', error)
+    await sendTelegramMessage(
+      config.bot_token || ACCOUNTING_BOT_TOKEN,
+      chatId,
+      '❌ حدث خطأ في جلب وضع الصندوق'
+    )
+  }
+}
+
 // Format currency with Latin numbers
 function formatCurrency(amount: number): string {
   // Use en-US locale to get Latin numbers
@@ -1254,6 +1589,30 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 2
   }).format(amount)
   return formatted
+}
+
+// Format date in Gregorian calendar with English numbers
+function formatDate(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  // Use en-US locale for Gregorian calendar with English numbers
+  return d.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+// Format date and time in Gregorian calendar with English numbers
+function formatDateTime(date: Date | string): string {
+  const d = typeof date === 'string' ? new Date(date) : date
+  // Use en-US locale for Gregorian calendar with English numbers
+  return d.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
 
 // Set bot commands menu

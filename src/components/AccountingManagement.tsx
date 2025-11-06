@@ -343,7 +343,16 @@ import {
 } from 'lucide-react';
 import { AccountingService } from '../services/accountingService';
 import { InvoiceService } from '../services/invoiceService';
+import { CustomerService } from '../services/customerService';
 import { telegramService } from '../services/telegramService';
+import {
+  IncomeExpenseTrendChart,
+  CategoryBreakdownChart,
+  CashFlowChart,
+  MonthlyTrendsChart,
+  ProfitMarginChart,
+  DailyTransactionsChart
+} from './accounting/AccountingCharts';
 import { 
   AccountingCategory, 
   AccountingTransaction, 
@@ -358,7 +367,10 @@ import {
   CreateBudgetData,
   Payment,
   CreatePaymentData,
-  AccountingSettings
+  AccountingSettings,
+  Customer,
+  CreateCustomerData,
+  CustomerFinancialSummary
 } from '../lib/types';
 import { useLanguage } from '../hooks/useLanguage';
 
@@ -439,6 +451,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     client_email: '',
     client_phone: '',
     client_address: '',
+    customer_id: '',
     issue_date: InvoiceService.getCurrentDate(),
     due_date: InvoiceService.getDefaultDueDate(),
     tax_rate: 20, // Default tax rate - will be updated from settings when loaded
@@ -454,9 +467,39 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     }]
   });
   
+  // Customer selection mode for invoice form
+  const [invoiceCustomerMode, setInvoiceCustomerMode] = useState<'select' | 'new'>('select');
+  
   // Invoice filters
   const [invoiceFilterStatus, setInvoiceFilterStatus] = useState<'all' | Invoice['status']>('all');
   const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
+  
+  // Customer states
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [showCustomerForm, setShowCustomerForm] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [customerFinancialSummary, setCustomerFinancialSummary] = useState<CustomerFinancialSummary | null>(null);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [customerFilterStatus, setCustomerFilterStatus] = useState<'all' | Customer['status']>('all');
+  const [customerForm, setCustomerForm] = useState<CreateCustomerData>({
+    name_ar: '',
+    name_en: '',
+    name_tr: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    country: '',
+    tax_id: '',
+    notes_ar: '',
+    notes_en: '',
+    notes_tr: '',
+    credit_limit: 0,
+    payment_terms: '',
+    status: 'active'
+  });
   
   // Payment states
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -534,6 +577,146 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     }
   };
 
+  // Load customers data
+  const loadCustomers = async () => {
+    try {
+      const customersData = await CustomerService.getCustomers();
+      setCustomers(customersData);
+    } catch (error) {
+      console.error('Error loading customers:', error);
+    }
+  };
+
+  // Load customer financial summary
+  const loadCustomerFinancialSummary = async (customerId: string) => {
+    try {
+      const summary = await CustomerService.getCustomerFinancialSummary(customerId);
+      setCustomerFinancialSummary(summary);
+      setShowCustomerDetails(true);
+    } catch (error) {
+      console.error('Error loading customer financial summary:', error);
+    }
+  };
+
+  // Handle customer form submission
+  const handleCustomerSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      let customerData;
+      if (editingCustomer) {
+        customerData = await CustomerService.updateCustomer(editingCustomer.id, customerForm);
+        // إرسال إشعار تحديث عميل
+        try {
+          await telegramService.sendCustomerNotification(
+            { ...customerForm, id: editingCustomer.id },
+            'update'
+          );
+        } catch (notifError) {
+          console.error('Error sending customer update notification:', notifError);
+        }
+      } else {
+        customerData = await CustomerService.createCustomer(customerForm);
+        // إرسال إشعار إضافة عميل
+        try {
+          await telegramService.sendCustomerNotification(
+            { ...customerForm, id: customerData?.id },
+            'create'
+          );
+        } catch (notifError) {
+          console.error('Error sending customer create notification:', notifError);
+        }
+      }
+      setShowCustomerForm(false);
+      setEditingCustomer(null);
+      setCustomerForm({
+        name_ar: '',
+        name_en: '',
+        name_tr: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        country: '',
+        tax_id: '',
+        notes_ar: '',
+        notes_en: '',
+        notes_tr: '',
+        credit_limit: 0,
+        payment_terms: '',
+        status: 'active'
+      });
+      await loadCustomers();
+    } catch (error: any) {
+      console.error('Error saving customer:', error);
+      const errorMessage = error.message || (language === 'ar' ? 'خطأ غير معروف' : 'Unknown error');
+      if (errorMessage.includes('table not found')) {
+        alert(language === 'ar' 
+          ? 'جدول العملاء غير موجود. يرجى تطبيق migration: 20250117_create_customers_table.sql في Supabase'
+          : 'Customers table not found. Please apply migration: 20250117_create_customers_table.sql in Supabase');
+      } else {
+        alert(language === 'ar' 
+          ? `حدث خطأ في حفظ العميل: ${errorMessage}` 
+          : `Error saving customer: ${errorMessage}`);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle edit customer
+  const handleEditCustomer = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setCustomerForm({
+      name_ar: customer.name_ar || '',
+      name_en: customer.name_en,
+      name_tr: customer.name_tr || '',
+      email: customer.email || '',
+      phone: customer.phone || '',
+      address: customer.address || '',
+      city: customer.city || '',
+      country: customer.country || '',
+      tax_id: customer.tax_id || '',
+      notes_ar: customer.notes_ar || '',
+      notes_en: customer.notes_en || '',
+      notes_tr: customer.notes_tr || '',
+      credit_limit: customer.credit_limit || 0,
+      payment_terms: customer.payment_terms || '',
+      status: customer.status
+    });
+    setShowCustomerForm(true);
+  };
+
+  // Handle delete customer
+  const handleDeleteCustomer = async (id: string) => {
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذا العميل؟' : 'Are you sure you want to delete this customer?')) {
+      try {
+        // الحصول على بيانات العميل قبل الحذف
+        const customer = customers.find(c => c.id === id);
+        await CustomerService.deleteCustomer(id);
+        
+        // إرسال إشعار حذف عميل
+        if (customer) {
+          try {
+            await telegramService.sendCustomerNotification(customer, 'delete');
+          } catch (notifError) {
+            console.error('Error sending customer delete notification:', notifError);
+          }
+        }
+        
+        loadCustomers();
+      } catch (error) {
+        console.error('Error deleting customer:', error);
+      }
+    }
+  };
+
+  // View customer details
+  const handleViewCustomerDetails = async (customer: Customer) => {
+    setSelectedCustomer(customer);
+    await loadCustomerFinancialSummary(customer.id);
+  };
+
   // Handle invoice form submission
   const handleInvoiceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -541,14 +724,118 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     setLoading(true);
     
     try {
+      let customerId = invoiceForm.customer_id;
+      
+      // If in "new" mode and customer doesn't exist, create new customer
+      if (invoiceCustomerMode === 'new' && !customerId && invoiceForm.client_name) {
+        try {
+          const newCustomer = await CustomerService.createCustomer({
+            name_en: invoiceForm.client_name,
+            name_ar: invoiceForm.client_name,
+            email: invoiceForm.client_email || '',
+            phone: invoiceForm.client_phone || '',
+            address: invoiceForm.client_address || '',
+            status: 'active'
+          });
+          customerId = newCustomer.id;
+          console.log('New customer created:', newCustomer.id);
+          
+          // إرسال إشعار إضافة عميل (من داخل نموذج الفاتورة)
+          try {
+            await telegramService.sendCustomerNotification(
+              {
+                name_ar: invoiceForm.client_name,
+                name_en: invoiceForm.client_name,
+                email: invoiceForm.client_email || '',
+                phone: invoiceForm.client_phone || '',
+                address: invoiceForm.client_address || '',
+                id: newCustomer.id,
+                status: 'active'
+              },
+              'create'
+            );
+          } catch (notifError) {
+            console.error('Error sending customer create notification:', notifError);
+          }
+          
+          // Reload customers list
+          await loadCustomers();
+        } catch (customerError: any) {
+          console.error('Error creating customer:', customerError);
+          // If customer creation fails but table doesn't exist, continue without customer_id
+          if (customerError.message?.includes('table not found')) {
+            console.warn('Customers table not found, continuing without customer_id');
+          } else {
+            throw new Error(language === 'ar' 
+              ? 'فشل في إضافة العميل: ' + customerError.message 
+              : 'Failed to create customer: ' + customerError.message);
+          }
+        }
+      }
+      
+      // Create invoice with customer_id if available
+      const invoiceData = {
+        ...invoiceForm,
+        customer_id: customerId || undefined
+      };
+      
+      let invoiceResult;
       if (editingInvoice) {
         console.log('Updating existing invoice:', editingInvoice.id);
-        await InvoiceService.updateInvoice(editingInvoice.id, invoiceForm);
+        invoiceResult = await InvoiceService.updateInvoice(editingInvoice.id, invoiceData);
         console.log('Invoice updated successfully');
+        
+        // إرسال إشعار تحديث فاتورة
+        try {
+          await telegramService.sendInvoiceNotification(
+            { ...invoiceData, id: editingInvoice.id },
+            'update'
+          );
+        } catch (notifError) {
+          console.error('Error sending invoice update notification:', notifError);
+        }
       } else {
         console.log('Creating new invoice');
-        await InvoiceService.createInvoice(invoiceForm);
+        invoiceResult = await InvoiceService.createInvoice(invoiceData);
         console.log('Invoice created successfully');
+        
+        // إرسال إشعار إنشاء فاتورة مع PDF
+        try {
+          // إنشاء HTML الفاتورة لإرسالها كـ PDF
+          // حساب القيم بشكل صحيح
+          const items = invoiceData.items || [];
+          const subtotal = items.reduce((sum: number, item: any) => {
+            const itemTotal = (item.quantity || 0) * (item.unit_price || 0);
+            return sum + itemTotal;
+          }, 0);
+          const taxRate = invoiceData.tax_rate || 0;
+          const tax_amount = subtotal * (taxRate / 100);
+          const total_amount = subtotal + tax_amount;
+          
+          const invoiceForPDF = {
+            ...invoiceResult,
+            ...invoiceData,
+            items: items.map((item: any) => ({
+              ...item,
+              total_price: (item.quantity || 0) * (item.unit_price || 0)
+            })),
+            subtotal: subtotal,
+            tax_amount: tax_amount,
+            total_amount: total_amount,
+            due_amount: total_amount,
+            created_at: invoiceData.issue_date || new Date().toISOString()
+          };
+          
+          const invoiceHTML = generateInvoiceHTML(invoiceForPDF as any);
+          
+          await telegramService.sendInvoiceNotification(
+            invoiceForPDF,
+            'create',
+            invoiceHTML
+          );
+        } catch (notifError) {
+          console.error('Error sending invoice create notification:', notifError);
+        }
       }
       
       console.log('Reloading invoices...');
@@ -559,9 +846,11 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       setEditingInvoice(null);
       resetInvoiceForm();
       console.log('Invoice form closed and reset');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving invoice:', error);
-      alert('حدث خطأ في حفظ الفاتورة: ' + error.message);
+      alert(language === 'ar' 
+        ? 'حدث خطأ في حفظ الفاتورة: ' + (error.message || 'خطأ غير معروف')
+        : 'Error saving invoice: ' + (error.message || 'Unknown error'));
     } finally {
       setLoading(false);
     }
@@ -576,6 +865,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
         client_email: '',
         client_phone: '',
         client_address: '',
+        customer_id: '',
         issue_date: InvoiceService.getCurrentDate(),
         due_date: InvoiceService.getDefaultDueDate(),
         tax_rate: (settings.default_tax_rate || 20),
@@ -590,6 +880,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
           unit_price: 0
         }]
       });
+      setInvoiceCustomerMode('select');
       console.log('Invoice form reset successfully');
     } catch (error) {
       console.error('Error resetting invoice form:', error);
@@ -652,9 +943,22 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     
     if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟ هذا الإجراء لا يمكن التراجع عنه.')) {
       try {
+        // الحصول على بيانات الفاتورة قبل الحذف
+        const invoice = invoices.find(inv => inv.id === invoiceId);
+        
         console.log('User confirmed deletion, proceeding...');
         await InvoiceService.deleteInvoice(invoiceId);
         console.log('Invoice deleted successfully, reloading invoices...');
+        
+        // إرسال إشعار حذف فاتورة
+        if (invoice) {
+          try {
+            await telegramService.sendInvoiceNotification(invoice, 'delete');
+          } catch (notifError) {
+            console.error('Error sending invoice delete notification:', notifError);
+          }
+        }
+        
         await loadInvoices();
         alert('تم حذف الفاتورة بنجاح');
       } catch (error) {
@@ -673,17 +977,8 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   };
 
   // Print invoice
-  const printInvoice = (invoice: Invoice) => {
-    console.log('Printing invoice:', invoice);
-    
-    // Create a new window for printing
-    const printWindow = window.open('', '_blank', 'width=800,height=600');
-    
-    if (!printWindow) {
-      alert('لا يمكن فتح نافذة الطباعة. تأكد من السماح بالنوافذ المنبثقة.');
-      return;
-    }
-
+  // Generate invoice HTML (for PDF generation)
+  const generateInvoiceHTML = (invoice: Invoice): string => {
     // Format dates
     const formatDate = (dateString: string) => {
       const date = new Date(dateString);
@@ -1273,9 +1568,122 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       </html>
     `;
 
+    return invoiceHTML;
+  };
+
+  const printInvoice = (invoice: Invoice) => {
+    console.log('Printing invoice:', invoice);
+    
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    if (!printWindow) {
+      alert('لا يمكن فتح نافذة الطباعة. تأكد من السماح بالنوافذ المنبثقة.');
+      return;
+    }
+
+    // Generate HTML content for the invoice
+    const invoiceHTML = generateInvoiceHTML(invoice);
+
     // Write the HTML content to the new window
     printWindow.document.write(invoiceHTML);
     printWindow.document.close();
+  };
+
+  // Prepare chart data for Dashboard
+  const prepareChartData = () => {
+    // Last 12 months data for trends
+    const months = language === 'ar' 
+      ? ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+      : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    const currentDate = new Date();
+    const last12Months = Array.from({ length: 12 }, (_, i) => {
+      const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthIndex = date.getMonth();
+      return {
+        name: months[monthIndex],
+        month: monthIndex + 1,
+        year: date.getFullYear()
+      };
+    }).reverse();
+
+    const monthlyTrendsData = last12Months.map(({ name, month, year }) => {
+      const monthTransactions = allTransactions.filter(t => {
+        const transactionDate = new Date(t.transaction_date);
+        return transactionDate.getMonth() + 1 === month && 
+               transactionDate.getFullYear() === year;
+      });
+      
+      const income = monthTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const expense = monthTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const profit = income - expense;
+      const profitMargin = income > 0 ? (profit / income) * 100 : 0;
+      
+      return {
+        name,
+        income,
+        expense,
+        profit,
+        profitMargin: parseFloat(profitMargin.toFixed(2))
+      };
+    });
+
+    // Last 30 days for cash flow
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (29 - i));
+      return date.toISOString().split('T')[0];
+    });
+
+    const cashFlowData = last30Days.map(date => {
+      const dayTransactions = allTransactions.filter(t => t.transaction_date === date);
+      const income = dayTransactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+      const expense = dayTransactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      // Calculate balance up to this date
+      const transactionsUpToDate = allTransactions.filter(t => t.transaction_date <= date);
+      const balance = transactionsUpToDate
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0) -
+        transactionsUpToDate
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      return {
+        name: new Date(date).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' }),
+        income,
+        expense,
+        balance
+      };
+    });
+
+    // Category breakdown
+    const categoryData = categories.map(category => {
+      const categoryTransactions = allTransactions.filter(t => t.category_id === category.id);
+      const totalAmount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
+      
+      if (totalAmount === 0) return null;
+      
+      return {
+        name: language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en,
+        value: totalAmount
+      };
+    }).filter(item => item !== null).sort((a, b) => (b?.value || 0) - (a?.value || 0));
+
+    return {
+      monthlyTrendsData,
+      cashFlowData,
+      categoryData
+    };
   };
 
   // Calculate dashboard statistics
@@ -1456,10 +1864,29 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     setLoading(true);
     
     try {
+      let paymentData;
       if (editingPayment) {
-        await AccountingService.updatePayment(editingPayment.id, paymentForm);
+        paymentData = await AccountingService.updatePayment(editingPayment.id, paymentForm);
+        // إرسال إشعار تحديث دفعة
+        try {
+          await telegramService.sendPaymentNotification(
+            { ...paymentForm, id: editingPayment.id },
+            'update'
+          );
+        } catch (notifError) {
+          console.error('Error sending payment update notification:', notifError);
+        }
       } else {
-        await AccountingService.createPayment(paymentForm);
+        paymentData = await AccountingService.createPayment(paymentForm);
+        // إرسال إشعار إضافة دفعة
+        try {
+          await telegramService.sendPaymentNotification(
+            { ...paymentForm, id: paymentData?.id },
+            'create'
+          );
+        } catch (notifError) {
+          console.error('Error sending payment create notification:', notifError);
+        }
       }
       
       await loadPayments();
@@ -1510,7 +1937,19 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const handleDeletePayment = async (id: string) => {
     if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذه المدفوعة؟' : 'Are you sure you want to delete this payment?')) {
       try {
+        // الحصول على بيانات الدفعة قبل الحذف
+        const payment = payments.find(p => p.id === id);
         await AccountingService.deletePayment(id);
+        
+        // إرسال إشعار حذف دفعة
+        if (payment) {
+          try {
+            await telegramService.sendPaymentNotification(payment, 'delete');
+          } catch (notifError) {
+            console.error('Error sending payment delete notification:', notifError);
+          }
+        }
+        
         await loadPayments();
       } catch (error) {
         console.error('Error deleting payment:', error);
@@ -1561,6 +2000,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     }
     if (activeTab === 'invoices') {
       loadInvoices();
+      loadCustomers();
     }
     if (activeTab === 'budgets') {
       loadBudgets();
@@ -1625,16 +2065,25 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
             .filter(t => t.type === 'expense')
             .reduce((sum, t) => sum + t.amount, 0);
           
-          // حساب الرصيد الحالي من جميع المعاملات حتى تاريخ المعاملة الحالية
-          const transactionsUpToDate = updatedTransactions.filter(t => 
-            t.transaction_date <= transactionForm.transaction_date
-          );
-          const currentBalance = transactionsUpToDate
+          // حساب صافي الربح (من جميع المعاملات)
+          const totalIncome = updatedTransactions
             .filter(t => t.type === 'income')
-            .reduce((sum, t) => sum + t.amount, 0) -
-            transactionsUpToDate
+            .reduce((sum, t) => sum + t.amount, 0);
+          const totalExpense = updatedTransactions
             .filter(t => t.type === 'expense')
             .reduce((sum, t) => sum + t.amount, 0);
+          const netProfit = totalIncome - totalExpense;
+          
+          // حساب مجموع المدفوعات
+          let totalPayments = 0;
+          try {
+            const allPayments = await AccountingService.getPayments();
+            totalPayments = allPayments.reduce((sum, p) => sum + p.amount, 0);
+          } catch (paymentsError) {
+            console.warn('Could not fetch payments:', paymentsError);
+            // إذا فشل جلب المدفوعات، نستخدم 0
+            totalPayments = 0;
+          }
           
           // حساب الواردات والصادرات الشهرية
           const currentDate = new Date();
@@ -1672,7 +2121,8 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
             description: description,
             categoryName: categoryName,
             transactionDate: AccountingService.formatDate(transactionForm.transaction_date),
-            currentBalance: currentBalance,
+            netProfit: netProfit,
+            totalPayments: totalPayments,
             dailyIncome: dailyIncome,
             dailyExpense: dailyExpense,
             monthlyIncome: monthlyIncome,
@@ -1703,10 +2153,29 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      let categoryData;
       if (editingCategory) {
-        await AccountingService.updateCategory(editingCategory.id, categoryForm);
+        categoryData = await AccountingService.updateCategory(editingCategory.id, categoryForm);
+        // إرسال إشعار تحديث فئة
+        try {
+          await telegramService.sendCategoryNotification(
+            { ...categoryForm, id: editingCategory.id },
+            'update'
+          );
+        } catch (notifError) {
+          console.error('Error sending category update notification:', notifError);
+        }
       } else {
-        await AccountingService.createCategory(categoryForm);
+        categoryData = await AccountingService.createCategory(categoryForm);
+        // إرسال إشعار إضافة فئة
+        try {
+          await telegramService.sendCategoryNotification(
+            { ...categoryForm, id: categoryData?.id },
+            'create'
+          );
+        } catch (notifError) {
+          console.error('Error sending category create notification:', notifError);
+        }
       }
       
       setShowCategoryForm(false);
@@ -1757,7 +2226,19 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const handleDeleteTransaction = async (id: string) => {
     if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذه المعاملة؟' : 'Are you sure you want to delete this transaction?')) {
       try {
+        // الحصول على بيانات المعاملة قبل الحذف
+        const transaction = transactions.find(t => t.id === id);
         await AccountingService.deleteTransaction(id);
+        
+        // إرسال إشعار حذف معاملة
+        if (transaction) {
+          try {
+            await telegramService.sendTransactionDeleteNotification(transaction);
+          } catch (notifError) {
+            console.error('Error sending transaction delete notification:', notifError);
+          }
+        }
+        
         loadData();
       } catch (error) {
         console.error('Error deleting transaction:', error);
@@ -1768,7 +2249,19 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   const handleDeleteCategory = async (id: string) => {
     if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذه الفئة؟' : 'Are you sure you want to delete this category?')) {
       try {
+        // الحصول على بيانات الفئة قبل الحذف
+        const category = categories.find(c => c.id === id);
         await AccountingService.deleteCategory(id);
+        
+        // إرسال إشعار حذف فئة
+        if (category) {
+          try {
+            await telegramService.sendCategoryNotification(category, 'delete');
+          } catch (notifError) {
+            console.error('Error sending category delete notification:', notifError);
+          }
+        }
+        
         loadData();
       } catch (error) {
         console.error('Error deleting category:', error);
@@ -1994,12 +2487,12 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
           {/* Recent Transactions */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold">المعاملات الأخيرة</h3>
+              <h3 className="text-xl font-bold">{language === 'ar' ? 'المعاملات الأخيرة' : 'Recent Transactions'}</h3>
               <button
                 onClick={() => setActiveTab('transactions')}
                 className="text-blue-500 hover:text-blue-600 text-sm font-medium"
               >
-                عرض الكل
+                {language === 'ar' ? 'عرض الكل' : 'View All'}
               </button>
             </div>
             <div className="space-y-3">
@@ -2008,8 +2501,16 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                   <div className="flex items-center">
                     <div className={`w-3 h-3 rounded-full mr-3 ${transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`} />
                     <div>
-                      <p className="font-medium">{transaction.category?.name_ar || 'بدون فئة'}</p>
-                      <p className="text-sm text-gray-500">{transaction.description_ar || 'لا يوجد وصف'}</p>
+                      <p className="font-medium">
+                        {language === 'ar' 
+                          ? (transaction.category?.name_ar || 'بدون فئة')
+                          : language === 'tr'
+                          ? (transaction.category?.name_tr || 'Kategori Yok')
+                          : (transaction.category?.name_en || 'No Category')}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {getDescription(transaction) || (language === 'ar' ? 'لا يوجد وصف' : 'No description')}
+                      </p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -2022,186 +2523,442 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
               ))}
             </div>
           </div>
+
+          {/* Professional Charts Section */}
+          {(() => {
+            const chartData = prepareChartData();
+            return (
+              <>
+                {/* Income/Expense Trends Chart */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold flex items-center">
+                      <BarChart3 className="w-6 h-6 mr-2 text-blue-500" />
+                      {language === 'ar' ? 'اتجاهات الواردات والصادرات' : 'Income & Expense Trends'}
+                    </h3>
+                  </div>
+                  <div className="h-[350px]">
+                    <IncomeExpenseTrendChart 
+                      data={chartData.monthlyTrendsData} 
+                      isDarkMode={isDarkMode} 
+                    />
+                  </div>
+                </div>
+
+                {/* Charts Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Category Breakdown */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold flex items-center">
+                        <PieChart className="w-6 h-6 mr-2 text-purple-500" />
+                        {language === 'ar' ? 'توزيع الفئات' : 'Category Breakdown'}
+                      </h3>
+                    </div>
+                    <div className="h-[350px]">
+                      <CategoryBreakdownChart 
+                        data={chartData.categoryData} 
+                        isDarkMode={isDarkMode} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cash Flow Chart */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xl font-bold flex items-center">
+                        <LineChart className="w-6 h-6 mr-2 text-green-500" />
+                        {language === 'ar' ? 'تدفق النقد' : 'Cash Flow'}
+                      </h3>
+                    </div>
+                    <div className="h-[350px]">
+                      <CashFlowChart 
+                        data={chartData.cashFlowData.slice(-30)} 
+                        isDarkMode={isDarkMode} 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Monthly Trends Detailed */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold flex items-center">
+                      <TrendingUp className="w-6 h-6 mr-2 text-orange-500" />
+                      {language === 'ar' ? 'الاتجاهات الشهرية التفصيلية' : 'Detailed Monthly Trends'}
+                    </h3>
+                  </div>
+                  <div className="h-[350px]">
+                    <MonthlyTrendsChart 
+                      data={chartData.monthlyTrendsData} 
+                      isDarkMode={isDarkMode} 
+                    />
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 
       {/* Transactions Tab */}
       {activeTab === 'transactions' && (
-        <div>
-          {/* Controls */}
-          <div className="flex flex-wrap items-center gap-4 mb-6">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className={`px-3 py-2 border rounded-md ${
-                  isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'
-                }`}
-              />
+        <div className="space-y-6">
+          {/* Header Section */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                {language === 'ar' ? 'المعاملات المالية' : 'Financial Transactions'}
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                {language === 'ar' ? 'إدارة وتتبع جميع المعاملات المالية' : 'Manage and track all financial transactions'}
+              </p>
             </div>
-            
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value as any)}
-              className={`px-3 py-2 border rounded-md ${
-                isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'
-              }`}
-            >
-              <option value="all">{language === 'ar' ? 'جميع الأنواع' : 'All Types'}</option>
-              <option value="income">{language === 'ar' ? 'واردات' : 'Income'}</option>
-              <option value="expense">{language === 'ar' ? 'صادرات' : 'Expense'}</option>
-            </select>
-
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className={`px-3 py-2 border rounded-md ${
-                isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-300'
-              }`}
-            >
-              <option value="all">{language === 'ar' ? 'جميع الفئات' : 'All Categories'}</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en}
-                </option>
-              ))}
-            </select>
-
             <button
               onClick={() => setShowTransactionForm(true)}
-              className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              {language === 'ar' ? 'إضافة معاملة' : 'Add Transaction'}
-            </button>
-
-            <button
-              onClick={loadData}
-              className="flex items-center px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4 mr-2" />
-              {language === 'ar' ? 'تحديث' : 'Refresh'}
+              <Plus className="w-5 h-5" />
+              {language === 'ar' ? 'إضافة معاملة جديدة' : 'Add New Transaction'}
             </button>
           </div>
 
+          {/* Filters and Controls */}
+          <div className={`p-5 rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </div>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className={`flex-1 px-4 py-2.5 border rounded-lg transition-all ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                  }`}
+                />
+              </div>
+              
+              <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </div>
+                <select
+                  value={filterType}
+                  onChange={(e) => setFilterType(e.target.value as any)}
+                  className={`flex-1 px-4 py-2.5 border rounded-lg transition-all ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                  }`}
+                >
+                  <option value="all">{language === 'ar' ? 'جميع الأنواع' : 'All Types'}</option>
+                  <option value="income">{language === 'ar' ? 'واردات' : 'Income'}</option>
+                  <option value="expense">{language === 'ar' ? 'صادرات' : 'Expense'}</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2 flex-1 min-w-[180px]">
+                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Tag className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                </div>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className={`flex-1 px-4 py-2.5 border rounded-lg transition-all ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                  }`}
+                >
+                  <option value="all">{language === 'ar' ? 'جميع الفئات' : 'All Categories'}</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.id}>
+                      {language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={loadData}
+                className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
+              >
+                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                {language === 'ar' ? 'تحديث' : 'Refresh'}
+              </button>
+            </div>
+          </div>
+
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-green-900' : 'bg-green-50'} border border-green-200`}>
-              <div className="flex items-center">
-                <TrendingUp className="w-8 h-8 text-green-500 mr-3" />
-                <div>
-                  <p className="text-sm text-green-600 dark:text-green-400">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Income Card */}
+            <div className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 ${
+              isDarkMode 
+                ? 'bg-gradient-to-br from-green-900/80 to-green-800/60 border border-green-700/50 shadow-lg shadow-green-500/10' 
+                : 'bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200 shadow-md hover:shadow-lg'
+            } hover:scale-[1.02]`}>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className={`text-sm font-medium mb-2 ${
+                    isDarkMode ? 'text-green-300' : 'text-green-600'
+                  }`}>
                     {language === 'ar' ? 'إجمالي الواردات' : 'Total Income'}
                   </p>
-                  <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                  <p className={`text-2xl font-bold mb-1 ${
+                    isDarkMode ? 'text-green-100' : 'text-green-700'
+                  }`}>
                     {AccountingService.formatCurrency(getTotalIncome())}
                   </p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <TrendingUp className={`w-4 h-4 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+                    <span className={`text-xs ${isDarkMode ? 'text-green-300' : 'text-green-600'}`}>
+                      {language === 'ar' ? 'إيجابي' : 'Positive'}
+                    </span>
+                  </div>
+                </div>
+                <div className={`p-3 rounded-xl ${
+                  isDarkMode ? 'bg-green-800/50' : 'bg-green-200/50'
+                }`}>
+                  <TrendingUp className={`w-8 h-8 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
                 </div>
               </div>
+              <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 ${
+                isDarkMode ? 'bg-green-400' : 'bg-green-500'
+              }`}></div>
             </div>
 
-            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-red-900' : 'bg-red-50'} border border-red-200`}>
-              <div className="flex items-center">
-                <TrendingDown className="w-8 h-8 text-red-500 mr-3" />
-                <div>
-                  <p className="text-sm text-red-600 dark:text-red-400">
+            {/* Expense Card */}
+            <div className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 ${
+              isDarkMode 
+                ? 'bg-gradient-to-br from-red-900/80 to-red-800/60 border border-red-700/50 shadow-lg shadow-red-500/10' 
+                : 'bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200 shadow-md hover:shadow-lg'
+            } hover:scale-[1.02]`}>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className={`text-sm font-medium mb-2 ${
+                    isDarkMode ? 'text-red-300' : 'text-red-600'
+                  }`}>
                     {language === 'ar' ? 'إجمالي الصادرات' : 'Total Expense'}
                   </p>
-                  <p className="text-xl font-bold text-red-700 dark:text-red-300">
+                  <p className={`text-2xl font-bold mb-1 ${
+                    isDarkMode ? 'text-red-100' : 'text-red-700'
+                  }`}>
                     {AccountingService.formatCurrency(getTotalExpense())}
                   </p>
+                  <div className="flex items-center gap-1 mt-2">
+                    <TrendingDown className={`w-4 h-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
+                    <span className={`text-xs ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>
+                      {language === 'ar' ? 'صادرات' : 'Expenses'}
+                    </span>
+                  </div>
+                </div>
+                <div className={`p-3 rounded-xl ${
+                  isDarkMode ? 'bg-red-800/50' : 'bg-red-200/50'
+                }`}>
+                  <TrendingDown className={`w-8 h-8 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`} />
                 </div>
               </div>
+              <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 ${
+                isDarkMode ? 'bg-red-400' : 'bg-red-500'
+              }`}></div>
             </div>
 
-            <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-blue-900' : 'bg-blue-50'} border border-blue-200`}>
-              <div className="flex items-center">
-                <BarChart3 className="w-8 h-8 text-blue-500 mr-3" />
-                <div>
-                  <p className="text-sm text-blue-600 dark:text-blue-400">
+            {/* Net Income Card */}
+            <div className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 ${
+              getNetIncome() >= 0
+                ? (isDarkMode 
+                    ? 'bg-gradient-to-br from-blue-900/80 to-blue-800/60 border border-blue-700/50 shadow-lg shadow-blue-500/10' 
+                    : 'bg-gradient-to-br from-blue-50 to-blue-100/50 border border-blue-200 shadow-md hover:shadow-lg')
+                : (isDarkMode 
+                    ? 'bg-gradient-to-br from-orange-900/80 to-orange-800/60 border border-orange-700/50 shadow-lg shadow-orange-500/10' 
+                    : 'bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200 shadow-md hover:shadow-lg')
+            } hover:scale-[1.02]`}>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <p className={`text-sm font-medium mb-2 ${
+                    getNetIncome() >= 0
+                      ? (isDarkMode ? 'text-blue-300' : 'text-blue-600')
+                      : (isDarkMode ? 'text-orange-300' : 'text-orange-600')
+                  }`}>
                     {language === 'ar' ? 'صافي الدخل' : 'Net Income'}
                   </p>
-                  <p className={`text-xl font-bold ${getNetIncome() >= 0 ? 'text-blue-700 dark:text-blue-300' : 'text-red-700 dark:text-red-300'}`}>
+                  <p className={`text-2xl font-bold mb-1 ${
+                    getNetIncome() >= 0
+                      ? (isDarkMode ? 'text-blue-100' : 'text-blue-700')
+                      : (isDarkMode ? 'text-orange-100' : 'text-orange-700')
+                  }`}>
                     {AccountingService.formatCurrency(getNetIncome())}
                   </p>
+                  <div className="flex items-center gap-1 mt-2">
+                    {getNetIncome() >= 0 ? (
+                      <>
+                        <TrendingUp className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                        <span className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
+                          {language === 'ar' ? 'ربح' : 'Profit'}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <TrendingDown className={`w-4 h-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`} />
+                        <span className={`text-xs ${isDarkMode ? 'text-orange-300' : 'text-orange-600'}`}>
+                          {language === 'ar' ? 'خسارة' : 'Loss'}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className={`p-3 rounded-xl ${
+                  getNetIncome() >= 0
+                    ? (isDarkMode ? 'bg-blue-800/50' : 'bg-blue-200/50')
+                    : (isDarkMode ? 'bg-orange-800/50' : 'bg-orange-200/50')
+                }`}>
+                  <BarChart3 className={`w-8 h-8 ${
+                    getNetIncome() >= 0
+                      ? (isDarkMode ? 'text-blue-300' : 'text-blue-600')
+                      : (isDarkMode ? 'text-orange-300' : 'text-orange-600')
+                  }`} />
                 </div>
               </div>
+              <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 ${
+                getNetIncome() >= 0
+                  ? (isDarkMode ? 'bg-blue-400' : 'bg-blue-500')
+                  : (isDarkMode ? 'bg-orange-400' : 'bg-orange-500')
+              }`}></div>
             </div>
           </div>
 
           {/* Transactions List */}
-          <div className={`rounded-lg border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className={`rounded-xl border overflow-hidden shadow-sm ${
+            isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <thead>
+                  <tr className={`${isDarkMode ? 'bg-gray-800/80' : 'bg-gray-50'} border-b ${
+                    isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                  }`}>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                       {language === 'ar' ? 'النوع' : 'Type'}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                       {language === 'ar' ? 'المبلغ' : 'Amount'}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                       {language === 'ar' ? 'الفئة' : 'Category'}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                       {language === 'ar' ? 'الوصف' : 'Description'}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                       {language === 'ar' ? 'الإجراءات' : 'Actions'}
                     </th>
                   </tr>
                 </thead>
-                <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700/50' : 'divide-gray-100'}`}>
                   {loading ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                        {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center gap-3">
+                          <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   ) : transactions.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
-                        {language === 'ar' ? 'لا توجد معاملات' : 'No transactions found'}
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <div className="flex flex-col items-center justify-center gap-3">
+                          <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600" />
+                          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                            {language === 'ar' ? 'لا توجد معاملات' : 'No transactions found'}
+                          </p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {language === 'ar' ? 'ابدأ بإضافة معاملة جديدة' : 'Start by adding a new transaction'}
+                          </p>
+                        </div>
                       </td>
                     </tr>
                   ) : (
-                    transactions.map((transaction) => (
-                      <tr key={transaction.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td className="px-4 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                    transactions.map((transaction, index) => (
+                      <tr 
+                        key={transaction.id} 
+                        className={`transition-all duration-200 ${
+                          isDarkMode 
+                            ? 'hover:bg-gray-700/50' 
+                            : 'hover:bg-gray-50'
+                        } ${index % 2 === 0 ? (isDarkMode ? 'bg-gray-800/30' : 'bg-white') : (isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50/50')}`}
+                      >
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
                             transaction.type === 'income' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 border border-green-200 dark:border-green-700/50' 
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-700/50'
                           }`}>
+                            {transaction.type === 'income' ? (
+                              <ArrowUpRight className="w-3 h-3" />
+                            ) : (
+                              <ArrowDownRight className="w-3 h-3" />
+                            )}
                             {transaction.type === 'income' 
                               ? (language === 'ar' ? 'وارد' : 'Income')
                               : (language === 'ar' ? 'صادر' : 'Expense')
                             }
                           </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                          {AccountingService.formatCurrency(transaction.amount)}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`text-sm font-bold ${
+                            transaction.type === 'income'
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {transaction.type === 'income' ? '+' : '-'}
+                            {AccountingService.formatCurrency(transaction.amount)}
+                          </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          {getCategoryName(transaction.category_id)}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Tag className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {getCategoryName(transaction.category_id)}
+                            </span>
+                          </div>
                         </td>
-                        <td className="px-4 py-4 text-sm text-gray-500 dark:text-gray-400">
-                          {getDescription(transaction)}
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 max-w-xs">
+                            {getDescription(transaction) || (
+                              <span className="italic text-gray-400 dark:text-gray-500">
+                                {language === 'ar' ? 'لا يوجد وصف' : 'No description'}
+                              </span>
+                            )}
+                          </span>
                         </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex space-x-2">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2 justify-end">
                             <button
                               onClick={() => handleEditTransaction(transaction)}
-                              className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                              className={`p-2 rounded-lg transition-all duration-200 ${
+                                isDarkMode
+                                  ? 'text-blue-400 hover:bg-blue-900/30 hover:text-blue-300'
+                                  : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+                              }`}
+                              title={language === 'ar' ? 'تعديل' : 'Edit'}
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteTransaction(transaction.id)}
-                              className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                              className={`p-2 rounded-lg transition-all duration-200 ${
+                                isDarkMode
+                                  ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300'
+                                  : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+                              }`}
+                              title={language === 'ar' ? 'حذف' : 'Delete'}
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -2608,127 +3365,245 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
       {/* Transaction Form Modal */}
       {showTransactionForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`w-full max-w-md p-6 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold">
-                {editingTransaction 
-                  ? (language === 'ar' ? 'تعديل المعاملة' : 'Edit Transaction')
-                  : (language === 'ar' ? 'إضافة معاملة جديدة' : 'Add New Transaction')
-                }
-              </h3>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-lg rounded-2xl shadow-2xl transform transition-all ${
+            isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+          } animate-in zoom-in-95 duration-200`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between p-6 border-b ${
+              isDarkMode ? 'border-gray-700' : 'border-gray-200'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${
+                  transactionForm.type === 'income'
+                    ? 'bg-green-100 dark:bg-green-900/30'
+                    : 'bg-red-100 dark:bg-red-900/30'
+                }`}>
+                  {transactionForm.type === 'income' ? (
+                    <TrendingUp className={`w-5 h-5 ${
+                      isDarkMode ? 'text-green-400' : 'text-green-600'
+                    }`} />
+                  ) : (
+                    <TrendingDown className={`w-5 h-5 ${
+                      isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`} />
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {editingTransaction 
+                      ? (language === 'ar' ? 'تعديل المعاملة' : 'Edit Transaction')
+                      : (language === 'ar' ? 'إضافة معاملة جديدة' : 'Add New Transaction')
+                    }
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    {language === 'ar' ? 'أدخل تفاصيل المعاملة المالية' : 'Enter transaction details'}
+                  </p>
+                </div>
+              </div>
               <button
                 onClick={() => {
                   setShowTransactionForm(false);
                   setEditingTransaction(null);
                 }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                className={`p-2 rounded-lg transition-all ${
+                  isDarkMode 
+                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200' 
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleTransactionSubmit} className="space-y-4">
+            {/* Form */}
+            <form onSubmit={handleTransactionSubmit} className="p-6 space-y-5">
+              {/* Type Selection */}
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === 'ar' ? 'النوع' : 'Type'}
+                <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                  {language === 'ar' ? 'نوع المعاملة' : 'Transaction Type'}
                 </label>
-                <select
-                  value={transactionForm.type}
-                  onChange={(e) => setTransactionForm({ ...transactionForm, type: e.target.value as 'income' | 'expense' })}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
-                  }`}
-                  required
-                >
-                  <option value="income">{language === 'ar' ? 'وارد' : 'Income'}</option>
-                  <option value="expense">{language === 'ar' ? 'صادر' : 'Expense'}</option>
-                </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setTransactionForm({ ...transactionForm, type: 'income' })}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      transactionForm.type === 'income'
+                        ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-500'
+                        : isDarkMode
+                        ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <ArrowUpRight className={`w-5 h-5 ${
+                        transactionForm.type === 'income'
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-gray-400'
+                      }`} />
+                      <span className={`font-medium ${
+                        transactionForm.type === 'income'
+                          ? 'text-green-700 dark:text-green-300'
+                          : 'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {language === 'ar' ? 'وارد' : 'Income'}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTransactionForm({ ...transactionForm, type: 'expense' })}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      transactionForm.type === 'expense'
+                        ? 'border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-500'
+                        : isDarkMode
+                        ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
+                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <ArrowDownRight className={`w-5 h-5 ${
+                        transactionForm.type === 'expense'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-gray-400'
+                      }`} />
+                      <span className={`font-medium ${
+                        transactionForm.type === 'expense'
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-gray-500 dark:text-gray-400'
+                      }`}>
+                        {language === 'ar' ? 'صادر' : 'Expense'}
+                      </span>
+                    </div>
+                  </button>
+                </div>
               </div>
 
+              {/* Amount */}
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === 'ar' ? 'المبلغ' : 'Amount'}
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  {language === 'ar' ? 'المبلغ' : 'Amount'} <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={transactionForm.amount}
-                  onChange={(e) => setTransactionForm({ ...transactionForm, amount: parseFloat(e.target.value) || 0 })}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
-                  }`}
-                  required
-                />
+                <div className="relative">
+                  <div className={`absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={transactionForm.amount || ''}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, amount: parseFloat(e.target.value) || 0 })}
+                    className={`w-full pl-4 pr-12 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
               </div>
 
+              {/* Category */}
               <div>
-                <label className="block text-sm font-medium mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                   {language === 'ar' ? 'الفئة' : 'Category'}
                 </label>
-                <select
-                  value={transactionForm.category_id || ''}
-                  onChange={(e) => setTransactionForm({ ...transactionForm, category_id: e.target.value || undefined })}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
-                  }`}
-                >
-                  <option value="">{language === 'ar' ? 'اختر الفئة' : 'Select Category'}</option>
-                  {categories.filter(c => c.type === transactionForm.type).map(category => (
-                    <option key={category.id} value={category.id}>
-                      {language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <div className={`absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    <Tag className="w-5 h-5" />
+                  </div>
+                  <select
+                    value={transactionForm.category_id || ''}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, category_id: e.target.value || undefined })}
+                    className={`w-full pl-4 pr-12 py-3 border rounded-xl transition-all appearance-none ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  >
+                    <option value="">{language === 'ar' ? 'اختر الفئة (اختياري)' : 'Select Category (Optional)'}</option>
+                    {categories.filter(c => c.type === transactionForm.type).map(category => (
+                      <option key={category.id} value={category.id}>
+                        {language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
+              {/* Date */}
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === 'ar' ? 'التاريخ' : 'Date'}
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  {language === 'ar' ? 'التاريخ' : 'Date'} <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
-                  value={transactionForm.transaction_date}
-                  onChange={(e) => setTransactionForm({ ...transactionForm, transaction_date: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
-                  }`}
-                  required
-                />
+                <div className="relative">
+                  <div className={`absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                    <Calendar className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="date"
+                    value={transactionForm.transaction_date}
+                    onChange={(e) => setTransactionForm({ ...transactionForm, transaction_date: e.target.value })}
+                    className={`w-full pl-4 pr-12 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                    required
+                  />
+                </div>
               </div>
 
+              {/* Description */}
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  {language === 'ar' ? 'الوصف (عربي)' : 'Description (Arabic)'}
+                <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                  {language === 'ar' ? 'الوصف' : 'Description'} ({language === 'ar' ? 'عربي' : 'Arabic'})
                 </label>
                 <textarea
                   value={transactionForm.description_ar}
                   onChange={(e) => setTransactionForm({ ...transactionForm, description_ar: e.target.value })}
-                  className={`w-full px-3 py-2 border rounded-md ${
-                    isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'
+                  className={`w-full px-4 py-3 border rounded-xl transition-all resize-none ${
+                    isDarkMode 
+                      ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
                   }`}
                   rows={3}
+                  placeholder={language === 'ar' ? 'أدخل وصفاً للمعاملة...' : 'Enter transaction description...'}
                 />
               </div>
 
-              <div className="flex justify-end space-x-3">
+              {/* Actions */}
+              <div className={`flex items-center justify-end gap-3 pt-4 border-t ${
+                isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
                 <button
                   type="button"
                   onClick={() => {
                     setShowTransactionForm(false);
                     setEditingTransaction(null);
                   }}
-                  className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                  className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                    isDarkMode
+                      ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
+                  }`}
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
                 >
-                  <Save className="w-4 h-4 mr-2 inline" />
-                  {language === 'ar' ? 'حفظ' : 'Save'}
+                  <Save className="w-4 h-4" />
+                  {language === 'ar' ? 'حفظ المعاملة' : 'Save Transaction'}
                 </button>
               </div>
             </form>
@@ -3197,6 +4072,224 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
             </div>
           </div>
 
+          {/* Customers Management Section */}
+          <div className={`rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200 shadow-sm'} p-6 mb-6`}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  {language === 'ar' ? 'إدارة العملاء' : 'Customers Management'}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  {language === 'ar' ? 'إدارة بيانات العملاء ومتابعة حساباتهم المالية' : 'Manage customer data and track their financial accounts'}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setEditingCustomer(null);
+                  setCustomerForm({
+                    name_ar: '',
+                    name_en: '',
+                    name_tr: '',
+                    email: '',
+                    phone: '',
+                    address: '',
+                    city: '',
+                    country: '',
+                    tax_id: '',
+                    notes_ar: '',
+                    notes_en: '',
+                    notes_tr: '',
+                    credit_limit: 0,
+                    payment_terms: '',
+                    status: 'active'
+                  });
+                  setShowCustomerForm(true);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                {language === 'ar' ? 'إضافة عميل جديد' : 'Add New Customer'}
+              </button>
+            </div>
+
+            {/* Customer Search and Filter */}
+            <div className="flex flex-wrap items-center gap-4 mb-4">
+              <div className="flex items-center gap-2 flex-1 min-w-[250px]">
+                <Search className="w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder={language === 'ar' ? 'البحث في العملاء...' : 'Search customers...'}
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className={`flex-1 px-3 py-2 border rounded-lg ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-gray-50 border-gray-300 text-gray-900'
+                  }`}
+                />
+              </div>
+              <select
+                value={customerFilterStatus}
+                onChange={(e) => setCustomerFilterStatus(e.target.value as any)}
+                className={`px-3 py-2 border rounded-lg ${
+                  isDarkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-gray-50 border-gray-300 text-gray-900'
+                }`}
+              >
+                <option value="all">{language === 'ar' ? 'جميع الحالات' : 'All Status'}</option>
+                <option value="active">{language === 'ar' ? 'نشط' : 'Active'}</option>
+                <option value="inactive">{language === 'ar' ? 'غير نشط' : 'Inactive'}</option>
+                <option value="suspended">{language === 'ar' ? 'معلق' : 'Suspended'}</option>
+              </select>
+            </div>
+
+            {/* Customers List */}
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className={`${isDarkMode ? 'bg-gray-800/80' : 'bg-gray-50'} border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <tr>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      {language === 'ar' ? 'اسم العميل' : 'Customer Name'}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      {language === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      {language === 'ar' ? 'الهاتف' : 'Phone'}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      {language === 'ar' ? 'إجمالي الفواتير' : 'Total Invoiced'}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      {language === 'ar' ? 'المبلغ المستحق' : 'Outstanding'}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      {language === 'ar' ? 'الحالة' : 'Status'}
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                      {language === 'ar' ? 'الإجراءات' : 'Actions'}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700/50' : 'divide-gray-100'}`}>
+                  {customers
+                    .filter(customer => {
+                      const matchesStatus = customerFilterStatus === 'all' || customer.status === customerFilterStatus;
+                      const searchTerm = customerSearchTerm.toLowerCase();
+                      const matchesSearch = 
+                        (customer.name_ar?.toLowerCase().includes(searchTerm)) ||
+                        (customer.name_en?.toLowerCase().includes(searchTerm)) ||
+                        (customer.name_tr?.toLowerCase().includes(searchTerm)) ||
+                        (customer.email?.toLowerCase().includes(searchTerm)) ||
+                        (customer.phone?.toLowerCase().includes(searchTerm));
+                      return matchesStatus && matchesSearch;
+                    })
+                    .map((customer) => (
+                    <tr 
+                      key={customer.id} 
+                      className={`transition-all duration-200 ${
+                        isDarkMode 
+                          ? 'hover:bg-gray-700/50' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <Users className="w-4 h-4 text-gray-400" />
+                          <span className="text-sm font-medium text-gray-900 dark:text-white">
+                            {language === 'ar' ? customer.name_ar : language === 'tr' ? customer.name_tr : customer.name_en}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {customer.email || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {customer.phone || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {CustomerService.formatCurrency(customer.total_invoiced)}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-sm font-bold ${
+                          customer.total_outstanding > 0 
+                            ? 'text-red-600 dark:text-red-400' 
+                            : 'text-green-600 dark:text-green-400'
+                        }`}>
+                          {CustomerService.formatCurrency(customer.total_outstanding)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          customer.status === 'active' 
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+                            : customer.status === 'inactive'
+                            ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
+                        }`}>
+                          {customer.status === 'active' 
+                            ? (language === 'ar' ? 'نشط' : 'Active')
+                            : customer.status === 'inactive'
+                            ? (language === 'ar' ? 'غير نشط' : 'Inactive')
+                            : (language === 'ar' ? 'معلق' : 'Suspended')
+                          }
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2 justify-end">
+                          <button
+                            onClick={() => handleViewCustomerDetails(customer)}
+                            className={`p-2 rounded-lg transition-all ${
+                              isDarkMode
+                                ? 'text-blue-400 hover:bg-blue-900/30 hover:text-blue-300'
+                                : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+                            }`}
+                            title={language === 'ar' ? 'عرض التفاصيل المالية' : 'View Financial Details'}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleEditCustomer(customer)}
+                            className={`p-2 rounded-lg transition-all ${
+                              isDarkMode
+                                ? 'text-blue-400 hover:bg-blue-900/30 hover:text-blue-300'
+                                : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+                            }`}
+                            title={language === 'ar' ? 'تعديل' : 'Edit'}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCustomer(customer.id)}
+                            className={`p-2 rounded-lg transition-all ${
+                              isDarkMode
+                                ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300'
+                                : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+                            }`}
+                            title={language === 'ar' ? 'حذف' : 'Delete'}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {customers.length === 0 && (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-8 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {language === 'ar' ? 'لا يوجد عملاء' : 'No customers found'}
+                        </p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Invoice Controls */}
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-4">
@@ -3218,52 +4311,51 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 type="button"
               >
                 <Plus className="w-4 h-4 mr-2 inline" />
-                إنشاء فاتورة
-              </button>
-
-              {/* Test button for debugging */}
-              <button
-                onClick={() => {
-                  console.log('Test button clicked - showInvoiceForm:', showInvoiceForm);
-                  setShowInvoiceForm(!showInvoiceForm);
-                }}
-                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                type="button"
-              >
-                اختبار النافذة
+                {language === 'ar' ? 'إنشاء فاتورة' : 'Create Invoice'}
               </button>
 
               <div className="flex items-center gap-2">
                 <Search className="w-4 h-4 text-gray-500" />
                 <input
                   type="text"
-                  placeholder="البحث في الفواتير..."
+                  placeholder={language === 'ar' ? 'البحث في الفواتير...' : 'Search invoices...'}
                   value={invoiceSearchTerm}
                   onChange={(e) => setInvoiceSearchTerm(e.target.value)}
-                  className="px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                  className={`px-3 py-2 border rounded-md ${
+                    isDarkMode 
+                      ? 'bg-gray-700 border-gray-600 text-white' 
+                      : 'bg-white border-gray-300'
+                  }`}
                 />
               </div>
 
               <select
                 value={invoiceFilterStatus}
                 onChange={(e) => setInvoiceFilterStatus(e.target.value as any)}
-                className="px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                className={`px-3 py-2 border rounded-md ${
+                  isDarkMode 
+                    ? 'bg-gray-700 border-gray-600 text-white' 
+                    : 'bg-white border-gray-300'
+                }`}
               >
-                <option value="all">جميع الحالات</option>
-                <option value="draft">مسودة</option>
-                <option value="sent">مرسلة</option>
-                <option value="paid">مدفوعة</option>
-                <option value="overdue">متأخرة</option>
-                <option value="cancelled">ملغاة</option>
+                <option value="all">{language === 'ar' ? 'جميع الحالات' : 'All Status'}</option>
+                <option value="draft">{language === 'ar' ? 'مسودة' : 'Draft'}</option>
+                <option value="sent">{language === 'ar' ? 'مرسلة' : 'Sent'}</option>
+                <option value="paid">{language === 'ar' ? 'مدفوعة' : 'Paid'}</option>
+                <option value="overdue">{language === 'ar' ? 'متأخرة' : 'Overdue'}</option>
+                <option value="cancelled">{language === 'ar' ? 'ملغاة' : 'Cancelled'}</option>
               </select>
             </div>
 
             <button
-              onClick={loadInvoices}
+              onClick={() => {
+                loadInvoices();
+                loadCustomers();
+              }}
               className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
               <RefreshCw className="w-4 h-4 mr-2 inline" />
-              تحديث
+              {language === 'ar' ? 'تحديث' : 'Refresh'}
             </button>
           </div>
 
@@ -3440,20 +4532,102 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
                   <form onSubmit={handleInvoiceSubmit} className="space-y-6">
                     {/* Client Information */}
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          {language === 'ar' ? 'معلومات العميل' : 'Client Information'}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInvoiceCustomerMode('select');
+                              setInvoiceForm({ ...invoiceForm, customer_id: '', client_name: '', client_email: '', client_phone: '', client_address: '' });
+                            }}
+                            className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                              invoiceCustomerMode === 'select'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
+                            }`}
+                          >
+                            {language === 'ar' ? 'اختيار عميل موجود' : 'Select Existing'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setInvoiceCustomerMode('new');
+                              setInvoiceForm({ ...invoiceForm, customer_id: '' });
+                            }}
+                            className={`px-3 py-1.5 text-xs rounded-lg transition-all ${
+                              invoiceCustomerMode === 'new'
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-500'
+                            }`}
+                          >
+                            {language === 'ar' ? 'إضافة عميل جديد' : 'Add New Customer'}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      {invoiceCustomerMode === 'select' ? (
+                        <div>
+                          <label className="block text-sm font-medium mb-2">
+                            {language === 'ar' ? 'اختر عميلاً' : 'Select Customer'} *
+                          </label>
+                          <select
+                            value={invoiceForm.customer_id || ''}
+                            onChange={(e) => {
+                              const selectedCustomer = customers.find(c => c.id === e.target.value);
+                              setInvoiceForm({
+                                ...invoiceForm,
+                                customer_id: e.target.value,
+                                client_name: selectedCustomer ? (language === 'ar' ? selectedCustomer.name_ar : language === 'tr' ? selectedCustomer.name_tr : selectedCustomer.name_en) : '',
+                                client_email: selectedCustomer?.email || '',
+                                client_phone: selectedCustomer?.phone || '',
+                                client_address: selectedCustomer?.address || ''
+                              });
+                            }}
+                            className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                            required
+                          >
+                            <option value="">{language === 'ar' ? '-- اختر عميلاً --' : '-- Select Customer --'}</option>
+                            {customers.filter(c => c.status === 'active').map(customer => (
+                              <option key={customer.id} value={customer.id}>
+                                {language === 'ar' ? customer.name_ar : language === 'tr' ? customer.name_tr : customer.name_en}
+                                {customer.email ? ` (${customer.email})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          {customers.length === 0 && (
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                              {language === 'ar' ? 'لا يوجد عملاء. اضغط على "إضافة عميل جديد" لإضافة عميل.' : 'No customers found. Click "Add New Customer" to add one.'}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-2">
+                              {language === 'ar' ? 'اسم العميل' : 'Customer Name'} *
+                            </label>
+                            <input
+                              type="text"
+                              value={invoiceForm.client_name}
+                              onChange={(e) => setInvoiceForm({ ...invoiceForm, client_name: e.target.value })}
+                              className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                              required
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Client Details (shown for both modes) */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">اسم العميل *</label>
-                        <input
-                          type="text"
-                          value={invoiceForm.client_name}
-                          onChange={(e) => setInvoiceForm({ ...invoiceForm, client_name: e.target.value })}
-                          className="w-full px-3 py-2 border rounded-md bg-white dark:bg-gray-700 border-gray-300 dark:border-gray-600"
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">البريد الإلكتروني</label>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+                        </label>
                         <input
                           type="email"
                           value={invoiceForm.client_email}
@@ -3463,7 +4637,9 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium mb-2">رقم الهاتف</label>
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'رقم الهاتف' : 'Phone'}
+                        </label>
                         <input
                           type="tel"
                           value={invoiceForm.client_phone}
@@ -3472,8 +4648,10 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium mb-2">العنوان</label>
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium mb-2">
+                          {language === 'ar' ? 'العنوان' : 'Address'}
+                        </label>
                         <input
                           type="text"
                           value={invoiceForm.client_address}
@@ -3806,6 +4984,454 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
             </div>
           </div>
 
+      {/* Customer Form Modal */}
+      {showCustomerForm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-2xl rounded-2xl shadow-2xl transform transition-all ${
+            isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+          } animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between p-6 border-b sticky top-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-blue-900/30' : 'bg-blue-100'}`}>
+                  <Users className={`w-5 h-5 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {editingCustomer 
+                      ? (language === 'ar' ? 'تعديل العميل' : 'Edit Customer')
+                      : (language === 'ar' ? 'إضافة عميل جديد' : 'Add New Customer')
+                    }
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    {language === 'ar' ? 'أدخل بيانات العميل' : 'Enter customer information'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCustomerForm(false);
+                  setEditingCustomer(null);
+                }}
+                className={`p-2 rounded-lg transition-all ${
+                  isDarkMode 
+                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200' 
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleCustomerSubmit} className="p-6 space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Name Arabic */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'الاسم (عربي)' : 'Name (Arabic)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.name_ar || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, name_ar: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Name English */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'الاسم (إنجليزي)' : 'Name (English)'} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.name_en}
+                    onChange={(e) => setCustomerForm({ ...customerForm, name_en: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                    required
+                  />
+                </div>
+
+                {/* Name Turkish */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'الاسم (تركي)' : 'Name (Turkish)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.name_tr || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, name_tr: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'البريد الإلكتروني' : 'Email'}
+                  </label>
+                  <input
+                    type="email"
+                    value={customerForm.email || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, email: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'الهاتف' : 'Phone'}
+                  </label>
+                  <input
+                    type="tel"
+                    value={customerForm.phone || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, phone: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Status */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'الحالة' : 'Status'}
+                  </label>
+                  <select
+                    value={customerForm.status}
+                    onChange={(e) => setCustomerForm({ ...customerForm, status: e.target.value as any })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  >
+                    <option value="active">{language === 'ar' ? 'نشط' : 'Active'}</option>
+                    <option value="inactive">{language === 'ar' ? 'غير نشط' : 'Inactive'}</option>
+                    <option value="suspended">{language === 'ar' ? 'معلق' : 'Suspended'}</option>
+                  </select>
+                </div>
+
+                {/* Address */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'العنوان' : 'Address'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.address || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, address: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* City */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'المدينة' : 'City'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.city || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, city: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Country */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'الدولة' : 'Country'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.country || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, country: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Tax ID */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'الرقم الضريبي' : 'Tax ID'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.tax_id || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, tax_id: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Credit Limit */}
+                <div>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'حد الائتمان' : 'Credit Limit'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={customerForm.credit_limit || 0}
+                    onChange={(e) => setCustomerForm({ ...customerForm, credit_limit: parseFloat(e.target.value) || 0 })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                  />
+                </div>
+
+                {/* Payment Terms */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'شروط الدفع' : 'Payment Terms'}
+                  </label>
+                  <input
+                    type="text"
+                    value={customerForm.payment_terms || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, payment_terms: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                    placeholder={language === 'ar' ? 'مثال: الدفع خلال 30 يوم' : 'e.g., Payment within 30 days'}
+                  />
+                </div>
+
+                {/* Notes */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
+                    {language === 'ar' ? 'ملاحظات (عربي)' : 'Notes (Arabic)'}
+                  </label>
+                  <textarea
+                    value={customerForm.notes_ar || ''}
+                    onChange={(e) => setCustomerForm({ ...customerForm, notes_ar: e.target.value })}
+                    className={`w-full px-4 py-3 border rounded-xl transition-all resize-none ${
+                      isDarkMode 
+                        ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
+                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
+                    }`}
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className={`flex items-center justify-end gap-3 pt-4 border-t sticky bottom-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCustomerForm(false);
+                    setEditingCustomer(null);
+                  }}
+                  className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                    isDarkMode
+                      ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
+                  }`}
+                >
+                  {language === 'ar' ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
+                >
+                  <Save className="w-4 h-4" />
+                  {language === 'ar' ? 'حفظ العميل' : 'Save Customer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Customer Financial Details Modal */}
+      {showCustomerDetails && customerFinancialSummary && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-4xl rounded-2xl shadow-2xl transform transition-all ${
+            isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+          } animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto`}>
+            {/* Header */}
+            <div className={`flex items-center justify-between p-6 border-b sticky top-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div className="flex items-center gap-3">
+                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-green-900/30' : 'bg-green-100'}`}>
+                  <BarChart3 className={`w-5 h-5 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {language === 'ar' ? 'التفاصيل المالية للعميل' : 'Customer Financial Details'}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                    {customerFinancialSummary.customer_name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCustomerDetails(false);
+                  setCustomerFinancialSummary(null);
+                  setSelectedCustomer(null);
+                }}
+                className={`p-2 rounded-lg transition-all ${
+                  isDarkMode 
+                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200' 
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Financial Summary */}
+            <div className="p-6 space-y-6">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-blue-900/30 border border-blue-700/50' : 'bg-blue-50 border border-blue-200'}`}>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mb-1">
+                    {language === 'ar' ? 'إجمالي الفواتير' : 'Total Invoiced'}
+                  </p>
+                  <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                    {CustomerService.formatCurrency(customerFinancialSummary.total_invoiced)}
+                  </p>
+                </div>
+                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-green-900/30 border border-green-700/50' : 'bg-green-50 border border-green-200'}`}>
+                  <p className="text-sm text-green-600 dark:text-green-400 mb-1">
+                    {language === 'ar' ? 'إجمالي المدفوع' : 'Total Paid'}
+                  </p>
+                  <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                    {CustomerService.formatCurrency(customerFinancialSummary.total_paid)}
+                  </p>
+                </div>
+                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-red-900/30 border border-red-700/50' : 'bg-red-50 border border-red-200'}`}>
+                  <p className="text-sm text-red-600 dark:text-red-400 mb-1">
+                    {language === 'ar' ? 'المبلغ المستحق' : 'Outstanding'}
+                  </p>
+                  <p className="text-xl font-bold text-red-700 dark:text-red-300">
+                    {CustomerService.formatCurrency(customerFinancialSummary.total_outstanding)}
+                  </p>
+                </div>
+                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-orange-900/30 border border-orange-700/50' : 'bg-orange-50 border border-orange-200'}`}>
+                  <p className="text-sm text-orange-600 dark:text-orange-400 mb-1">
+                    {language === 'ar' ? 'المتأخر' : 'Overdue'}
+                  </p>
+                  <p className="text-xl font-bold text-orange-700 dark:text-orange-300">
+                    {CustomerService.formatCurrency(customerFinancialSummary.overdue_amount)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Statistics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    {language === 'ar' ? 'عدد الفواتير' : 'Total Invoices'}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {customerFinancialSummary.invoices_count}
+                  </p>
+                </div>
+                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    {language === 'ar' ? 'متوسط قيمة الفاتورة' : 'Average Invoice'}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {CustomerService.formatCurrency(customerFinancialSummary.average_invoice_amount)}
+                  </p>
+                </div>
+                <div className={`p-4 rounded-xl ${isDarkMode ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">
+                    {language === 'ar' ? 'الفواتير المدفوعة' : 'Paid Invoices'}
+                  </p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {customerFinancialSummary.paid_invoices_count}
+                  </p>
+                </div>
+              </div>
+
+              {/* Payment History */}
+              {customerFinancialSummary.payment_history.length > 0 && (
+                <div>
+                  <h4 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
+                    {language === 'ar' ? 'سجل المدفوعات' : 'Payment History'}
+                  </h4>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className={`${isDarkMode ? 'bg-gray-800/80' : 'bg-gray-50'} border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                        <tr>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
+                            {language === 'ar' ? 'التاريخ' : 'Date'}
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
+                            {language === 'ar' ? 'رقم الفاتورة' : 'Invoice Number'}
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase">
+                            {language === 'ar' ? 'المبلغ' : 'Amount'}
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700/50' : 'divide-gray-100'}`}>
+                        {customerFinancialSummary.payment_history.map((payment, index) => (
+                          <tr key={index} className={isDarkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-50'}>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                              {CustomerService.formatDate(payment.date)}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                              {payment.invoice_number}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">
+                              {CustomerService.formatCurrency(payment.amount)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
           {/* Payment Form Modal */}
           {showPaymentForm && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -3954,209 +5580,150 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
       {/* Financial Analysis Tab */}
       {activeTab === 'analysis' && (
         <div className="space-y-6">
-          <h3 className="text-xl font-bold">
-            {language === 'ar' ? 'التحليل المالي' : 'Financial Analysis'}
-          </h3>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Monthly Trends */}
-            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <h4 className="text-lg font-semibold mb-4 flex items-center">
-                <LineChart className="w-5 h-5 mr-2" />
-                {language === 'ar' ? 'الاتجاهات الشهرية' : 'Monthly Trends'}
-              </h4>
-              <div className="space-y-3">
-                {(() => {
-                  const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-                  const currentMonth = new Date().getMonth();
-                  const last6Months = Array.from({ length: 6 }, (_, i) => {
-                    const month = currentMonth - i;
-                    const monthIndex = month < 0 ? month + 12 : month;
-                    return months[monthIndex];
-                  }).reverse();
-                  
-                  return last6Months.map((month, idx) => {
-                    const monthTransactions = allTransactions.filter(t => {
-                      const transactionDate = new Date(t.transaction_date);
-                      const transactionYear = transactionDate.getFullYear();
-                      const currentYear = new Date().getFullYear();
-                      return transactionDate.getMonth() === (currentMonth - 5 + idx + 12) % 12 && transactionYear === currentYear;
-                    });
-                    const income = monthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-                    const expense = monthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-                    const maxAmount = Math.max(income, expense, 1000);
-                    
-                    return (
-                      <div key={idx} className="space-y-1">
-                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                          <span>{month}</span>
-                          <span>{AccountingService.formatCurrency(income - expense)}</span>
-                        </div>
-                        <div className="flex gap-2 h-6">
-                          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden relative">
-                            <div 
-                              className="h-full bg-green-500 transition-all"
-                              style={{ width: `${(income / maxAmount) * 100}%` }}
-                            />
-                          </div>
-                          <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded overflow-hidden relative">
-                            <div 
-                              className="h-full bg-red-500 transition-all"
-                              style={{ width: `${(expense / maxAmount) * 100}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
+          <div className="flex items-center justify-between">
+            <h3 className="text-2xl font-bold flex items-center">
+              <LineChart className="w-8 h-8 mr-3 text-blue-500" />
+              {language === 'ar' ? 'التحليل المالي المتقدم' : 'Advanced Financial Analysis'}
+            </h3>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              {language === 'ar' ? 'طباعة التقرير' : 'Print Report'}
+            </button>
+          </div>
+
+          {/* Key Metrics Summary */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">{language === 'ar' ? 'إجمالي الواردات' : 'Total Income'}</p>
+                  <p className="text-2xl font-bold">
+                    {allTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0).toLocaleString()} ₺
+                  </p>
+                </div>
+                <TrendingUp className="w-8 h-8 text-green-200" />
               </div>
             </div>
 
-            {/* Category Breakdown */}
-            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <h4 className="text-lg font-semibold mb-4 flex items-center">
-                <PieChart className="w-5 h-5 mr-2" />
-                {language === 'ar' ? 'توزيع الفئات' : 'Category Breakdown'}
-              </h4>
-              <div className="space-y-3 max-h-64 overflow-y-auto">
-                {categories.map(category => {
-                  const categoryTransactions = allTransactions.filter(t => t.category_id === category.id);
-                  const totalAmount = categoryTransactions.reduce((sum, t) => sum + t.amount, 0);
-                  const allTransactionsTotal = allTransactions.reduce((sum, t) => sum + t.amount, 0);
-                  const percentage = allTransactionsTotal > 0 ? (totalAmount / allTransactionsTotal) * 100 : 0;
-                  
-                  if (totalAmount === 0) return null;
-                  
-                  return (
-                    <div key={category.id} className="space-y-1">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-700 dark:text-gray-300">
-                          {language === 'ar' ? category.name_ar : language === 'tr' ? category.name_tr : category.name_en}
-                        </span>
-                        <span className={`font-semibold ${category.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                          {AccountingService.formatCurrency(totalAmount)}
-                        </span>
-                      </div>
-                      <div className={`w-full h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                        <div 
-                          className={`h-full transition-all ${category.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`}
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {categories.filter(c => {
-                  const categoryTransactions = allTransactions.filter(t => t.category_id === c.id);
-                  return categoryTransactions.reduce((sum, t) => sum + t.amount, 0) > 0;
-                }).length === 0 && (
-                  <div className="text-center text-gray-500 py-8">
-                    {language === 'ar' ? 'لا توجد بيانات' : 'No data available'}
-                  </div>
-                )}
+            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-red-100 text-sm font-medium">{language === 'ar' ? 'إجمالي الصادرات' : 'Total Expense'}</p>
+                  <p className="text-2xl font-bold">
+                    {allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0).toLocaleString()} ₺
+                  </p>
+                </div>
+                <TrendingDown className="w-8 h-8 text-red-200" />
               </div>
             </div>
 
-            {/* Profit Margins */}
-            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <h4 className="text-lg font-semibold mb-4 flex items-center">
-                <Target className="w-5 h-5 mr-2" />
-                {language === 'ar' ? 'هوامش الربح' : 'Profit Margins'}
-              </h4>
-              <div className="space-y-4">
-                {(() => {
-                  const totalIncome = allTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-                  const totalExpense = allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-                  const netProfit = totalIncome - totalExpense;
-                  const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
-                  
-                  return (
-                    <>
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {language === 'ar' ? 'إجمالي الواردات:' : 'Total Income:'}
-                          </span>
-                          <span className="font-semibold text-green-600">
-                            {AccountingService.formatCurrency(totalIncome)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {language === 'ar' ? 'إجمالي الصادرات:' : 'Total Expense:'}
-                          </span>
-                          <span className="font-semibold text-red-600">
-                            {AccountingService.formatCurrency(totalExpense)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between border-t pt-2">
-                          <span className="text-sm font-semibold">
-                            {language === 'ar' ? 'صافي الربح:' : 'Net Profit:'}
-                          </span>
-                          <span className={`font-bold text-lg ${netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {AccountingService.formatCurrency(netProfit)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600 dark:text-gray-400">
-                            {language === 'ar' ? 'هامش الربح:' : 'Profit Margin:'}
-                          </span>
-                          <span className={`font-semibold ${profitMargin >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {profitMargin.toFixed(2)}%
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm font-medium">{language === 'ar' ? 'صافي الربح' : 'Net Profit'}</p>
+                  <p className="text-2xl font-bold">
+                    {(allTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0) - 
+                      allTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)).toLocaleString()} ₺
+                  </p>
+                </div>
+                <DollarSign className="w-8 h-8 text-blue-200" />
               </div>
             </div>
 
-            {/* Cash Flow */}
-            <div className={`rounded-xl p-6 shadow-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <h4 className="text-lg font-semibold mb-4 flex items-center">
-                <Activity className="w-5 h-5 mr-2" />
-                {language === 'ar' ? 'تدفق النقدية' : 'Cash Flow'}
-              </h4>
-              <div className="space-y-3">
-                {dailySummaries.slice(0, 7).map(summary => {
-                  const netFlow = summary.total_income - summary.total_expense;
-                  const maxFlow = Math.max(Math.abs(netFlow), Math.abs(summary.total_income), Math.abs(summary.total_expense), 1000);
-                  
-                  return (
-                    <div key={summary.id} className="space-y-1">
-                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400">
-                        <span>{AccountingService.formatDate(summary.summary_date)}</span>
-                        <span className={`font-semibold ${netFlow >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          {AccountingService.formatCurrency(netFlow)}
-                        </span>
-                      </div>
-                      <div className={`w-full h-4 rounded overflow-hidden ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
-                        <div className="flex h-full">
-                          <div 
-                            className="bg-green-500 transition-all"
-                            style={{ width: `${(summary.total_income / maxFlow) * 100}%` }}
-                          />
-                          <div 
-                            className="bg-red-500 transition-all"
-                            style={{ width: `${(summary.total_expense / maxFlow) * 100}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-                
-                {dailySummaries.length === 0 && (
-                  <div className="text-center text-gray-500 py-8">
-                    {language === 'ar' ? 'لا توجد بيانات' : 'No data available'}
-                  </div>
-                )}
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-purple-100 text-sm font-medium">{language === 'ar' ? 'عدد المعاملات' : 'Transactions'}</p>
+                  <p className="text-2xl font-bold">{allTransactions.length}</p>
+                </div>
+                <Activity className="w-8 h-8 text-purple-200" />
               </div>
             </div>
           </div>
+
+          {/* Professional Charts */}
+          {(() => {
+            const chartData = prepareChartData();
+            return (
+              <>
+                {/* Income/Expense Trends Chart */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                  <h4 className="text-xl font-bold mb-4 flex items-center">
+                    <BarChart3 className="w-6 h-6 mr-2 text-blue-500" />
+                    {language === 'ar' ? 'اتجاهات الواردات والصادرات (آخر 12 شهر)' : 'Income & Expense Trends (Last 12 Months)'}
+                  </h4>
+                  <div className="h-[400px]">
+                    <IncomeExpenseTrendChart 
+                      data={chartData.monthlyTrendsData} 
+                      isDarkMode={isDarkMode} 
+                    />
+                  </div>
+                </div>
+
+                {/* Charts Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Category Breakdown */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                    <h4 className="text-xl font-bold mb-4 flex items-center">
+                      <PieChart className="w-6 h-6 mr-2 text-purple-500" />
+                      {language === 'ar' ? 'توزيع الفئات' : 'Category Breakdown'}
+                    </h4>
+                    <div className="h-[400px]">
+                      <CategoryBreakdownChart 
+                        data={chartData.categoryData} 
+                        isDarkMode={isDarkMode} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Profit Margin Chart */}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                    <h4 className="text-xl font-bold mb-4 flex items-center">
+                      <Percent className="w-6 h-6 mr-2 text-orange-500" />
+                      {language === 'ar' ? 'نسبة الربح الشهرية' : 'Monthly Profit Margin'}
+                    </h4>
+                    <div className="h-[400px]">
+                      <ProfitMarginChart 
+                        data={chartData.monthlyTrendsData} 
+                        isDarkMode={isDarkMode} 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Cash Flow Chart */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                  <h4 className="text-xl font-bold mb-4 flex items-center">
+                    <LineChart className="w-6 h-6 mr-2 text-green-500" />
+                    {language === 'ar' ? 'تدفق النقد (آخر 30 يوم)' : 'Cash Flow (Last 30 Days)'}
+                  </h4>
+                  <div className="h-[400px]">
+                    <CashFlowChart 
+                      data={chartData.cashFlowData.slice(-30)} 
+                      isDarkMode={isDarkMode} 
+                    />
+                  </div>
+                </div>
+
+                {/* Monthly Trends Detailed */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                  <h4 className="text-xl font-bold mb-4 flex items-center">
+                    <TrendingUp className="w-6 h-6 mr-2 text-orange-500" />
+                    {language === 'ar' ? 'الاتجاهات الشهرية التفصيلية' : 'Detailed Monthly Trends'}
+                  </h4>
+                  <div className="h-[400px]">
+                    <MonthlyTrendsChart 
+                      data={chartData.monthlyTrendsData} 
+                      isDarkMode={isDarkMode} 
+                    />
+                  </div>
+                </div>
+              </>
+            );
+          })()}
         </div>
       )}
 

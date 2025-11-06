@@ -102,25 +102,32 @@ export class InvoiceService {
     console.log('Calculated totals:', { subtotal, taxAmount, totalAmount });
 
     // Create invoice
+    const invoicePayload: any = {
+      invoice_number: invoiceNumber,
+      client_name: invoiceData.client_name,
+      client_email: invoiceData.client_email,
+      client_phone: invoiceData.client_phone,
+      client_address: invoiceData.client_address,
+      issue_date: invoiceData.issue_date,
+      due_date: invoiceData.due_date,
+      status: 'draft',
+      subtotal,
+      tax_rate: invoiceData.tax_rate,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      notes_ar: invoiceData.notes_ar,
+      notes_en: invoiceData.notes_en,
+      notes_tr: invoiceData.notes_tr
+    };
+    
+    // Add customer_id if provided
+    if (invoiceData.customer_id) {
+      invoicePayload.customer_id = invoiceData.customer_id;
+    }
+    
     const { data: invoice, error: invoiceError } = await supabase
       .from('invoices')
-      .insert({
-        invoice_number: invoiceNumber,
-        client_name: invoiceData.client_name,
-        client_email: invoiceData.client_email,
-        client_phone: invoiceData.client_phone,
-        client_address: invoiceData.client_address,
-        issue_date: invoiceData.issue_date,
-        due_date: invoiceData.due_date,
-        status: 'draft',
-        subtotal,
-        tax_rate: invoiceData.tax_rate,
-        tax_amount: taxAmount,
-        total_amount: totalAmount,
-        notes_ar: invoiceData.notes_ar,
-        notes_en: invoiceData.notes_en,
-        notes_tr: invoiceData.notes_tr
-      })
+      .insert(invoicePayload)
       .select()
       .single();
 

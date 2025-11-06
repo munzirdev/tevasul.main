@@ -140,7 +140,7 @@ class TelegramService {
                    `📝 <b>الرسالة:</b> ${message}\n` +
                    `🆔 <b>رقم الجلسة:</b> ${sessionId.substring(0, 8)}...\n` +
                    `👤 <b>المدير:</b> ${adminName || 'غير محدد'}\n` +
-                   `⏰ <b>التاريخ:</b> ${new Date().toLocaleString('ar-SA')}`;
+                   `⏰ <b>التاريخ:</b> ${new Date().toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
 
       // استخدام Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('telegram-webhook', {
@@ -908,14 +908,15 @@ ${dateStr}`;
     await this.loadConfig();
   }
 
-  // إرسال تفاصيل الصندوق عند إضافة معاملة جديدة
+  // إرسال تفاصيل الصندوق عند إضافة معاملة جديدة - استخدام بوت المحاسبة المخصص
   async sendCashBoxDetails(cashBoxData: {
     transactionType: 'income' | 'expense';
     amount: number;
     description: string;
     categoryName: string;
     transactionDate: string;
-    currentBalance: number;
+    netProfit: number;
+    totalPayments: number;
     dailyIncome: number;
     dailyExpense: number;
     monthlyIncome: number;
@@ -924,7 +925,6 @@ ${dateStr}`;
     try {
       const emoji = cashBoxData.transactionType === 'income' ? '💰' : '💸';
       const typeText = cashBoxData.transactionType === 'income' ? 'وارد' : 'صادر';
-      const typeTextEn = cashBoxData.transactionType === 'income' ? 'Income' : 'Expense';
       
       const message = `
 ${emoji} <b>${typeText} جديد في الصندوق</b>
@@ -937,7 +937,9 @@ ${emoji} <b>${typeText} جديد في الصندوق</b>
 • التاريخ: ${cashBoxData.transactionDate}
 
 💵 <b>تفاصيل الصندوق:</b>
-• الرصيد الحالي: <b>${cashBoxData.currentBalance.toLocaleString()} ₺</b>
+• صافي الربح: <b>${cashBoxData.netProfit.toLocaleString()} ₺</b>
+• مجموع المدفوعات: <b>${cashBoxData.totalPayments.toLocaleString()} ₺</b>
+• الرصيد النقدي: <b>${(cashBoxData.netProfit - cashBoxData.totalPayments).toLocaleString()} ₺</b>
 • الواردات اليوم: ${cashBoxData.dailyIncome.toLocaleString()} ₺
 • الصادرات اليوم: ${cashBoxData.dailyExpense.toLocaleString()} ₺
 • صافي اليوم: <b>${(cashBoxData.dailyIncome - cashBoxData.dailyExpense).toLocaleString()} ₺</b>
@@ -947,7 +949,7 @@ ${emoji} <b>${typeText} جديد في الصندوق</b>
 • الصادرات الشهرية: ${cashBoxData.monthlyExpense.toLocaleString()} ₺
 • صافي الشهر: <b>${(cashBoxData.monthlyIncome - cashBoxData.monthlyExpense).toLocaleString()} ₺</b>
 
-🕐 ${new Date().toLocaleString('ar-SA', { 
+🕐 ${new Date().toLocaleString('en-US', { 
   year: 'numeric', 
   month: 'long', 
   day: 'numeric', 
@@ -956,25 +958,357 @@ ${emoji} <b>${typeText} جديد في الصندوق</b>
 })}
       `.trim();
 
-      return await this.sendRequestNotification({
-        type: 'general',
-        title: `${emoji} ${typeText} جديد في الصندوق`,
-        description: message,
-        priority: 'medium',
-        status: 'completed',
-        createdAt: new Date().toISOString(),
-        additionalData: {
-          transactionType: cashBoxData.transactionType,
-          amount: cashBoxData.amount,
-          currentBalance: cashBoxData.currentBalance,
-          dailyIncome: cashBoxData.dailyIncome,
-          dailyExpense: cashBoxData.dailyExpense
-        }
+      // استخدام Edge Function الخاص بالمحاسبة بدلاً من الإشعارات العامة
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      console.log('📤 Sending accounting notification to Telegram...', {
+        supabaseUrl: supabaseUrl ? 'configured' : 'missing',
+        messageLength: message.length,
+        transactionType: cashBoxData.transactionType
       });
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/accounting-telegram-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+        },
+        body: JSON.stringify({
+          bot_token: '8588395762:AAFa91LU4O6HRevUM5tyatANCvY6HYQuLh0', // بوت المحاسبة المخصص
+          message: message,
+          transaction_type: cashBoxData.transactionType,
+          amount: cashBoxData.amount,
+          transaction_id: `txn_${Date.now()}`
+        })
+      });
+
+      console.log('📥 Accounting notification response status:', response.status);
+
+      if (!response.ok) {
+        let errorText = '';
+        try {
+          errorText = await response.text();
+          const errorData = JSON.parse(errorText);
+          console.error('❌ Accounting telegram notification error:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData.error || errorText,
+            message: errorData.message || 'Unknown error'
+          });
+          
+          // Show user-friendly error message
+          if (errorData.message?.includes('No recipients')) {
+            console.error('💡 To fix this issue:');
+            console.error('   1. Login to the bot via Telegram:');
+            console.error('      - Open Telegram and find the accounting bot');
+            console.error('      - Send: /login email:your@email.com password:yourpassword');
+            console.error('      - Or send: /start and follow the instructions');
+            console.error('   2. Or add admin_chat_id to telegram_config (id=3) in Supabase');
+            console.error('   3. Or provide chat_id in the request body');
+          }
+        } catch (parseError) {
+          errorText = await response.text();
+          console.error('❌ Accounting telegram notification error (raw):', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorText
+          });
+        }
+        return false;
+      }
+
+      const data = await response.json();
+      console.log('✅ Accounting notification sent:', data);
+      
+      if (!data.success) {
+        console.warn('⚠️ Accounting notification returned false:', data);
+        if (data.message) {
+          console.warn('⚠️ Message:', data.message);
+        }
+        return false;
+      }
+      
+      console.log(`✅ Successfully sent accounting notification to ${data.sent_to || 0} recipient(s)`);
+      return true;
     } catch (error) {
       console.error('Error sending cash box details to Telegram:', error);
       return false;
     }
+  }
+
+  // دالة عامة لإرسال إشعارات المحاسبة
+  private async sendAccountingNotification(message: string, actionType: string, data?: any): Promise<boolean> {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      console.log(`📤 Sending accounting ${actionType} notification to Telegram...`, {
+        supabaseUrl: supabaseUrl ? 'configured' : 'missing',
+        messageLength: message.length,
+        actionType
+      });
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/accounting-telegram-notification`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+        },
+        body: JSON.stringify({
+          bot_token: '8588395762:AAFa91LU4O6HRevUM5tyatANCvY6HYQuLh0',
+          message: message,
+          action_type: actionType,
+          ...data
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Accounting ${actionType} notification error:`, {
+          status: response.status,
+          error: errorText
+        });
+        return false;
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        console.log(`✅ Accounting ${actionType} notification sent successfully`);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error(`Error sending accounting ${actionType} notification:`, error);
+      return false;
+    }
+  }
+
+  // إرسال إشعار عند إنشاء/تحديث/حذف فاتورة
+  async sendInvoiceNotification(invoice: any, action: 'create' | 'update' | 'delete', invoiceHtml?: string): Promise<boolean> {
+    const actionText = action === 'create' ? 'إنشاء' : action === 'update' ? 'تحديث' : 'حذف';
+    const emoji = action === 'create' ? '📄' : action === 'update' ? '✏️' : '🗑️';
+    
+    const message = `
+${emoji} <b>${actionText} فاتورة</b>
+
+📋 <b>تفاصيل الفاتورة:</b>
+• رقم الفاتورة: ${invoice.invoice_number || 'غير محدد'}
+• العميل: <b>${invoice.client_name || 'غير محدد'}</b>
+• المبلغ الإجمالي: <b>${(invoice.total_amount || 0).toLocaleString()} ₺</b>
+• المبلغ المستحق: <b>${(invoice.due_amount || 0).toLocaleString()} ₺</b>
+• تاريخ الإصدار: ${invoice.issue_date || 'غير محدد'}
+• تاريخ الاستحقاق: ${invoice.due_date || 'غير محدد'}
+• الحالة: ${invoice.status === 'paid' ? '✅ مدفوعة' : invoice.status === 'partial' ? '⚠️ جزئية' : '⏳ مستحقة'}
+
+${invoice.items && invoice.items.length > 0 ? `
+📦 <b>البنود:</b>
+${invoice.items.slice(0, 3).map((item: any, idx: number) => 
+  `${idx + 1}. ${item.description_ar || item.description_en || 'بند'} - ${item.quantity}x ${item.unit_price?.toLocaleString()} ₺`
+).join('\n')}
+${invoice.items.length > 3 ? `\n... و ${invoice.items.length - 3} بند آخر` : ''}
+` : ''}
+
+🕐 ${new Date().toLocaleString('en-US', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric', 
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
+    `.trim();
+
+    // إرسال رسالة النص أولاً
+    const messageSent = await this.sendAccountingNotification(message, `invoice_${action}`, {
+      invoice_id: invoice.id,
+      invoice_number: invoice.invoice_number
+    });
+
+    // إرسال PDF إذا كان موجوداً وعند إنشاء فاتورة جديدة
+    if (action === 'create' && invoiceHtml) {
+      try {
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        
+        console.log('📄 Sending invoice PDF to Telegram...', {
+          supabaseUrl: supabaseUrl ? 'configured' : 'missing',
+          invoiceNumber: invoice.invoice_number
+        });
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/generate-invoice-pdf`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+          },
+          body: JSON.stringify({
+            bot_token: '8588395762:AAFa91LU4O6HRevUM5tyatANCvY6HYQuLh0',
+            invoice_html: invoiceHtml,
+            invoice_number: invoice.invoice_number || 'invoice'
+          })
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('❌ Invoice PDF generation error:', {
+            status: response.status,
+            error: errorText
+          });
+          // لا نوقف العملية إذا فشل إرسال PDF
+          return messageSent;
+        }
+
+        const result = await response.json();
+        if (result.success) {
+          console.log(`✅ Invoice PDF sent successfully to ${result.sent_to} recipient(s)`);
+        } else {
+          console.warn('⚠️ Invoice PDF generation failed:', result.error);
+        }
+      } catch (error) {
+        console.error('Error sending invoice PDF:', error);
+        // لا نوقف العملية إذا فشل إرسال PDF
+      }
+    }
+
+    return messageSent;
+  }
+
+  // إرسال إشعار عند إنشاء/تحديث/حذف عميل
+  async sendCustomerNotification(customer: any, action: 'create' | 'update' | 'delete'): Promise<boolean> {
+    const actionText = action === 'create' ? 'إضافة' : action === 'update' ? 'تحديث' : 'حذف';
+    const emoji = action === 'create' ? '👤' : action === 'update' ? '✏️' : '🗑️';
+    
+    const message = `
+${emoji} <b>${actionText} عميل</b>
+
+📋 <b>تفاصيل العميل:</b>
+• الاسم: <b>${customer.name_ar || customer.name_en || 'غير محدد'}</b>
+• البريد الإلكتروني: ${customer.email || 'غير محدد'}
+• الهاتف: ${customer.phone || 'غير محدد'}
+• العنوان: ${customer.address || 'غير محدد'}
+• حد الائتمان: ${(customer.credit_limit || 0).toLocaleString()} ₺
+• الحالة: ${customer.status === 'active' ? '✅ نشط' : '❌ غير نشط'}
+
+🕐 ${new Date().toLocaleString('en-US', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric', 
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
+    `.trim();
+
+    return this.sendAccountingNotification(message, `customer_${action}`, {
+      customer_id: customer.id
+    });
+  }
+
+  // إرسال إشعار عند إنشاء/تحديث/حذف دفعة
+  async sendPaymentNotification(payment: any, action: 'create' | 'update' | 'delete'): Promise<boolean> {
+    const actionText = action === 'create' ? 'إضافة' : action === 'update' ? 'تحديث' : 'حذف';
+    const emoji = action === 'create' ? '💳' : action === 'update' ? '✏️' : '🗑️';
+    
+    const paymentMethodText: Record<string, string> = {
+      cash: 'نقدي',
+      bank_transfer: 'تحويل بنكي',
+      credit_card: 'بطاقة ائتمانية',
+      check: 'شيك',
+      other: 'أخرى'
+    };
+    
+    const statusText: Record<string, string> = {
+      pending: '⏳ قيد الانتظار',
+      completed: '✅ مكتملة',
+      failed: '❌ فاشلة',
+      cancelled: '🚫 ملغاة'
+    };
+    
+    const message = `
+${emoji} <b>${actionText} دفعة</b>
+
+📋 <b>تفاصيل الدفعة:</b>
+• المبلغ: <b>${(payment.amount || 0).toLocaleString()} ₺</b>
+• طريقة الدفع: ${paymentMethodText[payment.payment_method] || payment.payment_method || 'غير محدد'}
+• تاريخ الدفع: ${payment.payment_date || 'غير محدد'}
+• رقم المرجع: ${payment.reference_number || 'غير محدد'}
+• الحالة: ${statusText[payment.status] || payment.status || 'غير محدد'}
+
+${payment.invoice_id ? `• مرتبطة بفاتورة: ${payment.invoice_id}` : ''}
+${payment.transaction_id ? `• مرتبطة بمعاملة: ${payment.transaction_id}` : ''}
+
+🕐 ${new Date().toLocaleString('en-US', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric', 
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
+    `.trim();
+
+    return this.sendAccountingNotification(message, `payment_${action}`, {
+      payment_id: payment.id,
+      amount: payment.amount
+    });
+  }
+
+  // إرسال إشعار عند إنشاء/تحديث/حذف فئة
+  async sendCategoryNotification(category: any, action: 'create' | 'update' | 'delete'): Promise<boolean> {
+    const actionText = action === 'create' ? 'إضافة' : action === 'update' ? 'تحديث' : 'حذف';
+    const emoji = action === 'create' ? '📁' : action === 'update' ? '✏️' : '🗑️';
+    const typeEmoji = category.type === 'income' ? '📈' : '📉';
+    const typeText = category.type === 'income' ? 'وارد' : 'صادر';
+    
+    const message = `
+${emoji} <b>${actionText} فئة</b>
+
+📋 <b>تفاصيل الفئة:</b>
+• الاسم: <b>${category.name_ar || category.name_en || 'غير محدد'}</b>
+• النوع: ${typeEmoji} ${typeText}
+${category.description_ar || category.description_en ? `• الوصف: ${category.description_ar || category.description_en}` : ''}
+
+🕐 ${new Date().toLocaleString('en-US', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric', 
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
+    `.trim();
+
+    return this.sendAccountingNotification(message, `category_${action}`, {
+      category_id: category.id,
+      category_type: category.type
+    });
+  }
+
+  // إرسال إشعار عند حذف معاملة
+  async sendTransactionDeleteNotification(transaction: any): Promise<boolean> {
+    const typeEmoji = transaction.type === 'income' ? '📈' : '📉';
+    const typeText = transaction.type === 'income' ? 'وارد' : 'صادر';
+    
+    const message = `
+🗑️ <b>حذف معاملة</b>
+
+📋 <b>تفاصيل المعاملة المحذوفة:</b>
+• النوع: ${typeEmoji} ${typeText}
+• المبلغ: <b>${(transaction.amount || 0).toLocaleString()} ₺</b>
+• التاريخ: ${transaction.transaction_date || 'غير محدد'}
+${transaction.description_ar || transaction.description_en ? `• الوصف: ${transaction.description_ar || transaction.description_en}` : ''}
+
+🕐 ${new Date().toLocaleString('en-US', { 
+  year: 'numeric', 
+  month: 'long', 
+  day: 'numeric', 
+  hour: '2-digit', 
+  minute: '2-digit' 
+})}
+    `.trim();
+
+    return this.sendAccountingNotification(message, 'transaction_delete', {
+      transaction_id: transaction.id,
+      transaction_type: transaction.type,
+      amount: transaction.amount
+    });
   }
 }
 

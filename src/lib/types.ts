@@ -158,6 +158,7 @@ export interface CreateInvoiceData {
   client_email?: string;
   client_phone?: string;
   client_address?: string;
+  customer_id?: string; // Link to customers table
   issue_date: string;
   due_date: string;
   tax_rate: number;
@@ -274,4 +275,72 @@ export interface AccountingSettings {
   company_website: string;
   updated_by?: string;
   updated_at: string;
+}
+
+// Customer/Client Types
+export interface Customer {
+  id: string;
+  name_ar?: string;
+  name_en: string;
+  name_tr?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  tax_id?: string;
+  notes_ar?: string;
+  notes_en?: string;
+  notes_tr?: string;
+  credit_limit?: number;
+  payment_terms?: string;
+  status: 'active' | 'inactive' | 'suspended';
+  total_invoiced: number;
+  total_paid: number;
+  total_outstanding: number;
+  invoices_count: number;
+  last_invoice_date?: string;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateCustomerData {
+  name_ar?: string;
+  name_en: string;
+  name_tr?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  tax_id?: string;
+  notes_ar?: string;
+  notes_en?: string;
+  notes_tr?: string;
+  credit_limit?: number;
+  payment_terms?: string;
+  status?: 'active' | 'inactive' | 'suspended';
+}
+
+export interface CustomerFinancialSummary {
+  customer_id: string;
+  customer_name: string;
+  total_invoiced: number;
+  total_paid: number;
+  total_outstanding: number;
+  overdue_amount: number;
+  invoices_count: number;
+  paid_invoices_count: number;
+  pending_invoices_count: number;
+  overdue_invoices_count: number;
+  average_invoice_amount: number;
+  last_payment_date?: string;
+  last_invoice_date?: string;
+  days_since_last_payment?: number;
+  payment_history: {
+    date: string;
+    amount: number;
+    invoice_number: string;
+  }[];
 }
