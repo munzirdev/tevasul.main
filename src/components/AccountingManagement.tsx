@@ -2008,7 +2008,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
     if (activeTab === 'payments') {
       loadPayments();
     }
-    if (activeTab === 'analysis' || activeTab === 'reports') {
+    if (activeTab === 'dashboard' || activeTab === 'analysis' || activeTab === 'reports') {
       loadAllTransactions();
     }
   }, [selectedDate, filterType, filterCategory, activeTab]);
