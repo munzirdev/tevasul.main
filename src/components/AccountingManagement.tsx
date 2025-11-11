@@ -2335,209 +2335,212 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
   };
 
   return (
-    <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}>
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2">
+    <div className={`p-3 sm:p-4 md:p-6 min-h-screen ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
+      {/* Header - Mobile Optimized */}
+      <div className="mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">
           {language === 'ar' ? 'نظام المحاسبة' : 'Accounting System'}
         </h2>
-        <p className="text-gray-600 dark:text-gray-400">
+        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
           {language === 'ar' ? 'إدارة الصادرات والواردات اليومية' : 'Manage daily income and expenses'}
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex space-x-1 mb-6 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-        {[
-          { key: 'dashboard', label: language === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: BarChart3 },
-          { key: 'transactions', label: language === 'ar' ? 'المعاملات' : 'Transactions', icon: Receipt },
-          { key: 'categories', label: language === 'ar' ? 'الفئات' : 'Categories', icon: Tag },
-          { key: 'summary', label: language === 'ar' ? 'الملخص اليومي' : 'Daily Summary', icon: Calendar },
-          { key: 'reports', label: language === 'ar' ? 'التقارير' : 'Reports', icon: FileText },
-          { key: 'budgets', label: language === 'ar' ? 'الميزانيات' : 'Budgets', icon: Target },
-          { key: 'invoices', label: language === 'ar' ? 'الفواتير' : 'Invoices', icon: FileTextIcon },
-          { key: 'payments', label: language === 'ar' ? 'المدفوعات' : 'Payments', icon: CreditCard },
-          { key: 'analysis', label: language === 'ar' ? 'التحليل المالي' : 'Financial Analysis', icon: LineChart },
-          { key: 'settings', label: language === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings }
-        ].map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key as any)}
-            className={`flex items-center px-4 py-2 rounded-md transition-colors ${
-              activeTab === key
-                ? 'bg-blue-500 text-white'
-                : isDarkMode ? 'text-gray-300 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <Icon className="w-4 h-4 mr-2" />
-            {label}
-          </button>
-        ))}
+      {/* Tabs - Mobile Scrollable */}
+      <div className="mb-4 sm:mb-6 -mx-3 sm:mx-0 px-3 sm:px-0">
+        <div className="flex space-x-2 overflow-x-auto scrollbar-hide pb-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1.5 sm:p-1 scroll-smooth">
+          {[
+            { key: 'dashboard', label: language === 'ar' ? 'لوحة التحكم' : 'Dashboard', icon: BarChart3, shortLabel: language === 'ar' ? 'التحكم' : 'Dashboard' },
+            { key: 'transactions', label: language === 'ar' ? 'المعاملات' : 'Transactions', icon: Receipt, shortLabel: language === 'ar' ? 'المعاملات' : 'Transactions' },
+            { key: 'categories', label: language === 'ar' ? 'الفئات' : 'Categories', icon: Tag, shortLabel: language === 'ar' ? 'الفئات' : 'Categories' },
+            { key: 'summary', label: language === 'ar' ? 'الملخص اليومي' : 'Daily Summary', icon: Calendar, shortLabel: language === 'ar' ? 'الملخص' : 'Summary' },
+            { key: 'reports', label: language === 'ar' ? 'التقارير' : 'Reports', icon: FileText, shortLabel: language === 'ar' ? 'التقارير' : 'Reports' },
+            { key: 'budgets', label: language === 'ar' ? 'الميزانيات' : 'Budgets', icon: Target, shortLabel: language === 'ar' ? 'الميزانيات' : 'Budgets' },
+            { key: 'invoices', label: language === 'ar' ? 'الفواتير' : 'Invoices', icon: FileTextIcon, shortLabel: language === 'ar' ? 'الفواتير' : 'Invoices' },
+            { key: 'payments', label: language === 'ar' ? 'المدفوعات' : 'Payments', icon: CreditCard, shortLabel: language === 'ar' ? 'المدفوعات' : 'Payments' },
+            { key: 'analysis', label: language === 'ar' ? 'التحليل المالي' : 'Financial Analysis', icon: LineChart, shortLabel: language === 'ar' ? 'التحليل' : 'Analysis' },
+            { key: 'settings', label: language === 'ar' ? 'الإعدادات' : 'Settings', icon: Settings, shortLabel: language === 'ar' ? 'الإعدادات' : 'Settings' }
+          ].map(({ key, label, icon: Icon, shortLabel }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key as any)}
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg sm:rounded-md transition-all whitespace-nowrap flex-shrink-0 min-h-[44px] touch-manipulation ${
+                activeTab === key
+                  ? 'bg-blue-500 text-white shadow-md scale-105'
+                  : isDarkMode ? 'text-gray-300 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            >
+              <Icon className="w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0" />
+              <span className="text-xs sm:text-sm font-medium">{shortLabel}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Dashboard Tab */}
       {activeTab === 'dashboard' && (
-        <div className="space-y-6">
-          {/* Key Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="space-y-4 sm:space-y-6">
+          {/* Key Metrics Cards - Mobile Optimized */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
             {/* Total Income */}
-            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm font-medium">إجمالي الواردات</p>
-                  <p className="text-3xl font-bold">{dashboardStats.totalIncome.toLocaleString()} ₺</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-green-100 text-xs sm:text-sm font-medium truncate">{language === 'ar' ? 'إجمالي الواردات' : 'Total Income'}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 break-words">{dashboardStats.totalIncome.toLocaleString()} ₺</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-green-200" />
+                <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-green-200 flex-shrink-0 ml-2" />
               </div>
             </div>
 
             {/* Total Expense */}
-            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-100 text-sm font-medium">إجمالي الصادرات</p>
-                  <p className="text-3xl font-bold">{dashboardStats.totalExpense.toLocaleString()} ₺</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-red-100 text-xs sm:text-sm font-medium truncate">{language === 'ar' ? 'إجمالي الصادرات' : 'Total Expense'}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 break-words">{dashboardStats.totalExpense.toLocaleString()} ₺</p>
                 </div>
-                <TrendingDown className="w-8 h-8 text-red-200" />
+                <TrendingDown className="w-6 h-6 sm:w-8 sm:h-8 text-red-200 flex-shrink-0 ml-2" />
               </div>
             </div>
 
             {/* Net Profit */}
-            <div className={`bg-gradient-to-br ${dashboardStats.netProfit >= 0 ? 'from-blue-500 to-blue-600' : 'from-orange-500 to-orange-600'} rounded-xl p-6 text-white shadow-lg`}>
+            <div className={`bg-gradient-to-br ${dashboardStats.netProfit >= 0 ? 'from-blue-500 to-blue-600' : 'from-orange-500 to-orange-600'} rounded-xl p-4 sm:p-6 text-white shadow-lg`}>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className={`${dashboardStats.netProfit >= 0 ? 'text-blue-100' : 'text-orange-100'} text-sm font-medium`}>صافي الربح</p>
-                  <p className="text-3xl font-bold">{dashboardStats.netProfit.toLocaleString()} ₺</p>
+                <div className="flex-1 min-w-0">
+                  <p className={`${dashboardStats.netProfit >= 0 ? 'text-blue-100' : 'text-orange-100'} text-xs sm:text-sm font-medium truncate`}>{language === 'ar' ? 'صافي الربح' : 'Net Profit'}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 break-words">{dashboardStats.netProfit.toLocaleString()} ₺</p>
                 </div>
-                {dashboardStats.netProfit >= 0 ? <ArrowUpRight className="w-8 h-8 text-blue-200" /> : <ArrowDownRight className="w-8 h-8 text-orange-200" />}
+                {dashboardStats.netProfit >= 0 ? <ArrowUpRight className="w-6 h-6 sm:w-8 sm:h-8 text-blue-200 flex-shrink-0 ml-2" /> : <ArrowDownRight className="w-6 h-6 sm:w-8 sm:h-8 text-orange-200 flex-shrink-0 ml-2" />}
               </div>
             </div>
 
             {/* Monthly Performance */}
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-lg">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 sm:p-6 text-white shadow-lg">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-purple-100 text-sm font-medium">الأداء الشهري</p>
-                  <p className="text-3xl font-bold">{((dashboardStats.monthlyIncome - dashboardStats.monthlyExpense) / Math.max(dashboardStats.monthlyIncome, 1) * 100).toFixed(1)}%</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-purple-100 text-xs sm:text-sm font-medium truncate">{language === 'ar' ? 'الأداء الشهري' : 'Monthly Performance'}</p>
+                  <p className="text-xl sm:text-2xl md:text-3xl font-bold mt-1 break-words">{((dashboardStats.monthlyIncome - dashboardStats.monthlyExpense) / Math.max(dashboardStats.monthlyIncome, 1) * 100).toFixed(1)}%</p>
                 </div>
-                <Activity className="w-8 h-8 text-purple-200" />
+                <Activity className="w-6 h-6 sm:w-8 sm:h-8 text-purple-200 flex-shrink-0 ml-2" />
               </div>
             </div>
           </div>
 
-          {/* Cash Box Status */}
-          <div className="grid grid-cols-1 md:grid-cols-1 gap-6">
-            <div className={`bg-gradient-to-br ${dashboardStats.cashBalance >= 0 ? 'from-emerald-500 to-emerald-600' : 'from-rose-500 to-rose-600'} rounded-xl p-6 text-white shadow-lg`}>
+          {/* Cash Box Status - Mobile Optimized */}
+          <div className="grid grid-cols-1 gap-4 sm:gap-6">
+            <div className={`bg-gradient-to-br ${dashboardStats.cashBalance >= 0 ? 'from-emerald-500 to-emerald-600' : 'from-rose-500 to-rose-600'} rounded-xl p-4 sm:p-6 text-white shadow-lg`}>
               <div className="flex items-center justify-between">
-                <div>
-                  <p className={`${dashboardStats.cashBalance >= 0 ? 'text-emerald-100' : 'text-rose-100'} text-sm font-medium`}>
+                <div className="flex-1 min-w-0">
+                  <p className={`${dashboardStats.cashBalance >= 0 ? 'text-emerald-100' : 'text-rose-100'} text-sm sm:text-base font-medium`}>
                     {language === 'ar' ? 'حالة الصندوق' : 'Cash Box Status'}
                   </p>
-                  <p className="text-3xl font-bold">{dashboardStats.cashBalance.toLocaleString()} ₺</p>
-                  <p className={`${dashboardStats.cashBalance >= 0 ? 'text-emerald-200' : 'text-rose-200'} text-xs mt-2`}>
+                  <p className="text-2xl sm:text-3xl font-bold mt-1">{dashboardStats.cashBalance.toLocaleString()} ₺</p>
+                  <p className={`${dashboardStats.cashBalance >= 0 ? 'text-emerald-200' : 'text-rose-200'} text-xs sm:text-sm mt-2`}>
                     {language === 'ar' ? 'صافي الربح - مجموع المدفوعات' : 'Net Profit - Total Payments'}
                   </p>
                 </div>
                 {dashboardStats.cashBalance >= 0 ? (
-                  <Wallet className="w-8 h-8 text-emerald-200" />
+                  <Wallet className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-200 flex-shrink-0 ml-3" />
                 ) : (
-                  <AlertCircle className="w-8 h-8 text-rose-200" />
+                  <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-rose-200 flex-shrink-0 ml-3" />
                 )}
               </div>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <h3 className="text-xl font-bold mb-4">إجراءات سريعة</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {/* Quick Actions - Mobile Optimized */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg">
+            <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">{language === 'ar' ? 'إجراءات سريعة' : 'Quick Actions'}</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
               <button
                 onClick={() => setActiveTab('transactions')}
-                className="flex flex-col items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                className="flex flex-col items-center justify-center p-4 sm:p-5 bg-blue-50 dark:bg-blue-900/20 rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/30 active:scale-95 transition-all touch-manipulation min-h-[100px] sm:min-h-[120px]"
               >
-                <Plus className="w-8 h-8 text-blue-500 mb-2" />
-                <span className="text-sm font-medium">إضافة معاملة</span>
+                <Plus className="w-7 h-7 sm:w-8 sm:h-8 text-blue-500 mb-2" />
+                <span className="text-xs sm:text-sm font-medium text-center">{language === 'ar' ? 'إضافة معاملة' : 'Add Transaction'}</span>
               </button>
               
               <button
                 onClick={() => setActiveTab('invoices')}
-                className="flex flex-col items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                className="flex flex-col items-center justify-center p-4 sm:p-5 bg-green-50 dark:bg-green-900/20 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/30 active:scale-95 transition-all touch-manipulation min-h-[100px] sm:min-h-[120px]"
               >
-                <FileTextIcon className="w-8 h-8 text-green-500 mb-2" />
-                <span className="text-sm font-medium">إنشاء فاتورة</span>
+                <FileTextIcon className="w-7 h-7 sm:w-8 sm:h-8 text-green-500 mb-2" />
+                <span className="text-xs sm:text-sm font-medium text-center">{language === 'ar' ? 'إنشاء فاتورة' : 'Create Invoice'}</span>
               </button>
               
               <button
                 onClick={() => setActiveTab('reports')}
-                className="flex flex-col items-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors"
+                className="flex flex-col items-center justify-center p-4 sm:p-5 bg-purple-50 dark:bg-purple-900/20 rounded-xl hover:bg-purple-100 dark:hover:bg-purple-900/30 active:scale-95 transition-all touch-manipulation min-h-[100px] sm:min-h-[120px]"
               >
-                <BarChart3 className="w-8 h-8 text-purple-500 mb-2" />
-                <span className="text-sm font-medium">عرض التقارير</span>
+                <BarChart3 className="w-7 h-7 sm:w-8 sm:h-8 text-purple-500 mb-2" />
+                <span className="text-xs sm:text-sm font-medium text-center">{language === 'ar' ? 'عرض التقارير' : 'View Reports'}</span>
               </button>
               
               <button
                 onClick={() => setActiveTab('budgets')}
-                className="flex flex-col items-center p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/30 transition-colors"
+                className="flex flex-col items-center justify-center p-4 sm:p-5 bg-orange-50 dark:bg-orange-900/20 rounded-xl hover:bg-orange-100 dark:hover:bg-orange-900/30 active:scale-95 transition-all touch-manipulation min-h-[100px] sm:min-h-[120px]"
               >
-                <Target className="w-8 h-8 text-orange-500 mb-2" />
-                <span className="text-sm font-medium">إدارة الميزانيات</span>
+                <Target className="w-7 h-7 sm:w-8 sm:h-8 text-orange-500 mb-2" />
+                <span className="text-xs sm:text-sm font-medium text-center">{language === 'ar' ? 'إدارة الميزانيات' : 'Manage Budgets'}</span>
               </button>
             </div>
           </div>
 
-          {/* Recent Transactions */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold">{language === 'ar' ? 'المعاملات الأخيرة' : 'Recent Transactions'}</h3>
+          {/* Recent Transactions - Mobile Optimized */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-bold">{language === 'ar' ? 'المعاملات الأخيرة' : 'Recent Transactions'}</h3>
               <button
                 onClick={() => setActiveTab('transactions')}
-                className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+                className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors touch-manipulation"
               >
                 {language === 'ar' ? 'عرض الكل' : 'View All'}
               </button>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3">
               {transactions.slice(0, 5).map((transaction) => (
-                <div key={transaction.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="flex items-center">
-                    <div className={`w-3 h-3 rounded-full mr-3 ${transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`} />
-                    <div>
-                      <p className="font-medium">
+                <div key={transaction.id} className="flex items-center justify-between p-3 sm:p-4 bg-gray-50 dark:bg-gray-700 rounded-xl active:scale-[0.98] transition-transform touch-manipulation">
+                  <div className="flex items-center flex-1 min-w-0">
+                    <div className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full mr-3 sm:mr-4 flex-shrink-0 ${transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm sm:text-base truncate">
                         {language === 'ar' 
                           ? (transaction.category?.name_ar || 'بدون فئة')
                           : language === 'tr'
                           ? (transaction.category?.name_tr || 'Kategori Yok')
                           : (transaction.category?.name_en || 'No Category')}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 truncate mt-0.5">
                         {getDescription(transaction) || (language === 'ar' ? 'لا يوجد وصف' : 'No description')}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className={`font-bold ${transaction.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
+                  <div className="text-right flex-shrink-0 ml-3">
+                    <p className={`font-bold text-sm sm:text-base ${transaction.type === 'income' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                       {transaction.type === 'income' ? '+' : '-'}{transaction.amount.toLocaleString()} ₺
                     </p>
-                    <p className="text-sm text-gray-500">{new Date(transaction.transaction_date).toLocaleDateString('ar-SA')}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{new Date(transaction.transaction_date).toLocaleDateString('ar-SA')}</p>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Professional Charts Section */}
+          {/* Professional Charts Section - Mobile Optimized */}
           {(() => {
             const chartData = prepareChartData();
             return (
               <>
                 {/* Income/Expense Trends Chart */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold flex items-center">
-                      <BarChart3 className="w-6 h-6 mr-2 text-blue-500" />
-                      {language === 'ar' ? 'اتجاهات الواردات والصادرات' : 'Income & Expense Trends'}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg overflow-hidden">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <h3 className="text-lg sm:text-xl font-bold flex items-center">
+                      <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-blue-500" />
+                      <span className="text-sm sm:text-base">{language === 'ar' ? 'اتجاهات الواردات والصادرات' : 'Income & Expense Trends'}</span>
                     </h3>
                   </div>
-                  <div className="h-[350px]">
+                  <div className="h-[250px] sm:h-[300px] md:h-[350px] -mx-2 sm:mx-0">
                     <IncomeExpenseTrendChart 
                       data={chartData.monthlyTrendsData} 
                       isDarkMode={isDarkMode} 
@@ -2545,17 +2548,17 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                   </div>
                 </div>
 
-                {/* Charts Grid */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Charts Grid - Mobile Stack */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                   {/* Category Breakdown */}
-                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold flex items-center">
-                        <PieChart className="w-6 h-6 mr-2 text-purple-500" />
-                        {language === 'ar' ? 'توزيع الفئات' : 'Category Breakdown'}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg overflow-hidden">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <h3 className="text-lg sm:text-xl font-bold flex items-center">
+                        <PieChart className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-purple-500" />
+                        <span className="text-sm sm:text-base">{language === 'ar' ? 'توزيع الفئات' : 'Category Breakdown'}</span>
                       </h3>
                     </div>
-                    <div className="h-[350px]">
+                    <div className="h-[250px] sm:h-[300px] md:h-[350px] -mx-2 sm:mx-0">
                       <CategoryBreakdownChart 
                         data={chartData.categoryData} 
                         isDarkMode={isDarkMode} 
@@ -2564,14 +2567,14 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                   </div>
 
                   {/* Cash Flow Chart */}
-                  <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-xl font-bold flex items-center">
-                        <LineChart className="w-6 h-6 mr-2 text-green-500" />
-                        {language === 'ar' ? 'تدفق النقد' : 'Cash Flow'}
+                  <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg overflow-hidden">
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <h3 className="text-lg sm:text-xl font-bold flex items-center">
+                        <LineChart className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-green-500" />
+                        <span className="text-sm sm:text-base">{language === 'ar' ? 'تدفق النقد' : 'Cash Flow'}</span>
                       </h3>
                     </div>
-                    <div className="h-[350px]">
+                    <div className="h-[250px] sm:h-[300px] md:h-[350px] -mx-2 sm:mx-0">
                       <CashFlowChart 
                         data={chartData.cashFlowData.slice(-30)} 
                         isDarkMode={isDarkMode} 
@@ -2581,14 +2584,14 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 </div>
 
                 {/* Monthly Trends Detailed */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold flex items-center">
-                      <TrendingUp className="w-6 h-6 mr-2 text-orange-500" />
-                      {language === 'ar' ? 'الاتجاهات الشهرية التفصيلية' : 'Detailed Monthly Trends'}
+                <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 shadow-lg overflow-hidden">
+                  <div className="flex items-center justify-between mb-3 sm:mb-4">
+                    <h3 className="text-lg sm:text-xl font-bold flex items-center">
+                      <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 mr-2 text-orange-500" />
+                      <span className="text-sm sm:text-base">{language === 'ar' ? 'الاتجاهات الشهرية التفصيلية' : 'Detailed Monthly Trends'}</span>
                     </h3>
                   </div>
-                  <div className="h-[350px]">
+                  <div className="h-[250px] sm:h-[300px] md:h-[350px] -mx-2 sm:mx-0">
                     <MonthlyTrendsChart 
                       data={chartData.monthlyTrendsData} 
                       isDarkMode={isDarkMode} 
@@ -2603,38 +2606,38 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
       {/* Transactions Tab */}
       {activeTab === 'transactions' && (
-        <div className="space-y-6">
-          {/* Header Section */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+        <div className="space-y-4 sm:space-y-6">
+          {/* Header Section - Mobile Optimized */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
+            <div className="flex-1 min-w-0">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
                 {language === 'ar' ? 'المعاملات المالية' : 'Financial Transactions'}
               </h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">
                 {language === 'ar' ? 'إدارة وتتبع جميع المعاملات المالية' : 'Manage and track all financial transactions'}
               </p>
             </div>
             <button
               onClick={() => setShowTransactionForm(true)}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 font-medium"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl active:scale-95 font-medium text-sm sm:text-base touch-manipulation min-h-[44px]"
             >
               <Plus className="w-5 h-5" />
               {language === 'ar' ? 'إضافة معاملة جديدة' : 'Add New Transaction'}
             </button>
           </div>
 
-          {/* Filters and Controls */}
-          <div className={`p-5 rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200 shadow-sm'}`}>
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2 flex-1 min-w-[200px]">
-                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <Calendar className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+          {/* Filters and Controls - Mobile Optimized */}
+          <div className={`p-3 sm:p-4 md:p-5 rounded-xl border ${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200 shadow-sm'}`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg flex-shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
                 </div>
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className={`flex-1 px-4 py-2.5 border rounded-lg transition-all ${
+                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 border rounded-lg transition-all text-sm sm:text-base min-h-[44px] ${
                     isDarkMode 
                       ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
                       : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
@@ -2642,14 +2645,14 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 />
               </div>
               
-              <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <Filter className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg flex-shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
                 </div>
                 <select
                   value={filterType}
                   onChange={(e) => setFilterType(e.target.value as any)}
-                  className={`flex-1 px-4 py-2.5 border rounded-lg transition-all ${
+                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 border rounded-lg transition-all text-sm sm:text-base min-h-[44px] ${
                     isDarkMode 
                       ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
                       : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
@@ -2661,14 +2664,14 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 </select>
               </div>
 
-              <div className="flex items-center gap-2 flex-1 min-w-[180px]">
-                <div className={`p-2 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-                  <Tag className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+              <div className="flex items-center gap-2">
+                <div className={`p-2 rounded-lg flex-shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                  <Tag className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600 dark:text-gray-300" />
                 </div>
                 <select
                   value={filterCategory}
                   onChange={(e) => setFilterCategory(e.target.value)}
-                  className={`flex-1 px-4 py-2.5 border rounded-lg transition-all ${
+                  className={`flex-1 px-3 sm:px-4 py-2.5 sm:py-2.5 border rounded-lg transition-all text-sm sm:text-base min-h-[44px] ${
                     isDarkMode 
                       ? 'bg-gray-700 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
                       : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
@@ -2685,90 +2688,90 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
 
               <button
                 onClick={loadData}
-                className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-all duration-200 font-medium"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 active:scale-95 transition-all duration-200 font-medium text-sm sm:text-base min-h-[44px] touch-manipulation"
               >
-                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin' : ''}`} />
                 {language === 'ar' ? 'تحديث' : 'Refresh'}
               </button>
             </div>
           </div>
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Summary Cards - Mobile Optimized */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
             {/* Income Card */}
-            <div className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 ${
+            <div className={`group relative overflow-hidden rounded-xl p-4 sm:p-6 transition-all duration-300 ${
               isDarkMode 
                 ? 'bg-gradient-to-br from-green-900/80 to-green-800/60 border border-green-700/50 shadow-lg shadow-green-500/10' 
                 : 'bg-gradient-to-br from-green-50 to-green-100/50 border border-green-200 shadow-md hover:shadow-lg'
-            } hover:scale-[1.02]`}>
+            } active:scale-[0.98] sm:hover:scale-[1.02]`}>
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className={`text-sm font-medium mb-2 ${
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs sm:text-sm font-medium mb-1 sm:mb-2 ${
                     isDarkMode ? 'text-green-300' : 'text-green-600'
                   }`}>
                     {language === 'ar' ? 'إجمالي الواردات' : 'Total Income'}
                   </p>
-                  <p className={`text-2xl font-bold mb-1 ${
+                  <p className={`text-xl sm:text-2xl font-bold mb-1 break-words ${
                     isDarkMode ? 'text-green-100' : 'text-green-700'
                   }`}>
                     {AccountingService.formatCurrency(getTotalIncome())}
                   </p>
                   <div className="flex items-center gap-1 mt-2">
-                    <TrendingUp className={`w-4 h-4 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
+                    <TrendingUp className={`w-3 h-3 sm:w-4 sm:h-4 ${isDarkMode ? 'text-green-400' : 'text-green-600'}`} />
                     <span className={`text-xs ${isDarkMode ? 'text-green-300' : 'text-green-600'}`}>
                       {language === 'ar' ? 'إيجابي' : 'Positive'}
                     </span>
                   </div>
                 </div>
-                <div className={`p-3 rounded-xl ${
+                <div className={`p-2 sm:p-3 rounded-xl flex-shrink-0 ml-2 ${
                   isDarkMode ? 'bg-green-800/50' : 'bg-green-200/50'
                 }`}>
-                  <TrendingUp className={`w-8 h-8 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
+                  <TrendingUp className={`w-6 h-6 sm:w-8 sm:h-8 ${isDarkMode ? 'text-green-300' : 'text-green-600'}`} />
                 </div>
               </div>
-              <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 ${
+              <div className={`absolute -bottom-2 -right-2 w-16 h-16 sm:w-24 sm:h-24 rounded-full opacity-10 ${
                 isDarkMode ? 'bg-green-400' : 'bg-green-500'
               }`}></div>
             </div>
 
             {/* Expense Card */}
-            <div className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 ${
+            <div className={`group relative overflow-hidden rounded-xl p-4 sm:p-6 transition-all duration-300 ${
               isDarkMode 
                 ? 'bg-gradient-to-br from-red-900/80 to-red-800/60 border border-red-700/50 shadow-lg shadow-red-500/10' 
                 : 'bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200 shadow-md hover:shadow-lg'
-            } hover:scale-[1.02]`}>
+            } active:scale-[0.98] sm:hover:scale-[1.02]`}>
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className={`text-sm font-medium mb-2 ${
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs sm:text-sm font-medium mb-1 sm:mb-2 ${
                     isDarkMode ? 'text-red-300' : 'text-red-600'
                   }`}>
                     {language === 'ar' ? 'إجمالي الصادرات' : 'Total Expense'}
                   </p>
-                  <p className={`text-2xl font-bold mb-1 ${
+                  <p className={`text-xl sm:text-2xl font-bold mb-1 break-words ${
                     isDarkMode ? 'text-red-100' : 'text-red-700'
                   }`}>
                     {AccountingService.formatCurrency(getTotalExpense())}
                   </p>
                   <div className="flex items-center gap-1 mt-2">
-                    <TrendingDown className={`w-4 h-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
+                    <TrendingDown className={`w-3 h-3 sm:w-4 sm:h-4 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`} />
                     <span className={`text-xs ${isDarkMode ? 'text-red-300' : 'text-red-600'}`}>
                       {language === 'ar' ? 'صادرات' : 'Expenses'}
                     </span>
                   </div>
                 </div>
-                <div className={`p-3 rounded-xl ${
+                <div className={`p-2 sm:p-3 rounded-xl flex-shrink-0 ml-2 ${
                   isDarkMode ? 'bg-red-800/50' : 'bg-red-200/50'
                 }`}>
-                  <TrendingDown className={`w-8 h-8 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`} />
+                  <TrendingDown className={`w-6 h-6 sm:w-8 sm:h-8 ${isDarkMode ? 'text-red-300' : 'text-red-600'}`} />
                 </div>
               </div>
-              <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 ${
+              <div className={`absolute -bottom-2 -right-2 w-16 h-16 sm:w-24 sm:h-24 rounded-full opacity-10 ${
                 isDarkMode ? 'bg-red-400' : 'bg-red-500'
               }`}></div>
             </div>
 
             {/* Net Income Card */}
-            <div className={`group relative overflow-hidden rounded-xl p-6 transition-all duration-300 ${
+            <div className={`group relative overflow-hidden rounded-xl p-4 sm:p-6 transition-all duration-300 ${
               getNetIncome() >= 0
                 ? (isDarkMode 
                     ? 'bg-gradient-to-br from-blue-900/80 to-blue-800/60 border border-blue-700/50 shadow-lg shadow-blue-500/10' 
@@ -2776,17 +2779,17 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 : (isDarkMode 
                     ? 'bg-gradient-to-br from-orange-900/80 to-orange-800/60 border border-orange-700/50 shadow-lg shadow-orange-500/10' 
                     : 'bg-gradient-to-br from-orange-50 to-orange-100/50 border border-orange-200 shadow-md hover:shadow-lg')
-            } hover:scale-[1.02]`}>
+            } active:scale-[0.98] sm:hover:scale-[1.02]`}>
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className={`text-sm font-medium mb-2 ${
+                <div className="flex-1 min-w-0">
+                  <p className={`text-xs sm:text-sm font-medium mb-1 sm:mb-2 ${
                     getNetIncome() >= 0
                       ? (isDarkMode ? 'text-blue-300' : 'text-blue-600')
                       : (isDarkMode ? 'text-orange-300' : 'text-orange-600')
                   }`}>
                     {language === 'ar' ? 'صافي الدخل' : 'Net Income'}
                   </p>
-                  <p className={`text-2xl font-bold mb-1 ${
+                  <p className={`text-xl sm:text-2xl font-bold mb-1 break-words ${
                     getNetIncome() >= 0
                       ? (isDarkMode ? 'text-blue-100' : 'text-blue-700')
                       : (isDarkMode ? 'text-orange-100' : 'text-orange-700')
@@ -2796,14 +2799,14 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                   <div className="flex items-center gap-1 mt-2">
                     {getNetIncome() >= 0 ? (
                       <>
-                        <TrendingUp className={`w-4 h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                        <TrendingUp className={`w-3 h-3 sm:w-4 sm:h-4 ${isDarkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                         <span className={`text-xs ${isDarkMode ? 'text-blue-300' : 'text-blue-600'}`}>
                           {language === 'ar' ? 'ربح' : 'Profit'}
                         </span>
                       </>
                     ) : (
                       <>
-                        <TrendingDown className={`w-4 h-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`} />
+                        <TrendingDown className={`w-3 h-3 sm:w-4 sm:h-4 ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`} />
                         <span className={`text-xs ${isDarkMode ? 'text-orange-300' : 'text-orange-600'}`}>
                           {language === 'ar' ? 'خسارة' : 'Loss'}
                         </span>
@@ -2811,19 +2814,19 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                     )}
                   </div>
                 </div>
-                <div className={`p-3 rounded-xl ${
+                <div className={`p-2 sm:p-3 rounded-xl flex-shrink-0 ml-2 ${
                   getNetIncome() >= 0
                     ? (isDarkMode ? 'bg-blue-800/50' : 'bg-blue-200/50')
                     : (isDarkMode ? 'bg-orange-800/50' : 'bg-orange-200/50')
                 }`}>
-                  <BarChart3 className={`w-8 h-8 ${
+                  <BarChart3 className={`w-6 h-6 sm:w-8 sm:h-8 ${
                     getNetIncome() >= 0
                       ? (isDarkMode ? 'text-blue-300' : 'text-blue-600')
                       : (isDarkMode ? 'text-orange-300' : 'text-orange-600')
                   }`} />
                 </div>
               </div>
-              <div className={`absolute -bottom-2 -right-2 w-24 h-24 rounded-full opacity-10 ${
+              <div className={`absolute -bottom-2 -right-2 w-16 h-16 sm:w-24 sm:h-24 rounded-full opacity-10 ${
                 getNetIncome() >= 0
                   ? (isDarkMode ? 'bg-blue-400' : 'bg-blue-500')
                   : (isDarkMode ? 'bg-orange-400' : 'bg-orange-500')
@@ -2831,146 +2834,226 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
             </div>
           </div>
 
-          {/* Transactions List */}
-          <div className={`rounded-xl border overflow-hidden shadow-sm ${
-            isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className={`${isDarkMode ? 'bg-gray-800/80' : 'bg-gray-50'} border-b ${
-                    isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                  }`}>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                      {language === 'ar' ? 'النوع' : 'Type'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                      {language === 'ar' ? 'المبلغ' : 'Amount'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                      {language === 'ar' ? 'الفئة' : 'Category'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                      {language === 'ar' ? 'الوصف' : 'Description'}
-                    </th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                      {language === 'ar' ? 'الإجراءات' : 'Actions'}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700/50' : 'divide-gray-100'}`}>
-                  {loading ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center justify-center gap-3">
-                          <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : transactions.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center">
-                        <div className="flex flex-col items-center justify-center gap-3">
-                          <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600" />
-                          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                            {language === 'ar' ? 'لا توجد معاملات' : 'No transactions found'}
-                          </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500">
-                            {language === 'ar' ? 'ابدأ بإضافة معاملة جديدة' : 'Start by adding a new transaction'}
-                          </p>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    transactions.map((transaction, index) => (
-                      <tr 
-                        key={transaction.id} 
-                        className={`transition-all duration-200 ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-700/50' 
-                            : 'hover:bg-gray-50'
-                        } ${index % 2 === 0 ? (isDarkMode ? 'bg-gray-800/30' : 'bg-white') : (isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50/50')}`}
-                      >
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
-                            transaction.type === 'income' 
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 border border-green-200 dark:border-green-700/50' 
-                              : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-700/50'
-                          }`}>
-                            {transaction.type === 'income' ? (
-                              <ArrowUpRight className="w-3 h-3" />
-                            ) : (
-                              <ArrowDownRight className="w-3 h-3" />
-                            )}
-                            {transaction.type === 'income' 
-                              ? (language === 'ar' ? 'وارد' : 'Income')
-                              : (language === 'ar' ? 'صادر' : 'Expense')
-                            }
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`text-sm font-bold ${
-                            transaction.type === 'income'
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
-                          }`}>
-                            {transaction.type === 'income' ? '+' : '-'}
-                            {AccountingService.formatCurrency(transaction.amount)}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <Tag className="w-4 h-4 text-gray-400" />
-                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                              {getCategoryName(transaction.category_id)}
-                            </span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 max-w-xs">
-                            {getDescription(transaction) || (
-                              <span className="italic text-gray-400 dark:text-gray-500">
-                                {language === 'ar' ? 'لا يوجد وصف' : 'No description'}
-                              </span>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2 justify-end">
-                            <button
-                              onClick={() => handleEditTransaction(transaction)}
-                              className={`p-2 rounded-lg transition-all duration-200 ${
-                                isDarkMode
-                                  ? 'text-blue-400 hover:bg-blue-900/30 hover:text-blue-300'
-                                  : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
-                              }`}
-                              title={language === 'ar' ? 'تعديل' : 'Edit'}
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteTransaction(transaction.id)}
-                              className={`p-2 rounded-lg transition-all duration-200 ${
-                                isDarkMode
-                                  ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300'
-                                  : 'text-red-600 hover:bg-red-50 hover:text-red-700'
-                              }`}
-                              title={language === 'ar' ? 'حذف' : 'Delete'}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+          {/* Transactions List - Mobile Cards / Desktop Table */}
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <RefreshCw className="w-8 h-8 animate-spin text-gray-400 mb-3" />
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {language === 'ar' ? 'جاري التحميل...' : 'Loading...'}
+              </p>
             </div>
-          </div>
+          ) : transactions.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12">
+              <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mb-3" />
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                {language === 'ar' ? 'لا توجد معاملات' : 'No transactions found'}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                {language === 'ar' ? 'ابدأ بإضافة معاملة جديدة' : 'Start by adding a new transaction'}
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Mobile Card View */}
+              <div className="block md:hidden space-y-3">
+                {transactions.map((transaction) => (
+                  <div
+                    key={transaction.id}
+                    className={`p-4 rounded-xl border transition-all duration-200 active:scale-[0.98] touch-manipulation ${
+                      isDarkMode 
+                        ? 'bg-gray-800/50 border-gray-700' 
+                        : 'bg-white border-gray-200 shadow-sm'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${transaction.type === 'income' ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-full ${
+                          transaction.type === 'income' 
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300' 
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
+                        }`}>
+                          {transaction.type === 'income' ? (
+                            <ArrowUpRight className="w-3 h-3" />
+                          ) : (
+                            <ArrowDownRight className="w-3 h-3" />
+                          )}
+                          {transaction.type === 'income' 
+                            ? (language === 'ar' ? 'وارد' : 'Income')
+                            : (language === 'ar' ? 'صادر' : 'Expense')
+                          }
+                        </span>
+                      </div>
+                      <span className={`text-lg font-bold flex-shrink-0 ml-2 ${
+                        transaction.type === 'income'
+                          ? 'text-green-600 dark:text-green-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>
+                        {transaction.type === 'income' ? '+' : '-'}
+                        {AccountingService.formatCurrency(transaction.amount)}
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">
+                          {getCategoryName(transaction.category_id)}
+                        </span>
+                      </div>
+                      {getDescription(transaction) && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                          {getDescription(transaction)}
+                        </p>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(transaction.transaction_date).toLocaleDateString('ar-SA')}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 pt-3 border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={() => handleEditTransaction(transaction)}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 min-h-[44px] touch-manipulation ${
+                          isDarkMode
+                            ? 'bg-blue-900/30 text-blue-400 active:bg-blue-900/50'
+                            : 'bg-blue-50 text-blue-600 active:bg-blue-100'
+                        }`}
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span className="text-sm font-medium">{language === 'ar' ? 'تعديل' : 'Edit'}</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTransaction(transaction.id)}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg transition-all duration-200 min-h-[44px] touch-manipulation ${
+                          isDarkMode
+                            ? 'bg-red-900/30 text-red-400 active:bg-red-900/50'
+                            : 'bg-red-50 text-red-600 active:bg-red-100'
+                        }`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="text-sm font-medium">{language === 'ar' ? 'حذف' : 'Delete'}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop Table View */}
+              <div className={`hidden md:block rounded-xl border overflow-hidden shadow-sm ${
+                isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-white border-gray-200'
+              }`}>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className={`${isDarkMode ? 'bg-gray-800/80' : 'bg-gray-50'} border-b ${
+                        isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                      }`}>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                          {language === 'ar' ? 'النوع' : 'Type'}
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                          {language === 'ar' ? 'المبلغ' : 'Amount'}
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                          {language === 'ar' ? 'الفئة' : 'Category'}
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                          {language === 'ar' ? 'الوصف' : 'Description'}
+                        </th>
+                        <th className="px-6 py-4 text-right text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                          {language === 'ar' ? 'الإجراءات' : 'Actions'}
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${isDarkMode ? 'divide-gray-700/50' : 'divide-gray-100'}`}>
+                      {transactions.map((transaction, index) => (
+                        <tr 
+                          key={transaction.id} 
+                          className={`transition-all duration-200 ${
+                            isDarkMode 
+                              ? 'hover:bg-gray-700/50' 
+                              : 'hover:bg-gray-50'
+                          } ${index % 2 === 0 ? (isDarkMode ? 'bg-gray-800/30' : 'bg-white') : (isDarkMode ? 'bg-gray-800/50' : 'bg-gray-50/50')}`}
+                        >
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-all ${
+                              transaction.type === 'income' 
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 border border-green-200 dark:border-green-700/50' 
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-700/50'
+                            }`}>
+                              {transaction.type === 'income' ? (
+                                <ArrowUpRight className="w-3 h-3" />
+                              ) : (
+                                <ArrowDownRight className="w-3 h-3" />
+                              )}
+                              {transaction.type === 'income' 
+                                ? (language === 'ar' ? 'وارد' : 'Income')
+                                : (language === 'ar' ? 'صادر' : 'Expense')
+                              }
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`text-sm font-bold ${
+                              transaction.type === 'income'
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400'
+                            }`}>
+                              {transaction.type === 'income' ? '+' : '-'}
+                              {AccountingService.formatCurrency(transaction.amount)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2">
+                              <Tag className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                {getCategoryName(transaction.category_id)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 max-w-xs">
+                              {getDescription(transaction) || (
+                                <span className="italic text-gray-400 dark:text-gray-500">
+                                  {language === 'ar' ? 'لا يوجد وصف' : 'No description'}
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                onClick={() => handleEditTransaction(transaction)}
+                                className={`p-2 rounded-lg transition-all duration-200 ${
+                                  isDarkMode
+                                    ? 'text-blue-400 hover:bg-blue-900/30 hover:text-blue-300'
+                                    : 'text-blue-600 hover:bg-blue-50 hover:text-blue-700'
+                                }`}
+                                title={language === 'ar' ? 'تعديل' : 'Edit'}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTransaction(transaction.id)}
+                                className={`p-2 rounded-lg transition-all duration-200 ${
+                                  isDarkMode
+                                    ? 'text-red-400 hover:bg-red-900/30 hover:text-red-300'
+                                    : 'text-red-600 hover:bg-red-50 hover:text-red-700'
+                                }`}
+                                title={language === 'ar' ? 'حذف' : 'Delete'}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -3363,40 +3446,40 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
         </div>
       )}
 
-      {/* Transaction Form Modal */}
+      {/* Transaction Form Modal - Mobile Full Screen */}
       {showTransactionForm && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className={`w-full max-w-lg rounded-2xl shadow-2xl transform transition-all ${
-            isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className={`w-full h-full sm:h-auto sm:max-w-lg sm:max-h-[90vh] sm:rounded-2xl shadow-2xl transform transition-all overflow-y-auto ${
+            isDarkMode ? 'bg-gray-800 border-0 sm:border border-gray-700' : 'bg-white border-0 sm:border border-gray-200'
           } animate-in zoom-in-95 duration-200`}>
-            {/* Header */}
-            <div className={`flex items-center justify-between p-6 border-b ${
+            {/* Header - Mobile Optimized */}
+            <div className={`flex items-center justify-between p-4 sm:p-6 border-b sticky top-0 bg-inherit z-10 ${
               isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${
+              <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                <div className={`p-2 rounded-lg flex-shrink-0 ${
                   transactionForm.type === 'income'
                     ? 'bg-green-100 dark:bg-green-900/30'
                     : 'bg-red-100 dark:bg-red-900/30'
                 }`}>
                   {transactionForm.type === 'income' ? (
-                    <TrendingUp className={`w-5 h-5 ${
+                    <TrendingUp className={`w-4 h-4 sm:w-5 sm:h-5 ${
                       isDarkMode ? 'text-green-400' : 'text-green-600'
                     }`} />
                   ) : (
-                    <TrendingDown className={`w-5 h-5 ${
+                    <TrendingDown className={`w-4 h-4 sm:w-5 sm:h-5 ${
                       isDarkMode ? 'text-red-400' : 'text-red-600'
                     }`} />
                   )}
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white truncate">
                     {editingTransaction 
                       ? (language === 'ar' ? 'تعديل المعاملة' : 'Edit Transaction')
                       : (language === 'ar' ? 'إضافة معاملة جديدة' : 'Add New Transaction')
                     }
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                  <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-0.5">
                     {language === 'ar' ? 'أدخل تفاصيل المعاملة المالية' : 'Enter transaction details'}
                   </p>
                 </div>
@@ -3406,42 +3489,42 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                   setShowTransactionForm(false);
                   setEditingTransaction(null);
                 }}
-                className={`p-2 rounded-lg transition-all ${
+                className={`p-2 rounded-lg transition-all flex-shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation ${
                   isDarkMode 
-                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200' 
-                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700'
+                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200 active:bg-gray-600' 
+                    : 'hover:bg-gray-100 text-gray-500 hover:text-gray-700 active:bg-gray-200'
                 }`}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleTransactionSubmit} className="p-6 space-y-5">
-              {/* Type Selection */}
+            {/* Form - Mobile Optimized */}
+            <form onSubmit={handleTransactionSubmit} className="p-4 sm:p-6 space-y-4 sm:space-y-5">
+              {/* Type Selection - Mobile Optimized */}
               <div>
-                <label className="block text-sm font-semibold mb-3 text-gray-700 dark:text-gray-300">
+                <label className="block text-sm font-semibold mb-2 sm:mb-3 text-gray-700 dark:text-gray-300">
                   {language === 'ar' ? 'نوع المعاملة' : 'Transaction Type'}
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
                   <button
                     type="button"
                     onClick={() => setTransactionForm({ ...transactionForm, type: 'income' })}
-                    className={`p-4 rounded-xl border-2 transition-all ${
+                    className={`p-3 sm:p-4 rounded-xl border-2 transition-all min-h-[60px] sm:min-h-[70px] touch-manipulation active:scale-95 ${
                       transactionForm.type === 'income'
                         ? 'border-green-500 bg-green-50 dark:bg-green-900/20 dark:border-green-500'
                         : isDarkMode
-                        ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
-                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                        ? 'border-gray-600 bg-gray-700/50 active:border-gray-500'
+                        : 'border-gray-200 bg-gray-50 active:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      <ArrowUpRight className={`w-5 h-5 ${
+                      <ArrowUpRight className={`w-4 h-4 sm:w-5 sm:h-5 ${
                         transactionForm.type === 'income'
                           ? 'text-green-600 dark:text-green-400'
                           : 'text-gray-400'
                       }`} />
-                      <span className={`font-medium ${
+                      <span className={`font-medium text-sm sm:text-base ${
                         transactionForm.type === 'income'
                           ? 'text-green-700 dark:text-green-300'
                           : 'text-gray-500 dark:text-gray-400'
@@ -3453,21 +3536,21 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                   <button
                     type="button"
                     onClick={() => setTransactionForm({ ...transactionForm, type: 'expense' })}
-                    className={`p-4 rounded-xl border-2 transition-all ${
+                    className={`p-3 sm:p-4 rounded-xl border-2 transition-all min-h-[60px] sm:min-h-[70px] touch-manipulation active:scale-95 ${
                       transactionForm.type === 'expense'
                         ? 'border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-500'
                         : isDarkMode
-                        ? 'border-gray-600 bg-gray-700/50 hover:border-gray-500'
-                        : 'border-gray-200 bg-gray-50 hover:border-gray-300'
+                        ? 'border-gray-600 bg-gray-700/50 active:border-gray-500'
+                        : 'border-gray-200 bg-gray-50 active:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      <ArrowDownRight className={`w-5 h-5 ${
+                      <ArrowDownRight className={`w-4 h-4 sm:w-5 sm:h-5 ${
                         transactionForm.type === 'expense'
                           ? 'text-red-600 dark:text-red-400'
                           : 'text-gray-400'
                       }`} />
-                      <span className={`font-medium ${
+                      <span className={`font-medium text-sm sm:text-base ${
                         transactionForm.type === 'expense'
                           ? 'text-red-700 dark:text-red-300'
                           : 'text-gray-500 dark:text-gray-400'
@@ -3479,16 +3562,16 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 </div>
               </div>
 
-              {/* Amount */}
+              {/* Amount - Mobile Optimized */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                   {language === 'ar' ? 'المبلغ' : 'Amount'} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className={`absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none ${
+                  <div className={`absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4 pointer-events-none ${
                     isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}>
-                    <DollarSign className="w-5 h-5" />
+                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <input
                     type="number"
@@ -3496,7 +3579,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                     min="0"
                     value={transactionForm.amount || ''}
                     onChange={(e) => setTransactionForm({ ...transactionForm, amount: parseFloat(e.target.value) || 0 })}
-                    className={`w-full pl-4 pr-12 py-3 border rounded-xl transition-all ${
+                    className={`w-full pl-4 pr-10 sm:pr-12 py-3 sm:py-3.5 border rounded-xl transition-all text-base sm:text-lg min-h-[44px] ${
                       isDarkMode 
                         ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
                         : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
@@ -3507,21 +3590,21 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 </div>
               </div>
 
-              {/* Category */}
+              {/* Category - Mobile Optimized */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                   {language === 'ar' ? 'الفئة' : 'Category'}
                 </label>
                 <div className="relative">
-                  <div className={`absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none ${
+                  <div className={`absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4 pointer-events-none ${
                     isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}>
-                    <Tag className="w-5 h-5" />
+                    <Tag className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <select
                     value={transactionForm.category_id || ''}
                     onChange={(e) => setTransactionForm({ ...transactionForm, category_id: e.target.value || undefined })}
-                    className={`w-full pl-4 pr-12 py-3 border rounded-xl transition-all appearance-none ${
+                    className={`w-full pl-4 pr-10 sm:pr-12 py-3 sm:py-3.5 border rounded-xl transition-all appearance-none text-base sm:text-lg min-h-[44px] ${
                       isDarkMode 
                         ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
                         : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
@@ -3537,22 +3620,22 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 </div>
               </div>
 
-              {/* Date */}
+              {/* Date - Mobile Optimized */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                   {language === 'ar' ? 'التاريخ' : 'Date'} <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className={`absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none ${
+                  <div className={`absolute inset-y-0 right-0 flex items-center pr-3 sm:pr-4 pointer-events-none ${
                     isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`}>
-                    <Calendar className="w-5 h-5" />
+                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
                   </div>
                   <input
                     type="date"
                     value={transactionForm.transaction_date}
                     onChange={(e) => setTransactionForm({ ...transactionForm, transaction_date: e.target.value })}
-                    className={`w-full pl-4 pr-12 py-3 border rounded-xl transition-all ${
+                    className={`w-full pl-4 pr-10 sm:pr-12 py-3 sm:py-3.5 border rounded-xl transition-all text-base sm:text-lg min-h-[44px] ${
                       isDarkMode 
                         ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
                         : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
@@ -3562,7 +3645,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 </div>
               </div>
 
-              {/* Description */}
+              {/* Description - Mobile Optimized */}
               <div>
                 <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">
                   {language === 'ar' ? 'الوصف' : 'Description'} ({language === 'ar' ? 'عربي' : 'Arabic'})
@@ -3570,7 +3653,7 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 <textarea
                   value={transactionForm.description_ar}
                   onChange={(e) => setTransactionForm({ ...transactionForm, description_ar: e.target.value })}
-                  className={`w-full px-4 py-3 border rounded-xl transition-all resize-none ${
+                  className={`w-full px-4 py-3 border rounded-xl transition-all resize-none text-base sm:text-lg min-h-[100px] ${
                     isDarkMode 
                       ? 'bg-gray-700/50 border-gray-600 text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20' 
                       : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
@@ -3580,8 +3663,8 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                 />
               </div>
 
-              {/* Actions */}
-              <div className={`flex items-center justify-end gap-3 pt-4 border-t ${
+              {/* Actions - Mobile Optimized */}
+              <div className={`flex items-center justify-end gap-2 sm:gap-3 pt-4 border-t sticky bottom-0 bg-inherit pb-2 sm:pb-0 ${
                 isDarkMode ? 'border-gray-700' : 'border-gray-200'
               }`}>
                 <button
@@ -3590,20 +3673,20 @@ const AccountingManagement: React.FC<AccountingManagementProps> = ({ isDarkMode 
                     setShowTransactionForm(false);
                     setEditingTransaction(null);
                   }}
-                  className={`px-5 py-2.5 rounded-xl font-medium transition-all ${
+                  className={`px-4 sm:px-5 py-2.5 sm:py-2.5 rounded-xl font-medium transition-all min-h-[44px] touch-manipulation active:scale-95 ${
                     isDarkMode
-                      ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800'
+                      ? 'text-gray-400 hover:bg-gray-700 hover:text-gray-200 active:bg-gray-600'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-800 active:bg-gray-200'
                   }`}
                 >
                   {language === 'ar' ? 'إلغاء' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
-                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl font-medium"
+                  className="flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl hover:from-blue-600 hover:to-blue-700 active:from-blue-700 active:to-blue-800 transition-all duration-200 shadow-lg hover:shadow-xl font-medium min-h-[44px] touch-manipulation active:scale-95"
                 >
                   <Save className="w-4 h-4" />
-                  {language === 'ar' ? 'حفظ المعاملة' : 'Save Transaction'}
+                  <span className="text-sm sm:text-base">{language === 'ar' ? 'حفظ المعاملة' : 'Save Transaction'}</span>
                 </button>
               </div>
             </form>
