@@ -1550,89 +1550,75 @@ function App() {
         <div className="w-16 h-0.5 mx-auto mt-6 rounded-full services-decorative-line"></div>
       </div>
 
-      <div className="grid grid-cols-4 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-3 gap-1 sm:gap-2 md:gap-6 lg:gap-8 services-grid">
+      <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6 lg:gap-8">
         {services.map((service, index) => (
-                      <div
-              key={index}
-              className={`group relative p-1 sm:p-4 md:p-6 lg:p-8 rounded-md sm:rounded-2xl shadow-md sm:shadow-2xl hover:shadow-3xl service-card-hover service-card-enhanced overflow-hidden animate-fade-in service-card-container ${
-                isDarkMode ? 'glass-card-dark' : 'bg-white/80 backdrop-blur-sm border border-slate-200 shadow-lg'
-              }`}
-              style={{
-                animationDelay: `${index * 0.1}s`
-              }}
-            >
-            {/* Glass Effect Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-white/10 dark:from-caribbean-900/10 dark:to-indigo-900/10 rounded-2xl animate-glass-pulse"></div>
-            
-            {/* Animated Border Glow */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-caribbean-400/20 via-indigo-400/20 to-caribbean-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-sm animate-border-glow"></div>
-            
-            {/* Content */}
-            <div className="relative z-10 flex flex-col h-full service-card-content">
-              <div className="service-content-area">
-                <div className="mb-1 sm:mb-4 md:mb-6 p-0.5 sm:p-3 md:p-4 glass-effect dark:glass-effect-dark rounded-md sm:rounded-2xl w-fit group-hover:scale-110 transition-transform duration-300 animate-glass-float service-icon-float service-icon-container">
-                  <div className={`service-icon text-xs sm:text-xl md:text-2xl ${
-                    service.id === 'health-insurance' ? 'service-icon-health' :
-                    service.id === 'translation' ? 'service-icon-translation' :
-                    service.id === 'travel' ? 'service-icon-travel' :
-                    service.id === 'legal' ? 'service-icon-legal' :
-                    service.id === 'government' ? 'service-icon-government' :
-                    service.id === 'insurance' ? 'service-icon-insurance' : ''
-                  }`}>
-              {service.icon}
-            </div>
+          <div
+            key={index}
+            className={`group relative rounded-2xl border shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden ${
+              isDarkMode
+                ? 'bg-slate-900/80 border-slate-700'
+                : 'bg-white border-slate-200'
+            }`}
+            style={{
+              animationDelay: `${index * 0.05}s`
+            }}
+          >
+            <div className="flex flex-col h-full p-4 sm:p-5">
+              {/* Header: Icon + Title + Short description */}
+              <div className="flex items-start gap-3 mb-3">
+                <div className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-slate-800/70 text-white flex-shrink-0">
+                  <div className="service-icon text-lg sm:text-xl">
+                    {service.icon}
+                  </div>
                 </div>
-                
-                <h3 className={`text-xs sm:text-lg md:text-xl lg:text-2xl font-bold mb-0.5 sm:mb-3 md:mb-4 transition-colors duration-300 text-glow-caribbean ${
-                  isDarkMode ? 'text-white group-hover:text-caribbean-300' : 'text-slate-800 group-hover:text-caribbean-600'
-                }`}>
-              {service.title}
-            </h3>
-                
-                <p className={`text-xs sm:text-sm md:text-base leading-tight sm:leading-relaxed drop-shadow-sm ${
-                  isDarkMode ? 'text-white/80' : 'text-slate-600'
-                }`}>
-              {service.description}
-            </p>
+                <div className="flex-1 space-y-1">
+                  <h3
+                    className={`text-sm sm:text-base font-bold ${
+                      isDarkMode ? 'text-white' : 'text-slate-800'
+                    }`}
+                  >
+                    {service.title}
+                  </h3>
+                  <p
+                    className={`text-[11px] sm:text-xs leading-snug service-description-clamp break-words ${
+                      isDarkMode ? 'text-white/75' : 'text-slate-600'
+                    }`}
+                  >
+                    {service.description}
+                  </p>
+                </div>
               </div>
-              
-              {/* Buttons Container - Fixed at Bottom */}
-              <div className="service-card-buttons service-button-group">
-            <button 
-              onClick={() => handleServiceClick(service.id)}
-                  className="w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-1 sm:py-3 px-1 sm:px-6 rounded-sm sm:rounded-lg font-medium sm:font-semibold text-xs sm:text-sm hover:from-caribbean-700 hover:to-indigo-800 hover:shadow-lg transform hover:scale-105 transition-all duration-300 flex items-center justify-center group/btn backdrop-blur-sm border border-white/20 animate-glass-shimmer glass-button"
-            >
-                  <span className="relative z-10">{t('services.discoverMore')}</span>
-                  <ArrowRight className="mr-1 sm:mr-2 w-3 h-3 sm:w-4 sm:h-4 group-hover/btn:translate-x-1 transition-transform duration-300 relative z-10" />
-                  <div className="absolute inset-0 bg-white/10 transform scale-x-0 group-hover/btn:scale-x-100 transition-transform duration-300 origin-left rounded-lg"></div>
-            </button>
-                
-            {user && (
-              <button 
-                onClick={() => openServiceRequestForm(service.id, service.title)}
-                    className="w-full bg-white/90 dark:bg-jet-800/90 backdrop-blur-sm text-jet-800 dark:text-white border-2 border-jet-300/50 dark:border-jet-600/30 py-0.5 sm:py-2 px-1 sm:px-6 rounded-sm sm:rounded-lg font-medium sm:font-semibold text-xs sm:text-sm hover:bg-white dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow-md"
-              >
-                {t('services.quickRequest')}
-              </button>
-            )}
-                
-            {!user && (
-              <button 
-                onClick={() => openServiceRequestForm(service.id, service.title)}
-                    className="w-full login-button text-jet-800 dark:text-white border-2 border-jet-300/30 dark:border-jet-600/30 py-0.5 sm:py-2 px-1 sm:px-6 rounded-sm sm:rounded-lg font-medium sm:font-semibold text-xs sm:text-sm hover:bg-jet-100/50 dark:hover:bg-caribbean-900/30 hover:border-caribbean-300/50 dark:hover:border-caribbean-500/50 transition-all duration-300 flex items-center justify-center login-pulse-glow relative overflow-hidden"
-              >
-                    <span className="relative z-10 flex items-center">
-                      <User className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 login-icon" />
-                {t('services.loginToRequest')}
-                    </span>
-                    <div className="absolute inset-0 bg-gradient-to-r from-caribbean-400/20 to-indigo-400/20 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
-              </button>
-            )}
+
+              {/* Actions */}
+              <div className="mt-2 space-y-2">
+                <button
+                  onClick={() => handleServiceClick(service.id)}
+                  className="w-full bg-gradient-to-r from-caribbean-600 to-indigo-700 text-white py-2 rounded-lg text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 hover:from-caribbean-700 hover:to-indigo-800"
+                >
+                  <span>{t('services.discoverMore')}</span>
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+
+                {user && (
+                  <button
+                    onClick={() => openServiceRequestForm(service.id, service.title)}
+                    className="w-full hidden sm:inline-flex items-center justify-center bg-white/90 dark:bg-jet-800/90 text-jet-800 dark:text-white border border-slate-300/70 dark:border-jet-600/40 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-white dark:hover:bg-caribbean-900/30"
+                  >
+                    {t('services.quickRequest')}
+                  </button>
+                )}
+
+                {!user && (
+                  <button
+                    onClick={() => openServiceRequestForm(service.id, service.title)}
+                    className="w-full hidden sm:inline-flex items-center justify-center bg-transparent text-jet-800 dark:text-white border border-slate-300/70 dark:border-jet-600/40 py-2 rounded-lg text-xs sm:text-sm font-medium hover:bg-jet-100/40 dark:hover:bg-caribbean-900/30"
+                  >
+                    <User className="w-4 h-4 ml-1" />
+                    {t('services.loginToRequest')}
+                  </button>
+                )}
               </div>
             </div>
-            
-            {/* Hover Effect Glow */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-caribbean-400/0 via-caribbean-400/10 to-indigo-400/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl"></div>
           </div>
         ))}
       </div>

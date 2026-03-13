@@ -77,10 +77,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 export const supabase = supabaseClient;
 
-// Make supabase available globally for debugging
-if (typeof window !== 'undefined') {
+// Make supabase available globally for debugging (development only)
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   (window as any).supabase = supabaseClient;
-  }
+}
 
 export interface UserProfile {
   id: string;

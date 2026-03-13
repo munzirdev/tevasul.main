@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowRight, FileText, Download, Printer, Plus, X, Users, Globe, Shield, Heart, Building, MapPin } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, Download, Printer, Plus, X, Users, Globe, Shield, Heart, Building, MapPin } from 'lucide-react';
 import { useLanguage } from '../hooks/useLanguage';
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
 import { useAuthContext } from './AuthProvider';
 import { webhookService } from '../services/webhookService';
-import { supabase } from '../lib/supabase';
 import { formatDisplayDate } from '../lib/utils';
+import { escapeHtml } from '../utils/security';
 
 
 interface RefakatEntry {
@@ -24,8 +24,8 @@ const gateTranslations: { [key: string]: string } = {
   "akçakale": "تل أبيض الحدودي"
 };
 
-const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) => {
-  const { t, language } = useLanguage();
+const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = () => {
+  const { language } = useLanguage();
   const { user } = useAuthContext();
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -59,7 +59,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
   };
 
 
-  const saveFormToDatabase = async () => {
+  /* const saveFormToDatabase = async () => {
     if (!user) {
       const message = language === 'ar' ? 'يجب تسجيل الدخول لحفظ النموذج' : 'Lütfen formu kaydetmek için giriş yapın';
       console.error('❌', message);
@@ -146,7 +146,7 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
     } finally {
       setIsSaving(false);
     }
-  };
+  }; */
 
   const handleCreateAndSaveForms = async () => {
     const { fullNameTR, fullNameAR, kimlikNo, sinirKapisi, gsm, changeDate, customDate } = formData;
@@ -278,18 +278,23 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
       `;
     }
 
-    const gsmPartTR = gsm ? `<br><br>GSM : ${gsm}` : "";
+    const safeFullNameTR = escapeHtml(fullNameTR);
+    const safeFullNameAR = escapeHtml(fullNameAR);
+    const safeKimlikNo = escapeHtml(kimlikNo);
+    const safeSinirKapisi = escapeHtml(sinirKapisi);
+
+    const gsmPartTR = gsm ? `<br><br>GSM : ${escapeHtml(gsm)}` : "";
 
     const turkishForm = `
       <div id="turkishPage" style="text-align: center; margin-top: 60px;">
         <strong>İL GÖÇ İDARESİ MÜDÜRLÜĞÜ'NE</strong><br />MERSİN
         <div style="margin-top: 40px; text-align: left;">
           <div style="text-align: right; font-family: Arial, sans-serif;" dir="ltr">${requestDateTR}</div><br />
-          Ben Suriye uyrukluyum. Adım ${fullNameTR} . ${kimlikNo} no'lu yabancı kimlik sahibiyim . ${sinirKapisi.toUpperCase()} Sınır Kapısından Geçici koruma haklarımdan feraget ederek Suriye'ye gerekli gönüllü dönüş işlemin yapılması ve geçici koruma kimlik kaydımın iptal edilmesi için gereğinin yapılmasını saygımla arz ederim.
+          Ben Suriye uyrukluyum. Adım ${safeFullNameTR} . ${safeKimlikNo} no'lu yabancı kimlik sahibiyim . ${safeSinirKapisi.toUpperCase()} Sınır Kapısından Geçici koruma haklarımdan feraget ederek Suriye'ye gerekli gönüllü dönüş işlemin yapılması ve geçici koruma kimlik kaydımın iptal edilmesi için gereğinin yapılmasını saygımla arz ederim.
           ${refakatPartTR}
           ${gsmPartTR}
           <div style="text-align: right; margin-top: 60px;">
-            <strong>AD SOYAD</strong><br />${fullNameTR}
+            <strong>AD SOYAD</strong><br />${safeFullNameTR}
           </div>
         </div>
       </div>
@@ -301,9 +306,9 @@ const VoluntaryReturnForm: React.FC<{ isDarkMode: boolean }> = ({ isDarkMode }) 
         <strong>إلى مديرية إدارة الهجرة</strong><br />مرسين
         <div style="margin-top: 40px; text-align: right;">
           التاريخ: ${requestDateAR}<br /><br />
-          أنا الموقّع أدناه ${fullNameAR}، أحمل بطاقة الحماية المؤقتة رقم ${kimlikNo}. أطلب منكم التفضل بتسليمي الأوراق اللازمة لتنفيذ إجراءات العودة الطوعية إلى سوريا عبر معبر ${arabicGate} الحدودي.<br />
+          أنا الموقّع أدناه ${safeFullNameAR}، أحمل بطاقة الحماية المؤقتة رقم ${safeKimlikNo}. أطلب منكم التفضل بتسليمي الأوراق اللازمة لتنفيذ إجراءات العودة الطوعية إلى سوريا عبر معبر ${arabicGate} الحدودي.<br />
           وتفضلوا بقبول فائق الاحترام والتقدير.<br /><br />
-          المقدّم/ة:<br />${fullNameAR}
+          المقدّم/ة:<br />${safeFullNameAR}
         </div>
       </div>
     `;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, Printer, Save, X, Plus, ArrowLeft, Eye } from 'lucide-react';
 import { voluntaryReturnService } from '../lib/voluntaryReturnService';
+import { escapeHtml } from '../utils/security';
 import { VoluntaryReturnForm, RefakatEntry } from '../lib/types';
 import { useLanguage } from '../hooks/useLanguage';
 import { formatDisplayDate } from '../lib/utils';

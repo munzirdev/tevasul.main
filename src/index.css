@@ -2737,3 +2737,17 @@
 
 
 
+
+/* Service cards description clamp for mobile */
+.service-description-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .service-description-clamp {
+    -webkit-line-clamp: 2;
+  }
+}
