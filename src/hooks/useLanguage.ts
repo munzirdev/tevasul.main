@@ -450,6 +450,10 @@ const translations = {
     // Services Section
     'services.title': 'Özel Hizmetlerimiz',
     'services.subtitle': 'İhtiyaçlarınızı karşılamak için özel olarak tasarlanmış kapsamlı hizmet yelpazesi sunuyoruz',
+
+    // Health Insurance Services
+    'services.healthInsurance.title': 'Yabancılar İçin Sağlık Sigortası',
+    'services.healthInsurance.description': 'Türkiye\'de yabancılar için en iyi fiyat ve kapsamla kapsamlı sağlık sigortası',
     
     // Translation Services
     'services.translation.title': 'Yeminli Tercüme Hizmetleri',
