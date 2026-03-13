@@ -75,3 +75,6 @@ CREATE TRIGGER trigger_notify_telegram_new_customer_message
 
 -- Comment
 COMMENT ON FUNCTION notify_telegram_on_new_customer_message() IS 'Sends telegram notification to admin when customer sends a new message in an active chat session';
+
+
+

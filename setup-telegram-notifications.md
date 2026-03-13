@@ -42,3 +42,6 @@ CREATE EXTENSION IF NOT EXISTS http;
 1. تحقق من Logs في Supabase
 2. تأكد من وجود `http` extension
 3. تحقق من Bot Token في `telegram_config`
+
+
+

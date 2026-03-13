@@ -58,3 +58,6 @@ Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/setWebhook?url=htt
 1. شغّل أوامر PowerShell المذكورة أعلاه
 2. تحقق من Settings في Supabase Dashboard
 3. أرسل السجلات من Supabase Logs
+
+
+

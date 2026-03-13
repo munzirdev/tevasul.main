@@ -699,7 +699,7 @@ const UserAccount: React.FC<UserAccountProps> = ({
     const serviceTypes: { [key: string]: string } = {
       'health-insurance': 'التأمين الصحي للأجانب',
       'translation': 'خدمات الترجمة المحلفة',
-      'travel': 'خدمات السفر والسياحة',
+      'travel': 'خدمات السفر',
       'legal': 'الاستشارات القانونية',
       'government': 'الخدمات الحكومية',
       'insurance': 'خدمات التأمين الصحي وتأمين المركبات'

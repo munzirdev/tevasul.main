@@ -22,16 +22,6 @@ export const servicesData = [
     processKey: 'services.translation.process'
   },
   {
-    id: 'travel',
-    icon: Globe,
-    titleKey: 'services.travel.title',
-    descriptionKey: 'services.travel.description',
-    fullDescriptionKey: 'services.travel.fullDescription',
-    featuresKey: 'services.travel.features',
-    benefitsKey: 'services.travel.benefits',
-    processKey: 'services.travel.process'
-  },
-  {
     id: 'legal',
     icon: Star,
     titleKey: 'services.legal.title',

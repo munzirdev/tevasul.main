@@ -103,7 +103,7 @@ const translations = {
     ],
     
     // Travel Services
-    'services.travel.title': 'خدمات السفر والسياحة',
+    'services.travel.title': 'خدمات السفر',
     'services.travel.titleShort': 'السفر والسياحة',
     'services.travel.description': 'تنظيم الرحلات السياحية وحجز الفنادق وخدمات النقل والمواصلات',
     'services.travel.descriptionShort': 'رحلات سياحية',
@@ -367,7 +367,7 @@ const translations = {
     'contact.form.serviceType': 'نوع الخدمة',
     'contact.form.selectService': 'اختر نوع الخدمة',
     'contact.form.translation': 'خدمات الترجمة المحلفة',
-    'contact.form.travel': 'خدمات السفر والسياحة',
+    'contact.form.travel': 'خدمات السفر',
     'contact.form.legal': 'الاستشارات القانونية',
     'contact.form.government': 'الخدمات الحكومية',
     'contact.form.insurance': 'خدمات التأمين الصحي وتأمين المركبات',

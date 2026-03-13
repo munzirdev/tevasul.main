@@ -1529,7 +1529,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, isDarkMode, onT
   const getServiceTypeArabic = (serviceType: string) => {
     const serviceTypes: { [key: string]: string } = {
       'translation': 'خدمات الترجمة المحلفة',
-      'travel': 'خدمات السفر والسياحة',
+      'travel': 'خدمات السفر',
       'legal': 'الاستشارات القانونية',
       'government': 'الخدمات الحكومية',
       'insurance': 'خدمات التأمين'

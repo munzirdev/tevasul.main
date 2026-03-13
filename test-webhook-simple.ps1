@@ -14,3 +14,6 @@ Write-Host "Setting webhook..."
 $setResult = Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/setWebhook?url=https://fctvityawavmuethxxix.supabase.co/functions/v1/telegram-bot-updates"
 Write-Host "Result: $($setResult.description)"
 Write-Host "OK: $($setResult.ok)"
+
+
+

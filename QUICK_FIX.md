@@ -58,3 +58,6 @@ $botToken = '1234567890:ABCdefGHIjklMNOpqrsTUVwxyz'
 إذا كان الـ Token غير موجود أو غير صحيح، أرسل لي:
 1. ما يظهر في جدول `telegram_config`
 2. أو قُل إذا كنت تحتاج لإنشاء بوت جديد
+
+
+

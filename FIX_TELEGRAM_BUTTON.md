@@ -60,3 +60,6 @@ Write-Host "Pending updates: $($webhookInfo.pending_update_count)"
 1. السجلات من Supabase Logs
 2. نتيجة `getWebhookInfo`
 3. لقطات شاشة من Edge Function Settings
+
+
+

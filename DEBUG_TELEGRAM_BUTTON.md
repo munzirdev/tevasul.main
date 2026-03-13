@@ -89,3 +89,6 @@ Invoke-RestMethod -Uri "https://api.telegram.org/bot$botToken/setWebhook?url=htt
 1. **أرسل السجلات من Supabase Logs**
 2. **أرسل نتيجة getWebhookInfo**
 3. **أرسل أي أخطاء تظهر**
+
+
+

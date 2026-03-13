@@ -38,3 +38,6 @@ CREATE TRIGGER update_telegram_chat_sessions_updated_at
     BEFORE UPDATE ON telegram_chat_sessions
     FOR EACH ROW
     EXECUTE FUNCTION update_telegram_chat_sessions_updated_at();
+
+
+
